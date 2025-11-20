@@ -1,61 +1,42 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft } from 'react-icons/fi';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Card';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 
-const LoginScreen = ({ 
-  universityName = "Gautam Buddha University",
-  systemName = "NoDues Management System",
-  portalDescription = "Sign in to access your dashboard"
-}) => {
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+const StudentLogin = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  const handleBackToMain = () => navigate('/', { replace: true });
-
+  const [credentials, setCredentials] = useState({ identifier: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setCredentials(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
     setError('');
-    
     try {
-      // Use the login function from AuthContext
-      await login(credentials);
-
-      // Redirect to main dashboard (backend decides role)
-      navigate('/dashboard');
+      // call common login; backend should determine role by identifier (roll/email)
+      await login({ username: credentials.identifier, password: credentials.password });
+      // After student login, go to student dashboard
+      navigate('/student/dashboard');
     } catch (err) {
-      const msg = err?.message || (typeof err === 'string' ? err : 'Invalid credentials. Please try again.');
-      setError(msg);
-      console.error('Login error:', err);
+      setError(err?.message || 'Login failed');
+      console.error(err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
-  
-
+  const handleBackToMain = () => navigate('/', { replace: true });
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -66,8 +47,8 @@ const LoginScreen = ({
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">{universityName}</h1>
-          <p className="text-indigo-700 text-lg">{systemName}</p>
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Gautam Buddha University</h1>
+          <p className="text-indigo-700 text-lg">NoDues Management System</p>
           <div className="mt-2">
             <Badge type="primary" className="inline-flex items-center">
               <FiShield className="mr-1" /> Secure Portal
@@ -90,50 +71,42 @@ const LoginScreen = ({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="p-8 pb-15 shadow-xl">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">System Login</h2>
-            <p className="text-gray-600 mb-6 text-center">{portalDescription}</p>
-            
+          <Card className="p-8 shadow-xl">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Student Login</h2>
+            <p className="text-gray-600 mb-6 text-center">Use your roll number or email to login.</p>
+
             {error && (
               <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
                 {error}
               </div>
             )}
-            
             <form onSubmit={handleSubmit}>
-              {/* Role selection removed */}
-              
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="mb-5"
               >
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
-                </label>
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Roll number or Email</label>
                 <Input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={credentials.username}
+                  id="identifier"
+                  name="identifier"
+                  value={credentials.identifier}
                   onChange={handleChange}
-                  placeholder="Enter your username"
+                  placeholder="Enter your roll number or email"
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiUser className="text-gray-400" />}
                 />
               </motion.div>
-              
+
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.3 }}
                 className="mb-6"
               >
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                 <Input
                   type="password"
                   id="password"
@@ -146,7 +119,7 @@ const LoginScreen = ({
                   icon={<FiLock className="text-gray-400" />}
                 />
               </motion.div>
-              
+
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -156,10 +129,10 @@ const LoginScreen = ({
                   type="submit"
                   variant="primary"
                   className="w-full py-3 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center border border-transparent rounded-md"
-                  disabled={isLoading}
+                  disabled={loading}
                 >
                   <AnimatePresence mode="wait">
-                    {isLoading ? (
+                    {loading ? (
                       <motion.span
                         key="loading"
                         initial={{ opacity: 0 }}
@@ -174,7 +147,7 @@ const LoginScreen = ({
                         >
                           <FiLogIn />
                         </motion.span>
-                        Signing In...
+                        Logging In...
                       </motion.span>
                     ) : (
                       <motion.span
@@ -185,13 +158,25 @@ const LoginScreen = ({
                         className="flex items-center justify-center"
                       >
                         <FiLogIn className="mr-2" />
-                        Sign In
+                        Login
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </Button>
               </motion.div>
             </form>
+
+            {/* Not registered link */}
+            <div className="mt-6 text-center text-sm">
+              <span className="text-gray-600 mr-1">Not registered yet?</span>
+              <button
+                type="button"
+                onClick={() => navigate('/student/register')}
+                className="text-indigo-600 hover:underline font-medium"
+              >
+                Register here
+              </button>
+            </div>
           </Card>
         </motion.div>
 
@@ -202,12 +187,13 @@ const LoginScreen = ({
           transition={{ duration: 0.5, delay: 0.5 }}
           className="text-center mt-6 text-xs text-gray-600"
         >
-          <p>© 2025 {universityName}. All rights reserved.</p>
+          <p>© 2025 Gautam Buddha University. All rights reserved.</p>
           <p>Secure authentication system</p>
         </motion.div>
       </div>
     </div>
   );
+  
 };
 
-export default LoginScreen;
+export default StudentLogin;

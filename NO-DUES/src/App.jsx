@@ -2,7 +2,12 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext'; // ✅ Import ApplicationsProvider
-import LoginScreen from './pages/Login/LoginScreen';
+import LoginScreen from './pages/login/loginscreen';
+import MainPage from './pages/MainPage';
+import StudentEntry from './pages/Student/StudentEntry';
+import StudentLogin from './pages/Student/Login';
+import StudentRegister from './pages/Student/Register';
+import StudentDashboard from './pages/Student/StudentDashboard';
 
 // Dashboards
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -20,14 +25,13 @@ import PendingPage from './pages/Shared/PendingPage';
 import HistoryPage from './pages/Shared/HistoryPage';
 
 import './App.css';
+import HomeButton from './components/common/HomeButton';
 
-// ✅ Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }) => {
+// ✅ Protected Route Component (role checks removed)
+const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
 
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role))
-    return <Navigate to="/login" replace />;
 
   return children;
 };
@@ -65,10 +69,20 @@ function App() {
           <Route path="/crc/*" element={<RoleRoutes role="crc" Dashboard={CRCDashboard} />} />
           <Route path="/laboratories/*" element={<RoleRoutes role="laboratories" Dashboard={LaboratoriesDashboard} />} />
 
-          {/* Default redirects */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Generic routes (role-agnostic) */}
+          <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+
+          {/* Root and fallback */}
+          <Route path="/" element={<MainPage />} />
+          <Route path="/student" element={<StudentEntry />} />
+          <Route path="/student/login" element={<StudentLogin />} />
+          <Route path="/student/register" element={<StudentRegister />} />
+          <Route path="/student/dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <HomeButton />
       </ApplicationProvider>
     </AuthProvider>
   );

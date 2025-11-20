@@ -17,14 +17,11 @@ const Sidebar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  // ✅ Detect user role
-  const role = user?.role || 'guest';
-
-  // ✅ Menu items with dynamic paths
+  // Role removed: use fixed paths
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/${role}/dashboard` },
-    { id: 'pending', label: 'Pending', icon: <FaClock className="text-lg" />, path: `/${role}/pending` },
-    { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/${role}/history` },
+    { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/dashboard` },
+    { id: 'pending', label: 'Pending', icon: <FaClock className="text-lg" />, path: `/pending` },
+    { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/history` },
   ];
 
   // ✅ Determine active item based on current route

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApplications } from "../../contexts/ApplicationContext";
-import { handleAction } from "../../utils/applicationWorkflow";
 
 import Sidebar from "../../components/common/Sidebar"; // ✅ Import Sidebar
 import Header from "../../components/common/Header";   // ✅ Import Header
@@ -27,9 +26,7 @@ const PendingPage = () => {
     );
   }
 
-  const pendingApplications = applications.filter(
-    (app) => app.currentRole === user.role && app.status === "pending"
-  );
+  const pendingApplications = applications.filter((app) => app.status === "pending");
 
   return (
     <div className="flex">
@@ -38,9 +35,7 @@ const PendingPage = () => {
       <div className="flex-1">
         <Header />
 
-        <h1 className="text-2xl font-bold  p-6">
-          Pending Applications ({user.role})
-        </h1>
+        <h1 className="text-2xl font-bold  p-6">Pending Applications</h1>
 
         {pendingApplications.length === 0 ? (
           <p className="mb-6 ml-6">No pending applications</p>
@@ -75,7 +70,7 @@ const PendingPage = () => {
                   <ul className="text-xs text-gray-600">
                     {app.logs.map((log, index) => (
                       <li key={index}>
-                        {new Date(log.date).toLocaleString()} - {log.role}: {log.action}
+                        {new Date(log.date).toLocaleString()} - {log.action}
                       </li>
                     ))}
                   </ul>
@@ -93,8 +88,7 @@ const PendingPage = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    const nextRole = getNextRole(user.role);
-                    updateApplicationStatus(app.id, "approve", nextRole);
+                    updateApplicationStatus(app.id, "approve");
                   }}
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >
@@ -103,7 +97,7 @@ const PendingPage = () => {
 
                 <button
                   onClick={() => {
-                    updateApplicationStatus(app.id, "reject", user.role);
+                    updateApplicationStatus(app.id, "reject");
                   }}
                   className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
                 >
@@ -118,11 +112,6 @@ const PendingPage = () => {
   );
 };
 
-// Helper function to determine next role in workflow
-const getNextRole = (currentRole) => {
-  const workflow = ["office", "exam", "accounts", "library", "hostels", "sports", "laboratories", "crc"];
-  const currentIndex = workflow.indexOf(currentRole);
-  return currentIndex < workflow.length - 1 ? workflow[currentIndex + 1] : "completed";
-};
+// Role/workflow removed
 
 export default PendingPage;

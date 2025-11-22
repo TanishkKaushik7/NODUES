@@ -24,10 +24,9 @@ const HistoryPage = () => {
     );
   }
 
-  const filteredApplications =
-    user.role === "student"
-      ? applications.filter((app) => app.studentEmail === user.email)
-      : applications;
+  const filteredApplications = user?.email
+    ? applications.filter((app) => app.studentEmail === user.email)
+    : applications;
 
   return (
     <div className="flex">
@@ -74,7 +73,6 @@ const HistoryPage = () => {
                         <div className="absolute left-0">{icon}</div>
                         <div className="ml-6">
                           <p className="font-medium">
-                            {step.role} -{" "}
                             <span
                               className={
                                 step.action === "approve"

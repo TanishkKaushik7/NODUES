@@ -12,15 +12,14 @@ export const ApplicationProvider = ({ children }) => {
     setApplications(prev => [...prev, appData]);
   };
 
-  // Approve or reject application
-  const updateApplicationStatus = (id, action, nextRole) => {
+  // Approve or reject application (role flow removed)
+  const updateApplicationStatus = (id, action) => {
     setApplications(prev => 
       prev.map(app => app.id === id 
         ? {
             ...app,
             status: action === "approve" ? "pending" : "rejected",
-            currentRole: action === "approve" ? nextRole : app.currentRole,
-            logs: [...app.logs, { role: app.currentRole, action, date: new Date().toISOString() }]
+            logs: [...(app.logs || []), { action, date: new Date().toISOString() }]
           }
         : app
       )

@@ -1,0 +1,157 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiShield, FiLogIn, FiArrowLeft } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { Card } from '../../components/ui/Card';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+
+const StudentRegister = () => {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ name: '', identifier: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    // Frontend-only placeholder: pretend registration succeeded
+    setTimeout(() => {
+      setLoading(false);
+      setMessage('Registration successful. Please login.');
+      setTimeout(() => navigate('/student/login'), 900);
+    }, 800);
+  };
+  const handleBackToMain = () => navigate('/', { replace: true });
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Header with animation */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-8"
+        >
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Gautam Buddha University</h1>
+          <p className="text-indigo-700 text-lg">NoDues Management System</p>
+          <div className="mt-2">
+            <Badge type="primary" className="inline-flex items-center">
+              <FiShield className="mr-1" /> Secure Portal
+            </Badge>
+          </div>
+        </motion.div>
+
+        {/* Back button to main */}
+        <button
+          onClick={handleBackToMain}
+          className="absolute top-6 left-6 p-2 bg-white rounded-md shadow hover:bg-gray-50"
+          aria-label="Back to main"
+        >
+          <FiArrowLeft className="text-gray-700" />
+        </button>
+
+        {/* Registration card with animation */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="p-8 shadow-xl">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Student Registration</h2>
+            <p className="text-gray-600 mb-6 text-center">Register with your details. Backend registration is not implemented here.</p>
+
+            {message && (
+              <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md text-sm">
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="mb-3"
+              >
+                <label className="block text-sm mb-1">Full Name</label>
+                <Input name="name" value={form.name} onChange={handleChange} required />
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
+                className="mb-3"
+              >
+                <label className="block text-sm mb-1">Roll number or Email</label>
+                <Input name="identifier" value={form.identifier} onChange={handleChange} required />
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                className="mb-4"
+              >
+                <label className="block text-sm mb-1">Password</label>
+                <Input name="password" type="password" value={form.password} onChange={handleChange} required />
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                <div className="flex gap-3">
+                  <Button type="submit" variant="primary" disabled={loading} className="flex-1 py-3 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center border border-transparent rounded-md">
+                    <AnimatePresence mode="wait">
+                      {loading ? (
+                        <motion.span key="reg-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center">
+                          <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="mr-2"><FiLogIn /></motion.span>
+                          Registering...
+                        </motion.span>
+                      ) : (
+                        <motion.span key="reg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center">
+                          <FiLogIn className="mr-2" />
+                          Register
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Button>
+
+                  <Button type="button" variant="ghost" className="flex-1 py-3 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center rounded-md" onClick={() => navigate('/student/login')}>
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="flex items-center justify-center">
+                      <FiLogIn className="mr-2" />
+                      Back to Login
+                    </motion.span>
+                  </Button>
+                </div>
+              </motion.div>
+            </form>
+          </Card>
+        </motion.div>
+
+        {/* Footer with animation */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="text-center mt-6 text-xs text-gray-600"
+        >
+          <p>© 2025 Gautam Buddha University. All rights reserved.</p>
+          <p>Secure authentication system</p>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default StudentRegister;

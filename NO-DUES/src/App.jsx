@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { StudentAuthProvider } from './contexts/StudentAuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext'; // ✅ Import ApplicationsProvider
 import LoginScreen from './pages/login/loginscreen';
 import MainPage from './pages/MainPage';
@@ -76,10 +77,10 @@ function App() {
 
           {/* Root and fallback */}
           <Route path="/" element={<MainPage />} />
-          <Route path="/student" element={<StudentEntry />} />
-          <Route path="/student/login" element={<StudentLogin />} />
-          <Route path="/student/register" element={<StudentRegister />} />
-          <Route path="/student/dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/student" element={<StudentAuthProvider><StudentEntry /></StudentAuthProvider>} />
+          <Route path="/student/login" element={<StudentAuthProvider><StudentLogin /></StudentAuthProvider>} />
+          <Route path="/student/register" element={<StudentAuthProvider><StudentRegister /></StudentAuthProvider>} />
+          <Route path="/student/dashboard" element={<StudentAuthProvider><ProtectedRoute><StudentDashboard /></ProtectedRoute></StudentAuthProvider>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <HomeButton />

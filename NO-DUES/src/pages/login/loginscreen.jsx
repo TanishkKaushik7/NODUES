@@ -110,7 +110,7 @@ const LoginScreen = ({
                 className="mb-5"
               >
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
+                  Email
                 </label>
                 <Input
                   type="text"
@@ -118,7 +118,7 @@ const LoginScreen = ({
                   name="username"
                   value={credentials.username}
                   onChange={handleChange}
-                  placeholder="Enter your username"
+                  placeholder="Enter your Email.........."
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiUser className="text-gray-400" />}
@@ -140,7 +140,7 @@ const LoginScreen = ({
                   name="password"
                   value={credentials.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder="Enter your password......."
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiLock className="text-gray-400" />}

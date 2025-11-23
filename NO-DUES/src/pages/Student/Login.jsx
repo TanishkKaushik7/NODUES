@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 
 const StudentLogin = () => {
-  const { login } = useAuth();
+  const { login } = useStudentAuth();
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({ identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -25,8 +25,10 @@ const StudentLogin = () => {
     setLoading(true);
     setError('');
     try {
-      // call common login; backend should determine role by identifier (roll/email)
-      await login({ username: credentials.identifier, password: credentials.password });
+      // call common login; backend should determine role by identifier (enrollment/roll/email)
+      const payload = { identifier: credentials.identifier, password: credentials.password };
+      console.debug('Student login payload:', { identifier: payload.identifier });
+      await login(payload);
       // After student login, go to student dashboard
       navigate('/student/dashboard');
     } catch (err) {
@@ -73,7 +75,7 @@ const StudentLogin = () => {
         >
           <Card className="p-8 shadow-xl">
             <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Student Login</h2>
-            <p className="text-gray-600 mb-6 text-center">Use your roll number or email to login.</p>
+            <p className="text-gray-600 mb-6 text-center">Use your Email to login.</p>
 
             {error && (
               <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
@@ -87,13 +89,13 @@ const StudentLogin = () => {
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="mb-5"
               >
-                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Roll number or Email</label>
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Enrollment or Email</label>
                 <Input
                   id="identifier"
                   name="identifier"
                   value={credentials.identifier}
                   onChange={handleChange}
-                  placeholder="Enter your roll number or email"
+                  placeholder="Enter your Enrollment or Email......"
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiUser className="text-gray-400" />}
@@ -113,7 +115,7 @@ const StudentLogin = () => {
                   name="password"
                   value={credentials.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder="Enter your Password........"
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiLock className="text-gray-400" />}

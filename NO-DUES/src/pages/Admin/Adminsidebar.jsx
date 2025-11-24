@@ -11,7 +11,7 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 
-const Sidebar = () => {
+const AdminSidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,9 +19,10 @@ const Sidebar = () => {
 
   // Role removed: use fixed paths
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/dashboard` },
-    { id: 'pending', label: 'Applications', icon: <FaClock className="text-lg" />, path: `/pending` },
-    { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/history` },
+    { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/admin/dashboard` },
+    { id: 'pending', label: 'Pending', icon: <FaClock className="text-lg" />, path: `/admin/pending` },
+    { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/admin/history` },
+    { id: 'create user', label: 'Create user', icon: <FaHistory className="text-lg" />, path: `/admin/create-user` },
   ];
 
   // ✅ Determine active item based on current route
@@ -111,4 +112,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default AdminSidebar;

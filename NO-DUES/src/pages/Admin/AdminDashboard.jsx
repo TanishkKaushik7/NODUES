@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/common/Header';
-import Sidebar from '../../components/common/Sidebar';
+import AdminSidebar from './adminsidebar';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { 
@@ -638,7 +638,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar 
+      <AdminSidebar 
         menuItems={officeMenuItems} 
         user={user} 
         logout={logout} 

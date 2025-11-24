@@ -12,6 +12,7 @@ import StudentDashboard from './pages/Student/StudentDashboard';
 
 // Dashboards
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import CreateUser from './pages/Admin/CreateUser';
 import SportsDashboard from './pages/Sports/SportsDashboard';
 import OfficeDashboard from './pages/Office/OfficeDashboard';
 import ExamDashboard from './pages/Exam/ExamDashboard';
@@ -20,14 +21,8 @@ import LibraryDashboard from './pages/Library/LibraryDashboard';
 import HostelsDashboard from './pages/Hostels/HostelsDashboard';
 import LaboratoriesDashboard from './pages/Laboratories/LaboratoriesDashboard';
 import CRCDashboard from './pages/CRC/CRCDashboard';
-
-// Shared Pages
-import PendingPage from './pages/Shared/PendingPage';
-import HistoryPage from './pages/Shared/HistoryPage';
-
-// Role-specific placeholders
-import RolePending from './pages/System/RolePending';
-import RoleHistory from './pages/System/RoleHistory';
+import AdminPending from './pages/Admin/PendingPage';
+import AdminHistory from './pages/Admin/HistoryPage';
 
 import './App.css';
 import HomeButton from './components/common/HomeButton';
@@ -49,12 +44,14 @@ const StudentProtectedRoute = ({ children }) => {
 };
 
 // ✅ Role Routes (Keeps all pages for a role together)
-const RoleRoutes = ({ role, Dashboard }) => (
-  <ProtectedRoute allowedRoles={[role]}>
+// Accepts optional PendingComponent and HistoryComponent to avoid referencing undefined placeholders
+const RoleRoutes = ({ role, Dashboard, PendingComponent, HistoryComponent, CreateComponent }) => (
+  <ProtectedRoute>
     <Routes>
       <Route path="dashboard" element={<Dashboard />} />
-      <Route path="pending" element={<RolePending role={role} />} />
-      <Route path="history" element={<RoleHistory role={role} />} />
+      <Route path="pending" element={PendingComponent ? <PendingComponent /> : <Navigate to="dashboard" replace />} />
+      <Route path="history" element={HistoryComponent ? <HistoryComponent /> : <Navigate to="dashboard" replace />} />
+      <Route path="create-user" element={CreateComponent ? <CreateComponent /> : <Navigate to="dashboard" replace />} />
       {/* Unknown subroutes go back to dashboard */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
@@ -71,7 +68,7 @@ function App() {
           <Route path="/login" element={<LoginScreen />} />
 
           {/* Role Routes */}
-          <Route path="/admin/*" element={<RoleRoutes role="admin" Dashboard={AdminDashboard} />} />
+          <Route path="/admin/*" element={<RoleRoutes role="admin" Dashboard={AdminDashboard} PendingComponent={AdminPending} HistoryComponent={AdminHistory} CreateComponent={CreateUser} />} />
           <Route path="/sports/*" element={<RoleRoutes role="sports" Dashboard={SportsDashboard} />} />
           <Route path="/office/*" element={<RoleRoutes role="office" Dashboard={OfficeDashboard} />} />
           <Route path="/exam/*" element={<RoleRoutes role="exam" Dashboard={ExamDashboard} />} />
@@ -83,9 +80,6 @@ function App() {
 
           {/* Generic routes (role-agnostic) */}
           <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
-          <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-
           {/* Root and fallback */}
           <Route path="/" element={<MainPage />} />
           <Route path="/student" element={<StudentAuthProvider><StudentEntry /></StudentAuthProvider>} />

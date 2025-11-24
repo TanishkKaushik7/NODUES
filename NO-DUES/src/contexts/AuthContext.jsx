@@ -120,16 +120,14 @@ export const AuthProvider = ({ children }) => {
   const authFetch = (url, options = {}) => {
     const API_BASE = import.meta.env.VITE_API_BASE || '';
     const fullUrl = url.startsWith('http') || url.startsWith('/') ? (API_BASE && url.startsWith('/') ? `${API_BASE}${url}` : url) : (API_BASE ? `${API_BASE}/${url}` : url);
-    const headers = { ...(options.headers || {}), 'Content-Type': headersContentType(options.headers) };
+    const headers = { ...(options.headers || {}) };
+    if (!headers['Content-Type'] && !headers['content-type']) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (token) headers['Authorization'] = `Bearer ${token}`;
     return fetch(fullUrl, { ...options, headers });
   };
 
-  function headersContentType(existing) {
-    if (!existing) return 'application/json';
-    if (existing['Content-Type'] || existing['content-type']) return undefined;
-    return 'application/json';
-  }
 
   const value = {
     user,

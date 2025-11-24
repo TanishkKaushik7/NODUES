@@ -24,16 +24,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (credentials) => {
-    const { username, password, role } = credentials || {};
+    const { email, password } = credentials || {};
 
     const API_BASE = import.meta.env.VITE_API_BASE || '';
-    const loginUrl = API_BASE ? `${API_BASE}/api/auth/login` : `/api/auth/login`;
+    const loginUrl = API_BASE ? `${API_BASE}/api/admin/login` : `/api/admin/login`;
 
     try {
       const res = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role })
+        body: JSON.stringify({ email, password })
       });
 
       if (!res.ok) {
@@ -46,8 +46,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await res.json();
-      const userData = data.user || { id: data.id || Math.floor(Math.random() * 1000), username: username, name: data.name || username, role: data.role || role };
-      const receivedToken = data.token || null;
+      const userData = data.user || { id: data.id || Math.floor(Math.random() * 1000), email: email, name: data.name || email, role: data.role || 'Admin' };
+      const receivedToken = data.token || data.access_token || null;
 
       setUser(userData);
       if (receivedToken) setToken(receivedToken);
@@ -61,9 +61,9 @@ export const AuthProvider = ({ children }) => {
       console.warn('Backend login failed, falling back to mock login:', err?.message || err);
       const userData = {
         id: Math.floor(Math.random() * 1000),
-        username: username || 'demo',
-        name: username || 'User',
-        role: role || 'Admin'
+        email: email || 'demo@example.com',
+        name: email || 'User',
+        role: 'Admin'
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -71,42 +71,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (payload) => {
-    const API_BASE = import.meta.env.VITE_API_BASE || '';
-    // Use the auth register endpoint on the backend
-    const registerUrl = API_BASE ? `${API_BASE}/api/auth/register` : `/api/auth/register`;
-    console.debug('Auth.register ->', registerUrl, payload);
-    try {
-      const res = await fetch(registerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        let errMsg = 'Registration failed';
-        try { const errJson = await res.json(); errMsg = errJson.message || errJson.detail || errMsg; } catch (e) {}
-        throw new Error(errMsg || res.statusText);
-      }
-
-      const data = await res.json();
-      const userData = data.user || data;
-      const receivedToken = data.token || null;
-
-      setUser(userData);
-      if (receivedToken) setToken(receivedToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      if (receivedToken) localStorage.setItem('token', receivedToken);
-
-      return userData;
-    } catch (err) {
-      // Network or CORS error: show a more helpful message
-      if (err instanceof TypeError && err.message && err.message.includes('fetch')) {
-        throw new Error('Network error: Could not reach backend. Check your internet connection, backend status, and CORS settings.');
-      }
-      console.warn('Registration failed:', err?.message || err);
-      throw err;
-    }
+  // No admin register endpoint; do not implement register for admin
+  const register = async () => {
+    throw new Error('Admin registration is not supported.');
   };
 
   const logout = () => {

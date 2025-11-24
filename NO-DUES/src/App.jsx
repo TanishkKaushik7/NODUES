@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { StudentAuthProvider } from './contexts/StudentAuthContext';
+import { StudentAuthProvider, useStudentAuth } from './contexts/StudentAuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext'; // ✅ Import ApplicationsProvider
 import LoginScreen from './pages/login/loginscreen';
 import MainPage from './pages/MainPage';
@@ -25,6 +25,10 @@ import CRCDashboard from './pages/CRC/CRCDashboard';
 import PendingPage from './pages/Shared/PendingPage';
 import HistoryPage from './pages/Shared/HistoryPage';
 
+// Role-specific placeholders
+import RolePending from './pages/System/RolePending';
+import RoleHistory from './pages/System/RoleHistory';
+
 import './App.css';
 import HomeButton from './components/common/HomeButton';
 
@@ -37,13 +41,20 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Student protected route (uses StudentAuthContext)
+const StudentProtectedRoute = ({ children }) => {
+  const { student } = useStudentAuth();
+  if (!student) return <Navigate to="/student/login" replace />;
+  return children;
+};
+
 // ✅ Role Routes (Keeps all pages for a role together)
 const RoleRoutes = ({ role, Dashboard }) => (
   <ProtectedRoute allowedRoles={[role]}>
     <Routes>
       <Route path="dashboard" element={<Dashboard />} />
-      <Route path="pending" element={<PendingPage />} />
-      <Route path="history" element={<HistoryPage />} />
+      <Route path="pending" element={<RolePending role={role} />} />
+      <Route path="history" element={<RoleHistory role={role} />} />
       {/* Unknown subroutes go back to dashboard */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
@@ -80,7 +91,7 @@ function App() {
           <Route path="/student" element={<StudentAuthProvider><StudentEntry /></StudentAuthProvider>} />
           <Route path="/student/login" element={<StudentAuthProvider><StudentLogin /></StudentAuthProvider>} />
           <Route path="/student/register" element={<StudentAuthProvider><StudentRegister /></StudentAuthProvider>} />
-          <Route path="/student/dashboard" element={<StudentAuthProvider><ProtectedRoute><StudentDashboard /></ProtectedRoute></StudentAuthProvider>} />
+          <Route path="/student/dashboard" element={<StudentAuthProvider><StudentProtectedRoute><StudentDashboard /></StudentProtectedRoute></StudentAuthProvider>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <HomeButton />

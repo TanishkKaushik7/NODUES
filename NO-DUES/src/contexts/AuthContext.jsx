@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (credentials) => {
-    const { username, password } = credentials || {};
+    const { username, password, role } = credentials || {};
 
     const API_BASE = import.meta.env.VITE_API_BASE || '';
     const loginUrl = API_BASE ? `${API_BASE}/api/auth/login` : `/api/auth/login`;
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, role })
       });
 
       if (!res.ok) {
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await res.json();
-      const userData = data.user || { id: data.id || Math.floor(Math.random() * 1000), username: username, name: data.name || username };
+      const userData = data.user || { id: data.id || Math.floor(Math.random() * 1000), username: username, name: data.name || username, role: data.role || role };
       const receivedToken = data.token || null;
 
       setUser(userData);
@@ -62,7 +62,8 @@ export const AuthProvider = ({ children }) => {
       const userData = {
         id: Math.floor(Math.random() * 1000),
         username: username || 'demo',
-        name: username || 'User'
+        name: username || 'User',
+        role: role || 'Admin'
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));

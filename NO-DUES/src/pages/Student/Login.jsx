@@ -89,13 +89,13 @@ const StudentLogin = () => {
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="mb-5"
               >
-                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Enrollment or Email</label>
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Enrollment or Roll Number</label>
                 <Input
                   id="identifier"
                   name="identifier"
                   value={credentials.identifier}
                   onChange={handleChange}
-                  placeholder="Enter your Enrollment or Email......"
+                  placeholder="Enter your Enrollment or Roll Number......"
                   required
                   className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
                   icon={<FiUser className="text-gray-400" />}

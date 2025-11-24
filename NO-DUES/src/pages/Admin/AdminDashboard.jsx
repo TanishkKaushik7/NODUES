@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/common/Header';
 import Sidebar from '../../components/common/Sidebar';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
 import { 
   FiSearch, FiUser, FiMail, FiBook, FiDollarSign, FiCheckCircle, 
   FiXCircle, FiUpload, FiDownload, FiCheck, FiX, FiMessageSquare, 
@@ -9,7 +11,7 @@ import {
 } from 'react-icons/fi';
 
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, authFetch } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [rollNo, setRollNo] = useState('');
   const [studentData, setStudentData] = useState(null);
@@ -119,6 +121,55 @@ const AdminDashboard = () => {
         ? { ...item, status, showComment: status === 'disapprove' ? true : item.showComment }
         : item
     ));
+  };
+
+  // Create user form state
+  const [createRole, setCreateRole] = useState('Admin');
+  const [createName, setCreateName] = useState('');
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createMessage, setCreateMessage] = useState('');
+  const [createErrors, setCreateErrors] = useState({});
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setCreateMessage('');
+    const errs = {};
+    if (!createName) errs.name = 'Name is required';
+    if (!createEmail) errs.email = 'Email is required';
+    if (!createPassword) errs.password = 'Password is required';
+    setCreateErrors(errs);
+    if (Object.keys(errs).length) return;
+
+    setCreateSubmitting(true);
+    try {
+      // Use authFetch so admin token is included
+      const res = await authFetch('/api/users', {
+        method: 'POST',
+        body: JSON.stringify({ name: createName, email: createEmail, password: createPassword, role: createRole })
+      });
+      let body = null;
+      try { body = await res.json(); } catch (e) { body = null; }
+      if (!res.ok) {
+        if (body && body.errors) {
+          const mapped = {};
+          for (const k of Object.keys(body.errors)) mapped[k] = Array.isArray(body.errors[k]) ? body.errors[k][0] : String(body.errors[k]);
+          setCreateErrors(mapped);
+          setCreateMessage('Please fix the highlighted fields');
+        } else {
+          setCreateMessage(body && body.message ? body.message : `Create failed: ${res.status}`);
+        }
+      } else {
+        setCreateMessage('User created successfully');
+        setCreateName(''); setCreateEmail(''); setCreatePassword(''); setCreateRole('Library');
+      }
+    } catch (err) {
+      console.error('Create user failed', err);
+      setCreateMessage(err?.message || 'Create user failed');
+    } finally {
+      setCreateSubmitting(false);
+    }
   };
 
   const toggleComment = (id) => {
@@ -597,15 +648,63 @@ const AdminDashboard = () => {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} />
-        
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-          <div className="mb-6">
-          </div>
 
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'pending' && renderPendingApplications()}
-          {activeTab === 'history' && renderApplicationHistory()}
-        </main>
+        <div className="flex-1 flex overflow-hidden">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+            <div className="mb-6">
+            </div>
+
+            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'pending' && renderPendingApplications()}
+            {activeTab === 'history' && renderApplicationHistory()}
+          </main>
+
+          {/* Right column: Admin user creation panel */}
+          <aside className="w-80 bg-white border-l border-gray-100 p-4 overflow-auto">
+            <h3 className="text-lg font-semibold mb-3">Create Department User</h3>
+            <p className="text-sm text-slate-500 mb-3">Create credentials for department staff (library, hostels, etc.)</p>
+
+            <form onSubmit={handleCreateUser} className="space-y-3">
+              <div>
+                <label className="block text-sm mb-1">Role</label>
+                <select value={createRole} onChange={(e) => setCreateRole(e.target.value)} className="w-full px-3 py-2 border rounded-md">
+                  <option value="Admin">Admin</option>
+                  <option value="Library">Library</option>
+                  <option value="Hostel">Hostel</option>
+                  <option value="accounts">accounts</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Exam Cell">Exam Cell</option>
+                  <option value="laboratries">laboratries</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Name</label>
+                <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Full name" />
+                {createErrors.name && <div className="text-xs text-red-600 mt-1">{createErrors.name}</div>}
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Email</label>
+                <Input value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} placeholder="email@example.com" />
+                {createErrors.email && <div className="text-xs text-red-600 mt-1">{createErrors.email}</div>}
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Password</label>
+                <Input type="password" value={createPassword} onChange={(e) => setCreatePassword(e.target.value)} placeholder="Password" />
+                {createErrors.password && <div className="text-xs text-red-600 mt-1">{createErrors.password}</div>}
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit" disabled={createSubmitting} className="flex-1">{createSubmitting ? 'Creating...' : 'Create User'}</Button>
+                <Button type="button" variant="outline" onClick={() => { setCreateName(''); setCreateEmail(''); setCreatePassword(''); setCreateRole('Library'); setCreateErrors({}); setCreateMessage(''); }}>Reset</Button>
+              </div>
+
+              {createMessage && <div className="text-sm text-slate-600">{createMessage}</div>}
+            </form>
+          </aside>
+        </div>
       </div>
     </div>
   );

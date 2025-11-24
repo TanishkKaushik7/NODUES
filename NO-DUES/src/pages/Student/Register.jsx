@@ -12,7 +12,8 @@ const StudentRegister = () => {
   const navigate = useNavigate();
 
   const initialForm = {
-    identifier: '',
+    enrollmentNumber: '',
+    rollNumber: '',
     fullName: '',
     email: '',
     mobileNumber: '',
@@ -34,7 +35,8 @@ const StudentRegister = () => {
 
   const validate = () => {
     const err = {};
-    if (!form.identifier) err.identifier = 'Provide Enrollment or Roll Number';
+    if (!form.enrollmentNumber) err.enrollmentNumber = 'Provide Enrollment Number';
+    if (!form.rollNumber) err.rollNumber = 'Provide Roll Number';
     if (!form.fullName) err.fullName = 'This field is required';
     if (!form.email) err.email = 'This field is required';
     if (!form.mobileNumber) err.mobileNumber = 'This field is required';
@@ -60,15 +62,15 @@ const StudentRegister = () => {
     setLoading(true);
     try {
       const payload = {
-        enrollment_number: form.identifier,
-        roll_number: form.identifier,
+        enrollment_number: form.enrollmentNumber,
+        roll_number: form.rollNumber,
         full_name: form.fullName,
         email: form.email,
         mobile_number: form.mobileNumber,
         password: form.password,
         confirm_password: form.confirmPassword
       };
-      console.debug('Register payload:', { enrollment_number: payload.enrollment_number, full_name: payload.full_name, email: payload.email });
+      console.debug('Register payload:', { enrollment_number: payload.enrollment_number, roll_number: payload.roll_number, full_name: payload.full_name, email: payload.email });
       await register(payload);
       setMessage('Registration successful. Please login.');
       setTimeout(() => navigate('/student/login'), 900);
@@ -130,15 +132,26 @@ const StudentRegister = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="md:col-span-2">
-                  <label className="block text-sm mb-1">Enrollment or Roll Number</label>
+                <div>
+                  <label className="block text-sm mb-1">Enrollment Number</label>
                   <Input
-                    name="identifier"
-                    value={form.identifier}
+                    name="enrollmentNumber"
+                    value={form.enrollmentNumber}
                     onChange={handleChange}
                     className="border border-gray-200"
                   />
-                  {errors.identifier && <div className="text-xs text-red-600 mt-1">{errors.identifier}</div>}
+                  {errors.enrollmentNumber && <div className="text-xs text-red-600 mt-1">{errors.enrollmentNumber}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1">Roll Number</label>
+                  <Input
+                    name="rollNumber"
+                    value={form.rollNumber}
+                    onChange={handleChange}
+                    className="border border-gray-200"
+                  />
+                  {errors.rollNumber && <div className="text-xs text-red-600 mt-1">{errors.rollNumber}</div>}
                 </div>
 
                 <div className="md:col-span-2">

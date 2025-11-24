@@ -43,11 +43,14 @@ export const StudentAuthProvider = ({ children }) => {
           if (res2.ok) {
             const data2 = await res2.json();
             const userData2 = data2.user || data2;
-            const receivedToken2 = data2.token || null;
+            const receivedToken2 = data2.token || data2.access_token || data2.accessToken || null;
             setStudent(userData2);
-            if (receivedToken2) setToken(receivedToken2);
-            localStorage.setItem('studentUser', JSON.stringify(userData2));
-            if (receivedToken2) localStorage.setItem('studentToken', receivedToken2);
+            if (receivedToken2) {
+              setToken(receivedToken2);
+              try { localStorage.setItem('studentToken', receivedToken2); } catch (e) { /* ignore */ }
+              console.debug('Student login stored token (fallback):', receivedToken2?.slice?.(0, 20) + '...');
+            }
+            try { localStorage.setItem('studentUser', JSON.stringify(userData2)); } catch (e) { /* ignore */ }
             return userData2;
           }
           // if alt also fails, proceed to parse below and throw
@@ -73,11 +76,14 @@ export const StudentAuthProvider = ({ children }) => {
       }
       const data = await response.json();
       const userData = data.user || data;
-      const receivedToken = data.token || null;
+      const receivedToken = data.token || data.access_token || data.accessToken || null;
       setStudent(userData);
-      if (receivedToken) setToken(receivedToken);
-      localStorage.setItem('studentUser', JSON.stringify(userData));
-      if (receivedToken) localStorage.setItem('studentToken', receivedToken);
+      if (receivedToken) {
+        setToken(receivedToken);
+        try { localStorage.setItem('studentToken', receivedToken); } catch (e) { /* ignore */ }
+        console.debug('Student login stored token:', receivedToken?.slice?.(0, 20) + '...');
+      }
+      try { localStorage.setItem('studentUser', JSON.stringify(userData)); } catch (e) { /* ignore */ }
       return userData;
     } catch (err) {
       console.warn('Student login error (raw):', err);

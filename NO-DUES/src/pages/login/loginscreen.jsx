@@ -15,7 +15,8 @@ const LoginScreen = ({
 }) => {
   const [credentials, setCredentials] = useState({
     username: '',
-    password: ''
+    password: '',
+    role: 'Admin'
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,7 +102,30 @@ const LoginScreen = ({
             )}
             
             <form onSubmit={handleSubmit}>
-              {/* Role selection removed */}
+              {/* Optional role selection (Admin users can choose department role when needed) */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-4"
+              >
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  id="role"
+                  name="role"
+                  value={credentials.role}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Library">Library</option>
+                  <option value="Hostel">Hostel</option>
+                  <option value="accounts">accounts</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Exam Cell">Exam Cell</option>
+                  <option value="laboratries">laboratries</option>
+                </select>
+              </motion.div>
               
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}

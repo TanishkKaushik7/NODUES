@@ -28,6 +28,10 @@ const AdminDashboard = () => {
   const [approvedApplications, setApprovedApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [actionDeptId, setActionDeptId] = useState(null);
+  const [actionRemark, setActionRemark] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   // Checklist state
   const [checklistItems, setChecklistItems] = useState([
@@ -93,26 +97,42 @@ const AdminDashboard = () => {
     { id: 3, label: 'Application History', path: '/Admin/history', icon: FiArchive },
   ];
 
-  // Load applications on component mount
+  // Load all applications from backend on component mount
   useEffect(() => {
-    // In a real app, this would be an API call
-    const allApplications = mockStudentDatabase.map(student => ({
-      id: student.id,
-      rollNo: student.rollNo,
-      name: student.name,
-      date: student.applicationDate,
-      status: student.applicationStatus,
-      course: student.course,
-      feesStatus: student.feesStatus,
-      libraryStatus: student.libraryStatus,
-      hostelStatus: student.hostelStatus,
-      noDuesStatus: student.noDuesStatus
-    }));
-    
-    setApplications(allApplications);
-    setPendingApplications(allApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
-    setApprovedApplications(allApplications.filter(app => app.status === 'Approved'));
-  }, []);
+    const fetchAllApplications = async () => {
+      try {
+        const API_URL = 'https://gbubackend-gbubackend.pagekite.me/api/approvals/all/enriched';
+        const res = await authFetch(API_URL, { method: 'GET' });
+        let data = [];
+        try { data = await res.json(); } catch (e) { data = []; }
+        // Map backend data to expected shape for table
+        const allApplications = Array.isArray(data)
+          ? data.map(app => ({
+              // support multiple shapes; prefer explicit api keys if present
+              id: app.application_id || app.id || app._id,
+              rollNo: app.roll_number || app.rollNo || app.student_roll_no || '',
+              enrollment: app.enrollment_number || app.enrollmentNumber || '',
+              name: app.student_name || app.name || app.full_name || '',
+              date: app.created_at || app.application_date || app.date || '',
+              status: app.application_status || app.status || '',
+              course: app.course || app.student_course || '',
+              email: app.student_email || app.email || '',
+              mobile: app.student_mobile || app.mobile || '',
+              department: app.department_name || app.department || ''
+            }))
+          : [];
+        setApplications(allApplications);
+        setPendingApplications(allApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
+        setApprovedApplications(allApplications.filter(app => app.status === 'Approved'));
+      } catch (err) {
+        setApplications([]);
+        setPendingApplications([]);
+        setApprovedApplications([]);
+        console.error('Failed to fetch applications:', err);
+      }
+    };
+    fetchAllApplications();
+  }, [authFetch]);
 
   // Checklist handlers
   const handleStatusChange = (id, status) => {
@@ -202,6 +222,27 @@ const AdminDashboard = () => {
     }, 800);
   };
 
+  const DEPARTMENTS = [
+    { id: 1, name: 'Department' },
+    { id: 2, name: 'Library' },
+    { id: 3, name: 'Hostel' },
+    { id: 4, name: 'Accounts' },
+    { id: 5, name: 'Sports' },
+    { id: 6, name: 'Exam Cell' }
+  ];
+
+  const formatDate = (iso) => {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}/${mm}/${yy}`;
+    } catch (e) { return iso; }
+  };
+
   const handleFileUpload = (fileType, file) => {
     setUploadedFiles(prev => ({
       ...prev,
@@ -255,26 +296,75 @@ const AdminDashboard = () => {
     alert(`Application status updated to ${status}`);
   };
 
+  const handleDepartmentAction = async (application, departmentId, action, remark) => {
+    // action: 'approve' | 'reject'
+    if (!application) return;
+    if (action === 'reject' && (!remark || !remark.trim())) {
+      setActionError('Remark is required when rejecting');
+      return;
+    }
+    setActionLoading(true);
+    setActionError('');
+    try {
+      const payload = { department_id: departmentId, action: action === 'approve' ? 'approve' : 'reject', remark: remark || null };
+      const res = await authFetch(`/api/approvals/${application.id}/review`, { method: 'POST', body: JSON.stringify(payload) });
+      let body = null;
+      try { body = await res.json(); } catch (e) { body = null; }
+      if (!res.ok) {
+        setActionError(body && body.message ? body.message : `Action failed: ${res.status}`);
+        setActionLoading(false);
+        return;
+      }
+      // Update local state to reflect change
+      const updatedApplications = applications.map(app => app.id === application.id ? { ...app, status: action === 'approve' ? 'Approved' : 'Rejected', department: DEPARTMENTS.find(d => d.id === departmentId)?.name || app.department } : app);
+      setApplications(updatedApplications);
+      setPendingApplications(updatedApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
+      setApprovedApplications(updatedApplications.filter(app => app.status === 'Approved'));
+      setSelectedApplication(prev => prev && prev.id === application.id ? { ...prev, status: action === 'approve' ? 'Approved' : 'Rejected', department: DEPARTMENTS.find(d => d.id === departmentId)?.name || prev.department } : prev);
+      setActionLoading(false);
+      alert(`Action ${action} succeeded`);
+    } catch (e) {
+      setActionError(e?.message || String(e));
+      setActionLoading(false);
+    }
+  };
+
   const renderStatusBadge = (status) => {
-    if (status === 'Cleared' || status === 'Approved') {
+    const s = (status || '').toString();
+    const key = s.toLowerCase();
+    if (['cleared', 'approved'].includes(key)) {
       return (
         <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
-          <FiCheckCircle className="mr-1" /> {status}
-        </span>
-      );
-    } else if (status === 'Pending') {
-      return (
-        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
-          <FiClock className="mr-1" /> {status}
-        </span>
-      );
-    } else {
-      return (
-        <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
-          <FiXCircle className="mr-1" /> {status}
+          <FiCheckCircle className="mr-1" /> {s}
         </span>
       );
     }
+    if (['inprogress', 'in_progress', 'in-progress', 'in progress'].includes(key)) {
+      return (
+        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
+          <FiClock className="mr-1" /> {s}
+        </span>
+      );
+    }
+    if (['pending'].includes(key)) {
+      return (
+        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
+          <FiClock className="mr-1" /> {s}
+        </span>
+      );
+    }
+    if (['rejected', 'denied'].includes(key)) {
+      return (
+        <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
+          <FiXCircle className="mr-1" /> {s}
+        </span>
+      );
+    }
+    return (
+      <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
+        {s}
+      </span>
+    );
   };
 
   const renderApplicationsTable = (applicationsList) => {
@@ -288,6 +378,9 @@ const AdminDashboard = () => {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Enrollment
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Course
@@ -308,8 +401,9 @@ const AdminDashboard = () => {
               <tr key={app.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">{app.rollNo}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{app.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{app.course}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{app.date}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{app.enrollment ?? '—'}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{app.course ?? '—'}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{formatDate(app.date)}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {renderStatusBadge(app.status)}
                 </td>
@@ -657,53 +751,47 @@ const AdminDashboard = () => {
             {activeTab === 'dashboard' && renderDashboard()}
             {activeTab === 'pending' && renderPendingApplications()}
             {activeTab === 'history' && renderApplicationHistory()}
+            {/* Application detail drawer/modal */}
+            {selectedApplication && (
+              <div className="fixed right-6 top-20 w-96 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="text-sm text-slate-500">Application</div>
+                    <div className="font-semibold text-slate-900">{selectedApplication.name}</div>
+                  </div>
+                  <div>
+                    <button onClick={() => setSelectedApplication(null)} className="text-sm text-slate-500">Close</button>
+                  </div>
+                </div>
+
+                <div className="text-sm text-slate-700 mb-2"><strong>Roll:</strong> {selectedApplication.rollNo}</div>
+                <div className="text-sm text-slate-700 mb-2"><strong>Enrollment:</strong> {selectedApplication.enrollment ?? '—'}</div>
+                <div className="text-sm text-slate-700 mb-2"><strong>Email:</strong> {selectedApplication.email ?? '—'}</div>
+                <div className="text-sm text-slate-700 mb-2"><strong>Mobile:</strong> {selectedApplication.mobile ?? '—'}</div>
+                <div className="text-sm text-slate-700 mb-2"><strong>Department:</strong> {selectedApplication.department ?? '—'}</div>
+                <div className="text-sm text-slate-700 mb-4"><strong>Date:</strong> {formatDate(selectedApplication.date)}</div>
+
+                <div className="mb-3">
+                  <label className="block text-sm text-slate-600 mb-1">Select Department</label>
+                  <select value={actionDeptId ?? (DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id || '')} onChange={(e) => setActionDeptId(Number(e.target.value))} className="w-full border border-gray-300 rounded px-2 py-1">
+                    <option value="">Select</option>
+                    {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm text-slate-600 mb-1">Remark (required for rejection)</label>
+                  <textarea value={actionRemark} onChange={(e) => setActionRemark(e.target.value)} className="w-full border border-gray-300 rounded p-2 text-sm" rows={3} />
+                  {actionError && <div className="text-xs text-red-600 mt-1">{actionError}</div>}
+                </div>
+
+                <div className="flex gap-2">
+                  <button disabled={actionLoading} onClick={() => handleDepartmentAction(selectedApplication, actionDeptId || DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id, 'approve', actionRemark)} className="flex-1 bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700">Approve</button>
+                  <button disabled={actionLoading} onClick={() => handleDepartmentAction(selectedApplication, actionDeptId || DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id, 'reject', actionRemark)} className="flex-1 bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700">Reject</button>
+                </div>
+              </div>
+            )}
           </main>
-
-          {/* Right column: Admin user creation panel */}
-          <aside className="w-80 bg-white border-l border-gray-100 p-4 overflow-auto">
-            <h3 className="text-lg font-semibold mb-3">Create Department User</h3>
-            <p className="text-sm text-slate-500 mb-3">Create credentials for department staff (library, hostels, etc.)</p>
-
-            <form onSubmit={handleCreateUser} className="space-y-3">
-              <div>
-                <label className="block text-sm mb-1">Role</label>
-                <select value={createRole} onChange={(e) => setCreateRole(e.target.value)} className="w-full px-3 py-2 border rounded-md">
-                  <option value="Admin">Admin</option>
-                  <option value="Library">Library</option>
-                  <option value="Hostel">Hostel</option>
-                  <option value="accounts">accounts</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Exam Cell">Exam Cell</option>
-                  <option value="laboratries">laboratries</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Name</label>
-                <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Full name" />
-                {createErrors.name && <div className="text-xs text-red-600 mt-1">{createErrors.name}</div>}
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Email</label>
-                <Input value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} placeholder="email@example.com" />
-                {createErrors.email && <div className="text-xs text-red-600 mt-1">{createErrors.email}</div>}
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Password</label>
-                <Input type="password" value={createPassword} onChange={(e) => setCreatePassword(e.target.value)} placeholder="Password" />
-                {createErrors.password && <div className="text-xs text-red-600 mt-1">{createErrors.password}</div>}
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={createSubmitting} className="flex-1">{createSubmitting ? 'Creating...' : 'Create User'}</Button>
-                <Button type="button" variant="outline" onClick={() => { setCreateName(''); setCreateEmail(''); setCreatePassword(''); setCreateRole('Library'); setCreateErrors({}); setCreateMessage(''); }}>Reset</Button>
-              </div>
-
-              {createMessage && <div className="text-sm text-slate-600">{createMessage}</div>}
-            </form>
-          </aside>
         </div>
       </div>
     </div>

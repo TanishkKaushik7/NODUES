@@ -18,13 +18,13 @@ export default function CreateUser() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen  bg-gray-100">
             <AdminSidebar />
 
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex  flex-col overflow-hidden">
                 <Header />
 
-                <main className="flex-1 p-6 overflow-auto">
+                <main className="flex-1 p-6 px-90 py-20 overflow-auto">
                     <h1 className="text-2xl font-bold mb-4">Create Department User</h1>
 
                     <div className="max-w-lg bg-white p-6 rounded shadow">

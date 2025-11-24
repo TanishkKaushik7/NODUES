@@ -14,9 +14,8 @@ const LoginScreen = ({
   portalDescription = "Sign in to access your dashboard"
 }) => {
   const [credentials, setCredentials] = useState({
-    username: '',
-    password: '',
-    role: 'Admin'
+    email: '',
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -102,30 +101,7 @@ const LoginScreen = ({
             )}
             
             <form onSubmit={handleSubmit}>
-              {/* Optional role selection (Admin users can choose department role when needed) */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mb-4"
-              >
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  id="role"
-                  name="role"
-                  value={credentials.role}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="Admin">Admin</option>
-                  <option value="Library">Library</option>
-                  <option value="Hostel">Hostel</option>
-                  <option value="accounts">accounts</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Exam Cell">Exam Cell</option>
-                  <option value="laboratries">laboratries</option>
-                </select>
-              </motion.div>
+
               
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
@@ -133,14 +109,14 @@ const LoginScreen = ({
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="mb-5"
               >
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <Input
                   type="text"
-                  id="username"
-                  name="username"
-                  value={credentials.username}
+                  id="email"
+                  name="email"
+                  value={credentials.email}
                   onChange={handleChange}
                   placeholder="Enter your Email.........."
                   required

@@ -41,10 +41,95 @@ const LoginScreen = ({
     
     try {
       // Use the login function from AuthContext
-      await login(credentials);
+      const result = await login(credentials);
 
-      // Redirect to main dashboard (backend decides role)
-      navigate('/dashboard');
+      // Prefer server-provided role from user object, otherwise decode JWT
+      const returnedUser = result?.user || result;
+      const returnedToken = result?.token || null;
+
+      const parseJwt = (t) => {
+        try {
+          const parts = (t || '').split('.');
+          if (parts.length < 2) return null;
+          const payload = parts[1];
+          const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+          return JSON.parse(decodeURIComponent(escape(decoded)));
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const tokenPayload = returnedToken ? parseJwt(returnedToken) : null;
+      const roleFromUser = (returnedUser && returnedUser.role) ? returnedUser.role : null;
+      const rawRole = (roleFromUser || tokenPayload?.role || tokenPayload?.roles || tokenPayload?.role || '').toString().toLowerCase();
+
+      // Prefer numeric department_id if provided by the server
+      const deptId = (returnedUser && (returnedUser.department_id || returnedUser.dept_id)) || tokenPayload?.department_id || tokenPayload?.dept_id || null;
+
+      const deptNameCandidate = (
+        (returnedUser && (returnedUser.department_name || returnedUser.department || returnedUser.dept || returnedUser.unit || returnedUser.office)) ||
+        tokenPayload?.department || tokenPayload?.department_name || tokenPayload?.dept || tokenPayload?.unit || tokenPayload?.office || ''
+      ).toString().toLowerCase();
+
+      const deptIdToPath = (id) => {
+        // Map DB sequence ids to paths (from your SQL insert order)
+        // 1: Department (generic) -> fallback to /dashboard
+        // 2: Library
+        // 3: Hostel
+        // 4: Accounts
+        // 5: Sports
+        // 6: Exam Cell
+        const map = {
+          1: '/dashboard',
+          2: '/library/dashboard',
+          3: '/hostels/dashboard',
+          4: '/accounts/dashboard',
+          5: '/sports/dashboard',
+          6: '/exam/dashboard'
+        };
+        return map[id] || null;
+      };
+
+      const roleToPath = (r, id, deptName) => {
+        if (!r) return '/dashboard';
+        if (r.includes('admin')) return '/admin/dashboard';
+
+        // If department id exists, map directly
+        if (id) {
+          const byId = deptIdToPath(Number(id));
+          if (byId) return byId;
+        }
+
+        // If this is a staff account, try department name
+        if (r === 'staff' || r.includes('staff')) {
+          const d = (deptName || '').replace(/[-_\s]+/g, '');
+          if (!d) return '/dashboard';
+          if (d.includes('hostel')) return '/hostels/dashboard';
+          if (d.includes('account') || d.includes('accounts')) return '/accounts/dashboard';
+          if (d.includes('sport')) return '/sports/dashboard';
+          if (d.includes('exam')) return '/exam/dashboard';
+          if (d.includes('library')) return '/library/dashboard';
+          if (d.includes('crc')) return '/crc/dashboard';
+          if (d.includes('laboratory') || d.includes('lab')) return '/laboratories/dashboard';
+          if (d.includes('office')) return '/office/dashboard';
+          return '/dashboard';
+        }
+
+        // Non-staff role mapping by role string
+        if (r.includes('library')) return '/library/dashboard';
+        if (r.includes('hostel') || r.includes('hostels')) return '/hostels/dashboard';
+        if (r.includes('accounts') || r.includes('account')) return '/accounts/dashboard';
+        if (r.includes('sports')) return '/sports/dashboard';
+        if (r.includes('exam')) return '/exam/dashboard';
+        if (r.includes('crc')) return '/crc/dashboard';
+        if (r.includes('laboratory') || r.includes('laboratories')) return '/laboratories/dashboard';
+        if (r.includes('office')) return '/office/dashboard';
+        if (r.includes('student')) return '/student/dashboard';
+        return '/dashboard';
+      };
+
+      const target = roleToPath(rawRole, deptId, deptNameCandidate);
+      navigate(target);
     } catch (err) {
       const msg = err?.message || (typeof err === 'string' ? err : 'Invalid credentials. Please try again.');
       setError(msg);

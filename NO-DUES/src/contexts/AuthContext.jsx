@@ -49,25 +49,56 @@ export const AuthProvider = ({ children }) => {
       const userData = data.user || { id: data.id || Math.floor(Math.random() * 1000), email: email, name: data.name || email, role: data.role || 'Admin' };
       const receivedToken = data.token || data.access_token || null;
 
+      // Persist immediate values
       setUser(userData);
       if (receivedToken) setToken(receivedToken);
 
       localStorage.setItem('user', JSON.stringify(userData));
       if (receivedToken) localStorage.setItem('token', receivedToken);
 
-      return userData;
+      // If we have a token, attempt to fetch authoritative profile info
+      // Try common profile endpoints so we can discover role/department
+      if (receivedToken) {
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE || '';
+          const tryUrls = ['/api/users/me', '/api/admin/me', '/api/profile', '/api/me'];
+          let profile = null;
+          for (const p of tryUrls) {
+            const url = API_BASE ? `${API_BASE}${p}` : p;
+            try {
+              const profRes = await fetch(url, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${receivedToken}`
+                }
+              });
+              if (!profRes.ok) continue;
+              const profJson = await profRes.json();
+              // Backends may return { user: {...} } or direct user object
+              profile = profJson.user || profJson;
+              if (profile) break;
+            } catch (e) {
+              // ignore and try next
+            }
+          }
+
+          if (profile) {
+            setUser(profile);
+            localStorage.setItem('user', JSON.stringify(profile));
+            return { user: profile, token: receivedToken };
+          }
+        } catch (e) {
+          // ignore profile fetch errors and fall back to token-provided userData
+        }
+      }
+
+      return { user: userData, token: receivedToken };
     } catch (err) {
-      // Backend unavailable or network error: fallback to a local mock login
-      console.warn('Backend login failed, falling back to mock login:', err?.message || err);
-      const userData = {
-        id: Math.floor(Math.random() * 1000),
-        email: email || 'demo@example.com',
-        name: email || 'User',
-        role: 'Admin'
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      return userData;
+      // Propagate errors to the caller so the UI can show backend messages
+      // (Do not fall back to a mock user on invalid credentials.)
+      console.warn('Login error:', err?.message || err);
+      throw err;
     }
   };
 

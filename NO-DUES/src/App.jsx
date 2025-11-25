@@ -14,13 +14,11 @@ import StudentDashboard from './pages/Student/StudentDashboard';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import CreateUser from './pages/Admin/CreateUser';
 import SportsDashboard from './pages/Sports/SportsDashboard';
-import OfficeDashboard from './pages/Office/OfficeDashboard';
 import ExamDashboard from './pages/Exam/ExamDashboard';
 import AccountsDashboard from './pages/Accounts/AccountsDashboard';
 import LibraryDashboard from './pages/Library/LibraryDashboard';
 import HostelsDashboard from './pages/Hostels/HostelsDashboard';
 import LaboratoriesDashboard from './pages/Laboratories/LaboratoriesDashboard';
-import CRCDashboard from './pages/CRC/CRCDashboard';
 import AdminPending from './pages/Admin/PendingPage';
 import AdminHistory from './pages/Admin/HistoryPage';
 
@@ -29,7 +27,8 @@ import HomeButton from './components/common/HomeButton';
 
 // ✅ Protected Route Component (role checks removed)
 const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth && auth.user ? auth.user : null;
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -38,7 +37,8 @@ const ProtectedRoute = ({ children }) => {
 
 // Student protected route (uses StudentAuthContext)
 const StudentProtectedRoute = ({ children }) => {
-  const { student } = useStudentAuth();
+  const studentCtx = useStudentAuth();
+  const student = studentCtx && studentCtx.student ? studentCtx.student : null;
   if (!student) return <Navigate to="/student/login" replace />;
   return children;
 };
@@ -70,12 +70,10 @@ function App() {
           {/* Role Routes */}
           <Route path="/admin/*" element={<RoleRoutes role="admin" Dashboard={AdminDashboard} PendingComponent={AdminPending} HistoryComponent={AdminHistory} CreateComponent={CreateUser} />} />
           <Route path="/sports/*" element={<RoleRoutes role="sports" Dashboard={SportsDashboard} />} />
-          <Route path="/office/*" element={<RoleRoutes role="office" Dashboard={OfficeDashboard} />} />
           <Route path="/exam/*" element={<RoleRoutes role="exam" Dashboard={ExamDashboard} />} />
           <Route path="/accounts/*" element={<RoleRoutes role="accounts" Dashboard={AccountsDashboard} />} />
           <Route path="/library/*" element={<RoleRoutes role="library" Dashboard={LibraryDashboard} />} />
           <Route path="/hostels/*" element={<RoleRoutes role="hostels" Dashboard={HostelsDashboard} />} />
-          <Route path="/crc/*" element={<RoleRoutes role="crc" Dashboard={CRCDashboard} />} />
           <Route path="/laboratories/*" element={<RoleRoutes role="laboratories" Dashboard={LaboratoriesDashboard} />} />
 
           {/* Generic routes (role-agnostic) */}

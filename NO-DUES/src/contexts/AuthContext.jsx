@@ -1,3 +1,4 @@
+// AuthContext.jsx
 import { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
@@ -107,11 +108,13 @@ export const AuthProvider = ({ children }) => {
     throw new Error('Admin registration is not supported.');
   };
 
+  // ✅ LOGOUT FIX CONFIRMED: This function correctly destroys the session
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    setUser(null); // Clears the in-memory user state
+    setToken(null); // Clears the in-memory token state
+    localStorage.removeItem('user'); // Removes the persistent user data
+    localStorage.removeItem('token'); // Removes the persistent token
+    // Once state is null, ProtectedRoute automatically redirects to /login.
   };
 
   // Helper for authenticated fetches

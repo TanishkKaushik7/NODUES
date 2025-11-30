@@ -1,301 +1,71 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion'; 
 import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/common/Header';
 import Sidebar from '../../components/common/Sidebar';
-import { FiSearch, FiUser, FiMail, FiBook, FiDollarSign, FiCheckCircle, FiXCircle, FiUpload, FiDownload, FiX, FiPhone, FiCalendar, FiFilter, FiEye, FiCheck } from 'react-icons/fi';
+import { 
+  FiEye, FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, FiXCircle,
+  FiSearch, FiFilter, FiRefreshCw, FiUsers, FiCalendar, FiList 
+} from 'react-icons/fi';
 
-const ExamDashboard = () => {
+// Animation variants (Copied from DepartmentDashboard)
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      delayChildren: 0.1,
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+  },
+};
+
+const cardVariants = {
+  initial: { scale: 0.95, opacity: 0 },
+  animate: { scale: 1, opacity: 1 },
+  hover: { scale: 1.05, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' },
+};
+
+
+const ExamDashboard = () => { // UPDATED: Component name
   const { user, logout, authFetch } = useAuth();
-  const [rollNo, setRollNo] = useState('');
-  const [studentData, setStudentData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedApplication, setSelectedApplication] = useState(null);
-  const [uploadedFiles, setUploadedFiles] = useState({
-    cancellationCheque: null,
-    aadharCard: null,
-    result: null
-  });
-
-  // State for applications
   const [applications, setApplications] = useState([]);
-  const modalRef = useRef(null);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all'); 
+  const [isLoading, setIsLoading] = useState(true); 
+  
+  // Action State
+  const [actionDeptId, setActionDeptId] = useState(null);
+  const [actionRemark, setActionRemark] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
+  const applicationPopupRef = useRef(null);
+  
   const menuItems = [
-    { id: 1, label: 'Dashboard', path: '/exam/dashboard' },
-    { id: 2, label: 'Pending', path: '/exam/pending' },
-    { id: 3, label: 'History', path: '/exam/history' },
-  ];
-
-  // Load all applications from backend on component mount
-  useEffect(() => {
-    const fetchAllApplications = async () => {
-      try {
-        const API_URL = 'https://gbubackend-gbubackend.pagekite.me/api/approvals/all/enriched';
-        const res = await authFetch(API_URL, { method: 'GET' });
-        let data = [];
-        try { data = await res.json(); } catch (e) { data = []; }
-        const allApplications = Array.isArray(data)
-          ? data.map(app => ({
-              id: app.application_id || app.id || app._id,
-              rollNo: app.roll_number || app.rollNo || app.student_roll_no || '',
-              enrollment: app.enrollment_number || app.enrollmentNumber || '',
-              name: app.student_name || app.name || app.full_name || '',
-              date: app.created_at || app.application_date || app.date || '',
-              status: app.application_status || app.status || '',
-              course: app.course || app.student_course || '',
-              email: app.student_email || app.email || '',
-              mobile: app.student_mobile || app.mobile || '',
-              department: app.department_name || app.department || ''
-            }))
-          : [];
-        setApplications(allApplications);
-      } catch (err) {
-        setApplications([]);
-        console.error('Failed to fetch applications:', err);
-      }
-    };
-    fetchAllApplications();
-  }, [authFetch]);
-
-  // Close modal when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setSelectedApplication(null);
-      }
-    };
-
-    if (selectedApplication) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'unset';
-    };
-  }, [selectedApplication]);
-
-  // Mock student database
-  const mockStudentDatabase = [
-    {
-      id: 1,
-      rollNo: 'GBU2023001',
-      name: 'Rahul Sharma',
-      email: 'rahul.sharma@gbu.ac.in',
-      course: 'B.Tech Computer Science',
-      semester: '8th',
-      phone: '+91 9876543210',
-      feesStatus: 'Paid',
-      libraryStatus: 'Cleared',
-      hostelStatus: 'Cleared',
-      noDuesStatus: 'Approved',
-      applicationDate: '2025-09-01',
-      documents: {
-        cancellationCheque: true,
-        aadharCard: true,
-        result: true
-      }
-    },
-    {
-      id: 2,
-      rollNo: 'GBU2023002',
-      name: 'Priya Singh',
-      email: 'priya.singh@gbu.ac.in',
-      course: 'MBA',
-      semester: '4th',
-      phone: '+91 9876543211',
-      feesStatus: 'Pending',
-      libraryStatus: 'Cleared',
-      hostelStatus: 'Pending',
-      noDuesStatus: 'Pending',
-      applicationDate: '2025-09-02',
-      documents: {
-        cancellationCheque: true,
-        aadharCard: false,
-        result: true
-      }
-    },
-    {
-      id: 3,
-      rollNo: 'GBU2023003',
-      name: 'Amit Kumar',
-      email: 'amit.kumar@gbu.ac.in',
-      course: 'B.Tech Electronics',
-      semester: '8th',
-      phone: '+91 9876543212',
-      feesStatus: 'Paid',
-      libraryStatus: 'Pending',
-      hostelStatus: 'Cleared',
-      noDuesStatus: 'Pending',
-      applicationDate: '2025-09-03',
-      documents: {
-        cancellationCheque: true,
-        aadharCard: true,
-        result: false
-      }
-    }
+    { id: 1, label: 'Dashboard', path: '/exam/dashboard' }, // UPDATED: Path
+    { id: 2, label: 'Pending', path: '/exam/pending' },     // UPDATED: Path
+    { id: 3, label: 'History', path: '/exam/history' },     // UPDATED: Path
   ];
 
   const DEPARTMENTS = [
     { id: 1, name: 'Department' },
-    { id: 2, name: 'Library' },
+    { id: 2, name: 'Library' }, 
     { id: 3, name: 'Hostel' },
     { id: 4, name: 'Accounts' },
     { id: 5, name: 'Sports' },
-    { id: 6, name: 'Exam Cell' }
+    { id: 6, name: 'Exam Cell' } // Exam Cell ID is 6
   ];
 
-  // Close modal when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setSelectedApplication(null);
-      }
-    };
-
-    if (selectedApplication) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'unset';
-    };
-  }, [selectedApplication]);
-
-  // Load all applications from backend on component mount
-  useEffect(() => {
-    const fetchAllApplications = async () => {
-      try {
-        const API_URL = 'https://gbubackend-gbubackend.pagekite.me/api/approvals/all/enriched';
-        const res = await authFetch(API_URL, { method: 'GET' });
-        let data = [];
-        try { data = await res.json(); } catch (e) { data = []; }
-        // Map backend data to expected shape for table
-        const allApplications = Array.isArray(data)
-          ? data.map(app => ({
-              // support multiple shapes; prefer explicit api keys if present
-              id: app.application_id || app.id || app._id,
-              rollNo: app.roll_number || app.rollNo || app.student_roll_no || '',
-              enrollment: app.enrollment_number || app.enrollmentNumber || '',
-              name: app.student_name || app.name || app.full_name || '',
-              date: app.created_at || app.application_date || app.date || '',
-              status: app.application_status || app.status || '',
-              course: app.course || app.student_course || '',
-              email: app.student_email || app.email || '',
-              mobile: app.student_mobile || app.mobile || '',
-              department: app.department_name || app.department || ''
-            }))
-          : [];
-        setApplications(allApplications);
-        setPendingApplications(allApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
-        setApprovedApplications(allApplications.filter(app => app.status === 'Approved'));
-      } catch (err) {
-        setApplications([]);
-        setPendingApplications([]);
-        setApprovedApplications([]);
-        console.error('Failed to fetch applications:', err);
-      }
-    };
-    fetchAllApplications();
-  }, [authFetch]);
-
-  const handleSearch = () => {
-    if (!rollNo) return;
-    
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      const student = mockStudentDatabase.find(s => s.rollNo === rollNo);
-      setStudentData(student || null);
-      setIsLoading(false);
-    }, 800);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
-
-  const handleFileUpload = (fileType, file) => {
-    setUploadedFiles(prev => ({
-      ...prev,
-      [fileType]: file
-    }));
-  };
-
-  const handleSubmitNoDues = () => {
-    alert('No-Dues application submitted successfully!');
-    setStudentData(null);
-    setRollNo('');
-    setUploadedFiles({
-      cancellationCheque: null,
-      aadharCard: null,
-      result: null
-    });
-  };
-
-  const handleViewApplication = (application) => {
-    setSelectedApplication(application);
-    // Find the student data for this application
-    const student = mockStudentDatabase.find(s => s.rollNo === application.rollNo);
-    setStudentData(student);
-  };
-
-  const handleUpdateApplicationStatus = (applicationId, status) => {
-    // Update the application status
-    const updatedApplications = applications.map(app => 
-      app.id === applicationId ? { ...app, status } : app
-    );
-    
-    setApplications(updatedApplications);
-    setPendingApplications(updatedApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
-    setApprovedApplications(updatedApplications.filter(app => app.status === 'Approved'));
-    
-    // If we're viewing this application, update it
-    if (selectedApplication && selectedApplication.id === applicationId) {
-      setSelectedApplication({ ...selectedApplication, status });
-    }
-    
-    alert(`Application status updated to ${status}`);
-  };
-
-  const handleDepartmentAction = async (application, departmentId, action, remark) => {
-    // action: 'approve' | 'reject'
-    if (!application) return;
-    if (action === 'reject' && (!remark || !remark.trim())) {
-      setActionError('Remark is required when rejecting');
-      return;
-    }
-    setActionLoading(true);
-    setActionError('');
-    try {
-      const payload = { department_id: departmentId, action: action === 'approve' ? 'approve' : 'reject', remark: remark || null };
-      const res = await authFetch(`/api/approvals/${application.id}/review`, { method: 'POST', body: JSON.stringify(payload) });
-      let body = null;
-      try { body = await res.json(); } catch (e) { body = null; }
-      if (!res.ok) {
-        setActionError(body && body.message ? body.message : `Action failed: ${res.status}`);
-        setActionLoading(false);
-        return;
-      }
-      // Update local state to reflect change
-      const updatedApplications = applications.map(app => app.id === application.id ? { ...app, status: action === 'approve' ? 'Approved' : 'Rejected', department: DEPARTMENTS.find(d => d.id === departmentId)?.name || app.department } : app);
-      setApplications(updatedApplications);
-      setPendingApplications(updatedApplications.filter(app => app.status === 'Pending' || app.status === 'Rejected'));
-      setApprovedApplications(updatedApplications.filter(app => app.status === 'Approved'));
-      setSelectedApplication(prev => prev && prev.id === application.id ? { ...prev, status: action === 'approve' ? 'Approved' : 'Rejected', department: DEPARTMENTS.find(d => d.id === departmentId)?.name || prev.department } : prev);
-      setActionLoading(false);
-      alert(`Action ${action} succeeded`);
-    } catch (e) {
-      setActionError(e?.message || String(e));
-      setActionLoading(false);
-    }
-  };
-
+  // Helper: Format Date
   const formatDate = (iso) => {
     if (!iso) return '—';
     try {
@@ -308,9 +78,10 @@ const ExamDashboard = () => {
     } catch (e) { return iso; }
   };
 
+  // Helper: Render Status Badge (Updated to use DepartmentDashboard's status logic)
   const renderStatusBadge = (status) => {
     const s = (status || '').toString();
-    const key = s.toLowerCase();
+    const key = s.toLowerCase().replace(/[\s-]/g, ''); // Normalise the key
     if (['cleared', 'approved'].includes(key)) {
       return (
         <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
@@ -318,17 +89,11 @@ const ExamDashboard = () => {
         </span>
       );
     }
-    if (['inprogress', 'in_progress', 'in-progress', 'in progress'].includes(key)) {
-      return (
-        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
-          <FiCalendar className="mr-1" /> {s}
-        </span>
-      );
-    }
-    if (['pending'].includes(key)) {
+    // Combined pending and in progress
+    if (['inprogress', 'in_progress', 'in-progress', 'in progress', 'pending'].includes(key)) {
       return (
         <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center w-fit">
-          <FiCalendar className="mr-1" /> {s}
+          <FiClock className="mr-1" /> {s}
         </span>
       );
     }
@@ -346,509 +111,601 @@ const ExamDashboard = () => {
     );
   };
 
-  const renderApplicationsTable = (applicationsList) => {
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Roll No
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Enrollment
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Course
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {applicationsList.map((app) => (
-              <tr key={app.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{app.rollNo}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{app.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{app.enrollment ?? '—'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{app.course ?? '—'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{formatDate(app.date)}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {renderStatusBadge(app.status)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleViewApplication(app)}
-                      className="text-indigo-600 hover:text-indigo-900 flex items-center"
-                    >
-                      <FiEye className="mr-1" /> View
-                    </button>
-                    {app.status === 'Pending' && (
-                      <>
-                        <button 
-                          onClick={() => handleUpdateApplicationStatus(app.id, 'Approved')}
-                          className="text-green-600 hover:text-green-900 flex items-center"
-                        >
-                          <FiCheck className="mr-1" /> Approve
-                        </button>
-                        <button 
-                          onClick={() => handleUpdateApplicationStatus(app.id, 'Rejected')}
-                          className="text-red-600 hover:text-red-900 flex items-center"
-                        >
-                          <FiX className="mr-1" /> Reject
-                        </button>
-                      </>
-                    )}
-                    <button className="text-indigo-600 hover:text-indigo-900 flex items-center">
-                      <FiDownload className="mr-1" /> Download
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+  // Fetch Applications (Updated with loading state and match property for search)
+  const fetchApplications = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch Enriched Data
+      const enrichedRes = await authFetch('/api/approvals/all/enriched', { method: 'GET' });
+      let enriched = [];
+      try { enriched = await enrichedRes.json(); } catch (e) { enriched = []; }
+
+      // Fetch Full Data (for stage_id)
+      const allRes = await authFetch('/api/approvals/all', { method: 'GET' });
+      let allData = [];
+      try { allData = await allRes.json(); } catch (e) { allData = []; }
+
+      const mapByAppId = new Map();
+      if (Array.isArray(allData)) {
+        for (const rec of allData) {
+          const id = rec.application_id || rec.id || rec._id;
+          if (id) mapByAppId.set(String(id), rec);
+        }
+      }
+
+      const allApplications = Array.isArray(enriched)
+        ? enriched.map(app => {
+            const appId = app.application_id || app.id || app._id;
+            const full = appId ? mapByAppId.get(String(appId)) : null;
+            return {
+              id: appId,
+              application_id: appId,
+              rollNo: app.roll_number || app.rollNo || app.student_roll_no || '',
+              enrollment: app.enrollment_number || app.enrollmentNumber || '',
+              name: app.student_name || app.name || app.full_name || '',
+              date: app.created_at || app.application_date || app.date || '',
+              status: app.application_status || app.status || 'Pending',
+              course: app.course || app.student_course || '',
+              email: app.student_email || app.email || '',
+              mobile: app.student_mobile || app.mobile || '',
+              department: app.department_name || app.department || '',
+              active_stage: (full && full.active_stage) ? full.active_stage : (app.active_stage || app.activeStage || null),
+              match: true, // ADDED: For search functionality
+            };
+          })
+        : [];
+      setApplications(allApplications.filter(app => app.id));
+    } catch (err) {
+      setApplications([]);
+      console.error('Failed to fetch applications:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const renderApplicationPopup = () => {
-    if (!selectedApplication) return null;
+  useEffect(() => {
+    fetchApplications();
+  }, [authFetch]);
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-        <div 
-          ref={modalRef}
-          className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+  // Close popup logic (Updated to clear action state on close)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (applicationPopupRef.current && !applicationPopupRef.current.contains(event.target)) {
+        setSelectedApplication(null);
+        setActionRemark(''); 
+        setActionError('');
+        setActionDeptId(null);
+      }
+    };
+    if (selectedApplication) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedApplication]);
+
+  // UPDATED: Set initial actionDeptId to Exam Cell's ID (6)
+  useEffect(() => {
+      if (selectedApplication) {
+          const EXAM_DEPT_ID = 6; // UPDATED ID
+          setActionDeptId(EXAM_DEPT_ID);
+      }
+  }, [selectedApplication]);
+
+  // Handle Action (Approve/Reject)
+  const handleDepartmentAction = async (application, departmentId, action, remarksIn) => {
+    if (!application) return;
+    
+    setActionError(''); // Reset error on new action attempt
+
+    if (action === 'reject' && (!remarksIn || !remarksIn.trim())) {
+      setActionError('Remarks are required when rejecting');
+      return;
+    }
+  
+    const stageId = application?.active_stage?.stage_id || application?.active_stage?.id || null;
+    const appId = application?.application_id || application?.id || null;
+    if (!stageId) {
+      setActionError('Missing stage id; cannot perform department action.');
+      return;
+    }
+  
+    const verb = action === 'approve' ? 'approve' : 'reject';
+    const stageEndpoint = `/api/approvals/${stageId}/${verb}`;
+    const fallbackEndpoint = appId ? `/api/approvals/${appId}/stages/${stageId}/${verb}` : null;
+    const payload = { department_id: departmentId || null, remarks: remarksIn || null };
+  
+    setActionLoading(true);
+    setActionError('');
+  
+    const call = async (url, options) => {
+      let res = await authFetch(url, options);
+      if (res && res.status === 405) {
+        try { res = await authFetch(url, { method: 'POST' }); } catch (_) {}
+      }
+      if (res && res.status === 401) {
+        try {
+          res = await authFetch(url, options);
+          if (res && res.status === 405) {
+            try { res = await authFetch(url, { method: 'POST' }); } catch (_) {}
+          }
+        } catch (_) {}
+      }
+      return res;
+    };
+  
+    try {
+      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) };
+      let res = await call(stageEndpoint, options);
+  
+      if ((!res || !res.ok) && fallbackEndpoint) {
+        res = await call(fallbackEndpoint, options);
+      }
+  
+      if (!res || !res.ok) {
+        let body = null;
+        try { body = await res?.json(); } catch (_) { body = null; }
+        throw new Error(body?.message || `Action failed: ${res?.status || 'no response'}`);
+      }
+  
+      // Update UI
+      const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
+      const updatedApplications = applications.map(app =>
+        (app.application_id || app.id || '').toString() === (appId || '').toString()
+          ? {
+              ...app,
+              status: newStatus,
+              department: DEPARTMENTS.find(d => d.id === departmentId)?.name || app.department,
+              active_stage: app.active_stage ? { ...app.active_stage, status: newStatus } : app.active_stage
+            }
+          : app
+      );
+  
+      setApplications(updatedApplications);
+      setSelectedApplication(prev => prev && ((prev.application_id || prev.id || '').toString() === (appId || '').toString())
+        ? { ...prev, status: newStatus, department: DEPARTMENTS.find(d => d.id === departmentId)?.name || prev.department, active_stage: prev.active_stage ? { ...prev.active_stage, status: newStatus } : prev.active_stage }
+        : prev
+      );
+
+      // Close popup on success
+      setActionRemark('');
+      setSelectedApplication(null);
+  
+      alert(`Action ${action} succeeded`);
+    } catch (err) {
+      console.error('Department stage action failed', err);
+      setActionError(err?.message || String(err));
+      alert(`Action failed: ${err?.message || String(err)}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+  
+  // Filtering and Search logic
+  const filteredApplications = applications.filter(
+    (a) =>
+      a.match !== false && (filterStatus === 'all' || (a.status || '').toLowerCase().replace(/[\s-]/g, '') === filterStatus.toLowerCase().replace(/[\s-]/g, ''))
+  );
+
+  const handleSearch = (e) => {
+    const q = e.target.value.toLowerCase();
+    setApplications((prev) =>
+      prev.map((a) => ({
+        ...a,
+        match: (a.name + a.rollNo + a.enrollment + a.course).toLowerCase().includes(q),
+      }))
+    );
+  };
+  
+  // Helper for stats
+  const getStatusCount = (statusKey) => {
+    return applications.filter((a) => (a.status || '').toLowerCase().replace(/[\s-]/g, '') === statusKey).length;
+  };
+
+  const totalCount = applications.length;
+  const pendingCount = getStatusCount('pending') + getStatusCount('inprogress');
+  const approvedCount = getStatusCount('approved') + getStatusCount('cleared');
+  const rejectedCount = getStatusCount('rejected') + getStatusCount('denied');
+
+
+  // NEW: renderApplicationsTable function
+  const renderApplicationsTable = (apps) => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Roll No
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Name
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Course
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Date
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Action
+            </th>
+          </tr>
+        </thead>
+        <motion.tbody 
+          className="bg-white divide-y divide-gray-200"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
         >
-          {/* Modal Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-t-2xl">
-            <div className="flex justify-between items-start">
-              <div className="text-white">
-                <h3 className="text-2xl font-bold mb-1">Application Details</h3>
-                <p className="text-indigo-100 text-sm">{selectedApplication.rollNo}</p>
-              </div>
-              <button
-                onClick={() => setSelectedApplication(null)}
-                className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-          </div>
-
-          {/* Modal Body */}
-          <div className="p-6">
-            {/* Student Info */}
-            <div className="mb-6">
-              <h4 className="text-lg font-semibold mb-4 text-gray-800">Student Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Full Name</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.name}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Email Address</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.email}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Course</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.course}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.mobile}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Application Details */}
-            <div className="mb-6">
-              <h4 className="text-lg font-semibold mb-4 text-gray-800">Application Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Enrollment Number</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.enrollment ?? '—'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Application Date</p>
-                  <p className="font-medium text-gray-900">{formatDate(selectedApplication.date)}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Department</p>
-                  <p className="font-medium text-gray-900">{selectedApplication.department ?? '—'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Status</p>
-                  <div className="mt-1">{renderStatusBadge(selectedApplication.status)}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Section */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="text-lg font-semibold mb-4">Department Action</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Department
-                  </label>
-                  <select 
-                    value={actionDeptId ?? (DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id || '')} 
-                    onChange={(e) => setActionDeptId(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Select Department</option>
-                    {DEPARTMENTS.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Remark {selectedApplication.status === 'Pending' && '(required for rejection)'}
-                  </label>
-                  <textarea 
-                    value={actionRemark} 
-                    onChange={(e) => setActionRemark(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Enter your remarks here..."
-                  />
-                  {actionError && (
-                    <p className="text-red-600 text-sm mt-2">{actionError}</p>
-                  )}
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => handleDepartmentAction(
-                      selectedApplication, 
-                      actionDeptId || DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id, 
-                      'approve', 
-                      actionRemark
-                    )}
-                    className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                  >
-                    <FiCheck className="mr-2" />
-                    {actionLoading ? 'Processing...' : 'Approve'}
-                  </button>
-                  
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => handleDepartmentAction(
-                      selectedApplication, 
-                      actionDeptId || DEPARTMENTS.find(d => d.name === selectedApplication.department)?.id, 
-                      'reject', 
-                      actionRemark
-                    )}
-                    className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                  >
-                    <FiX className="mr-2" />
-                    {actionLoading ? 'Processing...' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 justify-end pt-4 border-t">
-              <button
-                onClick={() => setSelectedApplication(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
-              >
-                Close
-              </button>
-              <button className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 flex items-center font-medium shadow-md hover:shadow-lg transition">
-                <FiDownload className="mr-2" />
-                Download Certificate
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderDashboard = () => {
-    return (
-      <>
-        {/* Search Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800 flex items-center">
-            <FiSearch className="mr-2 text-indigo-600" />
-            Student Search
-          </h2>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={rollNo}
-              onChange={(e) => setRollNo(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Enter Student Roll Number (e.g., GBU2023001)"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-            />
-            <button
-              onClick={handleSearch}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 flex items-center font-medium shadow-md hover:shadow-lg transition"
-              disabled={isLoading}
+          {apps.map((app, index) => (
+            <motion.tr 
+              key={app.id} 
+              className="hover:bg-indigo-50/50 transition-colors duration-200"
+              variants={itemVariants}
             >
-              <FiSearch className="mr-2" />
-              {isLoading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
+              <td className="px-6 py-4 text-gray-900 font-semibold">{app.rollNo || '—'}</td>
+              <td className="px-6 py-4 text-gray-700">{app.name || '—'}</td>
+              <td className="px-6 py-4 text-gray-700">{app.course || '—'}</td>
+              <td className="px-6 py-4 text-gray-700">
+                <div className='flex items-center'>
+                    <FiCalendar className='mr-1 text-gray-400 text-sm' />
+                    {formatDate(app.date)}
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                {renderStatusBadge(app.status)}
+              </td>
+              <td className="px-6 py-4">
+                <button
+                    onClick={() => {
+                        setSelectedApplication(app);
+                        setActionRemark('');
+                        setActionError('');
+                        setActionDeptId(null); // This will trigger the useEffect hook to reset it
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 transition-colors duration-200 flex items-center font-medium p-2 rounded-lg hover:bg-indigo-100"
+                    aria-label={`View application for ${app.name}`}
+                >
+                  <FiEye className="mr-1 w-4 h-4" /> View
+                </button>
+              </td>
+            </motion.tr>
+          ))}
+        </motion.tbody>
+      </table>
+
+      {/* No Data */}
+      {apps.length === 0 && (
+        <div className="py-12 text-center text-gray-500 text-lg">
+          <FiList className='mx-auto w-8 h-8 mb-2 text-gray-400' />
+          {isLoading ? 'Loading...' : 'No applications found for the current filters.'}
         </div>
+      )}
+    </div>
+  );
 
-        {/* Student Details */}
-        {studentData && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
-            <h2 className="text-xl font-semibold mb-6 text-gray-800">Student Details</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-gray-50 p-6 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="bg-indigo-100 p-2 rounded-lg">
-                  <FiUser className="text-indigo-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Name</p>
-                  <p className="font-medium text-gray-900">{studentData.name}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <FiMail className="text-purple-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Email</p>
-                  <p className="font-medium text-gray-900">{studentData.email}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <FiBook className="text-blue-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Course</p>
-                  <p className="font-medium text-gray-900">{studentData.course}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <FiPhone className="text-green-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Semester</p>
-                  <p className="font-medium text-gray-900">{studentData.semester}</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Document Upload Section */}
-            <h3 className="font-semibold mb-4 text-gray-800">Required Documents</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              {['cancellationCheque', 'aadharCard', 'result'].map((docType) => (
-                <div key={docType} className="border-2 border-dashed border-gray-300 rounded-lg p-5 hover:border-indigo-400 transition">
-                  <h4 className="font-medium mb-3 text-gray-700">
-                    {docType === 'cancellationCheque' ? 'Cancellation Cheque' :
-                     docType === 'aadharCard' ? 'Aadhar Card' : 'Final Result'}
-                  </h4>
-                  <div className="flex items-center justify-between">
-                    {uploadedFiles[docType] ? (
-                      <div className="flex items-center text-green-600">
-                        <FiCheckCircle className="mr-2" />
-                        <span className="text-sm font-medium">Uploaded</span>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm hover:bg-indigo-100 transition flex items-center font-medium">
-                        <FiUpload className="mr-2" />
-                        Upload
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(docType, e.target.files[0])}
-                          accept=".jpg,.jpeg,.png,.pdf"
-                        />
-                      </label>
+  const renderApplicationPopup = () => {
+    if (!selectedApplication) return null;
+
+    // Get current user's department name for display
+    const userDepartmentName = user?.department_name || 'Exam Cell'; // UPDATED: Fallback to Exam Cell
+    const EXAM_DEPT_ID = 6; // UPDATED: Department ID
+
+    // FIX: Check if application is in an actionable state (Pending or In Progress)
+    const statusKey = (selectedApplication.status || '').toLowerCase().replace(/[\s-]/g, '');
+    const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey);
+
+    return (
+      <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        >
+        <motion.div 
+          ref={applicationPopupRef}
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 50, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        >
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Application Details</h2>
+                <p className="text-sm text-gray-500 mt-1">Review and take action on this application</p>
+              </div>
+              <button
+                onClick={() => setSelectedApplication(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Application Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 ">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Student Name</label>
+                  <p className="text-lg font-semibold text-gray-900">{selectedApplication.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Roll Number</label>
+                  <p className="text-gray-900">{selectedApplication.rollNo || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Enrollment Number</label>
+                  <p className="text-gray-900">{selectedApplication.enrollment ?? '—'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Course</label>
+                  <p className="text-gray-900">{selectedApplication.course ?? '—'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-gray-900">{selectedApplication.email ?? '—'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mobile</label>
+                  <p className="text-gray-900">{selectedApplication.mobile ?? '—'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Application Date</label>
+                  <p className="text-gray-900">{formatDate(selectedApplication.date)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <div className="mt-1">{renderStatusBadge(selectedApplication.status)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Section (Only show if actionable - PENDING or IN PROGRESS) */}
+            {isActionable && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 className="text-lg font-semibold mb-4">Department Action</h3>
+                
+                <div className="space-y-4">
+                    
+                    {/* FIXED: Display Current Department statically */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Actioning Department
+                        </label>
+                        <div className="w-full border border-gray-300 bg-white rounded-lg px-3 py-2.5 font-semibold text-gray-900 shadow-sm">
+                            {userDepartmentName}
+                        </div>
+                    </div>
+                    {/* END FIXED */}
+
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Remark (required for rejection)
+                    </label>
+                    <textarea 
+                        value={actionRemark} 
+                        onChange={(e) => setActionRemark(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        rows={3}
+                        placeholder="Enter your remarks here..."
+                    />
+                    {actionError && (
+                        <p className="text-red-600 text-sm mt-2">{actionError}</p>
                     )}
-                  </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                    <button
+                        disabled={actionLoading || !actionDeptId}
+                        onClick={() => handleDepartmentAction(
+                            selectedApplication, 
+                            EXAM_DEPT_ID, // UPDATED: Use Exam Cell ID (6)
+                            'approve', 
+                            actionRemark
+                        )}
+                        className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                    >
+                        <FiCheck className="mr-2" />
+                        {actionLoading && actionDeptId && actionRemark !== 'reject' ? 'Processing...' : 'Approve'}
+                    </button>
+                    
+                    <button
+                        disabled={actionLoading || !actionDeptId}
+                        onClick={() => handleDepartmentAction(
+                            selectedApplication, 
+                            EXAM_DEPT_ID, // UPDATED: Use Exam Cell ID (6)
+                            'reject', 
+                            actionRemark
+                        )}
+                        className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                    >
+                        <FiX className="mr-2" />
+                        {actionLoading && actionDeptId && actionRemark === 'reject' ? 'Processing...' : 'Reject'}
+                    </button>
+                    </div>
                 </div>
-              ))}
-            </div>
-
-            {/* No-Dues Process Checklist */}
-            <h3 className="font-semibold mb-4 text-gray-800">No-Dues Process Checklist</h3>
-            <div className="bg-gray-50 p-5 rounded-lg mb-6">
-              {[
-                'Verify all documents are submitted',
-                'Confirm fee payment status',
-                'Check library book return status',
-                'Verify hostel clearance',
-                'Confirm no pending lab dues'
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center mb-3 last:mb-0">
-                  <input type="checkbox" id={`check${idx}`} className="mr-3 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
-                  <label htmlFor={`check${idx}`} className="text-gray-700 cursor-pointer">{item}</label>
                 </div>
-              ))}
-            </div>
+            )}
 
-            {/* Submit Button */}
-            <div className="flex justify-end">
-              <button
-                onClick={handleSubmitNoDues}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 flex items-center font-medium shadow-md hover:shadow-lg transition"
-              >
-                <FiCheckCircle className="mr-2" />
-                Submit No-Dues Application
-              </button>
-            </div>
-          </div>
-        )}
+            {/* Quick Actions */}
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                onClick={() => setSelectedApplication(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+              <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center transition-colors">
+                <FiDownload className="mr-2" />
+                Download Documents
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  };
 
-        {/* Recent Applications */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">Recent No-Dues Applications</h2>
-            <div className="flex items-center">
-              <FiFilter className="text-gray-500 mr-2" />
-              <select 
-                value={filterStatus} 
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">All Applications</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-          
-          {renderApplicationsTable(
-            filterStatus === 'all' 
-              ? applications 
-              : applications.filter(app => 
-                  filterStatus === 'approved' ? app.status === 'Approved' :
-                  filterStatus === 'pending' ? app.status === 'Pending' :
-                  app.status === 'Rejected'
-                )
-          )}
-        </div>
-      </>
-    );
-  };
-
-  const renderPendingApplications = () => {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h2 className="text-xl font-semibold mb-6 text-gray-800">Pending Applications</h2>
-        {pendingApplications.length > 0 ? (
-          renderApplicationsTable(pendingApplications)
-        ) : (
-          <p className="text-gray-500 text-center py-8">No pending applications</p>
-        )}
-      </div>
-    );
-  };
-
-  const renderApplicationHistory = () => {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h2 className="text-xl font-semibold mb-6 text-gray-800">Application History</h2>
-        {approvedApplications.length > 0 ? (
-          renderApplicationsTable(approvedApplications)
-        ) : (
-          <p className="text-gray-500 text-center py-8">No application history</p>
-        )}
-      </div>
-    );
-  };
-
+  // REFACTORED: Main content structure
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar menuItems={menuItems} user={user} logout={logout} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} />
+        
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+            <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+            >
+                {/* Header Section */}
+                <motion.div variants={itemVariants}>
+                    <h1 className="text-3xl font-extrabold mb-1 text-gray-900">
+                        Exam Cell Review {/* UPDATED: Title */}
+                    </h1>
+                    <p className="text-gray-600 mb-6">Welcome, {user?.name}. Review and process pending No-Dues applications for exam clearance.</p> {/* UPDATED: Description */}
+                </motion.div>
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Exam Dashboard</h1>
-            <p className="text-gray-600">Welcome, {user?.name}</p>
-          </div>
+                {/* Stats Section */}
+                <motion.div 
+                    className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                    variants={containerVariants}
+                    initial="initial" animate="animate"
+                >
+                    <motion.div 
+                        className="bg-white p-5 rounded-xl shadow-lg border-l-4 border-indigo-500 transition-shadow duration-300 hover:shadow-xl"
+                        variants={cardVariants} initial="initial" animate="animate" whileHover="hover"
+                    >
+                        <div className='flex items-center justify-between'>
+                            <p className="text-sm font-semibold text-gray-500 uppercase">Total</p>
+                            <FiUsers className='text-indigo-500 text-xl' />
+                        </div>
+                        <p className="text-3xl font-bold mt-1 text-gray-900">{totalCount}</p>
+                    </motion.div>
 
-          {/* Applications Table */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">No-Dues Applications</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {applications.length > 0 ? (
-                    applications.map((app) => (
-                      <tr key={app.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{app.rollNo || '—'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-700">{app.name || '—'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-700">{app.course || '—'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">{app.date ? new Date(app.date).toLocaleDateString() : '—'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            app.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                            app.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {app.status || '—'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button 
-                            onClick={() => setSelectedApplication(app)}
-                            className="text-indigo-600 hover:text-indigo-900 flex items-center font-medium"
-                          >
-                            <FiEye className="mr-1" /> View
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="px-6 py-4 text-center text-gray-500">No applications found</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    <motion.div 
+                        className="bg-white p-5 rounded-xl shadow-lg border-l-4 border-yellow-500 transition-shadow duration-300 hover:shadow-xl"
+                        variants={cardVariants} initial="initial" animate="animate" whileHover="hover"
+                    >
+                        <div className='flex items-center justify-between'>
+                            <p className="text-sm font-semibold text-gray-500 uppercase">Pending</p>
+                            <FiClock className='text-yellow-500 text-xl' />
+                        </div>
+                        <p className="text-3xl font-bold mt-1 text-yellow-600">
+                            {pendingCount}
+                        </p>
+                    </motion.div>
+
+                    <motion.div 
+                        className="bg-white p-5 rounded-xl shadow-lg border-l-4 border-green-500 transition-shadow duration-300 hover:shadow-xl"
+                        variants={cardVariants} initial="initial" animate="animate" whileHover="hover"
+                    >
+                        <div className='flex items-center justify-between'>
+                            <p className="text-sm font-semibold text-gray-500 uppercase">Approved</p>
+                            <FiCheckCircle className='text-green-500 text-xl' />
+                        </div>
+                        <p className="text-3xl font-bold mt-1 text-green-600">
+                            {approvedCount}
+                        </p>
+                    </motion.div>
+
+                    <motion.div 
+                        className="bg-white p-5 rounded-xl shadow-lg border-l-4 border-red-500 transition-shadow duration-300 hover:shadow-xl"
+                        variants={cardVariants} initial="initial" animate="animate" whileHover="hover"
+                    >
+                        <div className='flex items-center justify-between'>
+                            <p className="text-sm font-semibold text-gray-500 uppercase">Rejected</p>
+                            <FiXCircle className='text-red-500 text-xl' />
+                        </div>
+                        <p className="text-3xl font-bold mt-1 text-red-600">
+                            {rejectedCount}
+                        </p>
+                    </motion.div>
+                </motion.div>
+
+                {/* Search + Filter + Refresh */}
+                <motion.div 
+                    className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 p-4 bg-white rounded-xl shadow"
+                    variants={itemVariants}
+                >
+
+                    {/* Search Bar */}
+                    <div className="flex items-center border border-gray-300 rounded-lg px-4 py-2 w-full md:w-1/3 transition-shadow duration-300 focus-within:shadow-md focus-within:border-indigo-500">
+                        <FiSearch className="text-gray-500 mr-2" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, roll number, or course..."
+                            className="w-full outline-none text-sm bg-transparent"
+                            onChange={handleSearch}
+                        />
+                    </div>
+
+                    {/* Filter & Refresh */}
+                    <div className="flex items-center gap-3 mt-3 md:mt-0">
+                        <div className='relative flex items-center'>
+                             <FiFilter className="absolute left-3 text-gray-500 w-4 h-4 pointer-events-none" />
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white transition-colors duration-200 hover:border-indigo-500 cursor-pointer"
+                            >
+                                <option value="all">All Applications</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <svg className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+
+                        <button
+                            onClick={fetchApplications} // Use the dedicated fetch function for refresh
+                            className="p-2.5 border border-gray-300 rounded-lg hover:bg-indigo-100/50 transition-colors duration-200 text-gray-600 shadow-sm"
+                            title="Refresh Data"
+                        >
+                            <FiRefreshCw className={isLoading ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
+                </motion.div>
+
+                {/* Applications Table */}
+                <motion.div 
+                    className="bg-white rounded-xl shadow-lg p-6"
+                    variants={itemVariants}
+                >
+                    <h3 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">Application List</h3>
+                    {isLoading ? (
+                        <div className="text-center py-12 text-gray-500 flex flex-col items-center">
+                            <FiRefreshCw className="animate-spin w-6 h-6 mb-3 text-indigo-500" />
+                            <p>Loading applications...</p>
+                        </div>
+                    ) : (
+                        renderApplicationsTable(filteredApplications)
+                    )}
+                </motion.div>
+            </motion.div>
         </main>
       </div>
+      
+      {/* Popup Modal */}
+      {renderApplicationPopup()}
     </div>
   );
 };
 
-export default ExamDashboard;
+export default ExamDashboard; // UPDATED: Exported component name

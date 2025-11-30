@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { FiUser,FiClock,FiCode,FiRotateCcw,FiCheckCircle,FiLogOut, FiFileText, FiMenu, FiX, FiCheck, FiXCircle, FiRefreshCw } from 'react-icons/fi';
+import { 
+  FiUser, FiClock, FiFileText, FiLogOut, FiMenu, FiX, 
+  FiCheck, FiXCircle, FiRefreshCw, FiAlertCircle, 
+  FiChevronRight, FiHome, FiActivity 
+} from 'react-icons/fi';
 
 const STATUS_STEPS = [
   'Process initiation',
@@ -48,7 +52,7 @@ const StudentDashboard = () => {
     mobile: '',
     email: '',
     domicile: '',
-     permanentAddress: '',
+    permanentAddress: '',
     hostelName: '',
     admissionYear: '',
     section: '',
@@ -70,26 +74,7 @@ const StudentDashboard = () => {
   // Allowed categories enforced by backend
   const VALID_CATEGORIES = ['GEN', 'OBC', 'SC', 'ST'];
 
-  // Helper: decode JWT payload (no signature verification). Returns parsed payload or null.
-  const decodeJwt = (t) => {
-    if (!t || typeof t !== 'string') return null;
-    try {
-      const parts = t.split('.');
-      if (parts.length < 2) return null;
-      const payload = parts[1];
-      // pad base64 string
-      const padded = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const pad = padded.length % 4;
-      const b64 = pad ? padded + '='.repeat(4 - pad) : padded;
-      const json = atob(b64);
-      return JSON.parse(json);
-    } catch (e) {
-      console.debug('decodeJwt failed', e);
-      return null;
-    }
-  };
-
-  /* ---------- load user data (same tolerant mapping you've used) ---------- */
+  /* ---------- load user data ---------- */
   useEffect(() => {
     if (!user) return;
     const envelope = user;
@@ -125,7 +110,6 @@ const StudentDashboard = () => {
           ? 'No'
           : '',
       hostelName: get(s, 'hostel_name', 'hostelName'),
-  
       admissionYear: get(s, 'admission_year', 'admissionYear'),
       section: get(s, 'section'),
       batch: get(s, 'batch'),
@@ -146,10 +130,8 @@ const StudentDashboard = () => {
       email: get(s, 'email') !== '',
       domicile: (get(s, 'domicile') !== '') || (get(s, 'permanent_address') !== ''),
       permanentAddress: get(s, 'permanent_address') !== '',
-      // Keep hosteller editable regardless of backend value
       isHosteller: false,
       hostelName: get(s, 'hostel_name') !== '',
-      
       admissionYear: get(s, 'admission_year') !== '',
       section: get(s, 'section') !== '',
       batch: get(s, 'batch') !== '',
@@ -174,16 +156,15 @@ const StudentDashboard = () => {
     }
   }, [user]);
 
-  // Dynamic steps (labels) driven by backend department sequence when available
+  // Dynamic steps
   const [departmentSteps, setDepartmentSteps] = useState(STATUS_STEPS);
   const [lastStatusBody, setLastStatusBody] = useState(null);
   const [statusError, setStatusError] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
   const [showRawStatus, setShowRawStatus] = useState(false);
 
-  /* ---------- fetch application status from backend and map to steps ---------- */
+  /* ---------- fetch application status ---------- */
   const fetchApplicationStatus = async () => {
-    // Reusable fetch function so UI can call it on-demand (refresh) or via polling
     if (!user) return;
     setStatusLoading(true);
     setStatusError('');
@@ -199,14 +180,11 @@ const StudentDashboard = () => {
       const res = await fetch(url, { method: 'GET', headers });
       let body = null;
       try { body = await res.json(); } catch (e) { body = null; }
-      console.debug('Application /my response', { status: res.status, ok: res.ok, body });
-        setLastStatusBody(body);
+      
+      setLastStatusBody(body);
 
-        if (!statusMountedRef.current) { setStatusLoading(false); return; }
-        if (!res.ok) { setStatusError(`Status fetch failed: ${res.status}`); setStatusLoading(false); return; }
-
-      if (!statusMountedRef.current) return;
-      if (!res.ok) return; // don't update UI on error
+      if (!statusMountedRef.current) { setStatusLoading(false); return; }
+      if (!res.ok) { setStatusError(`Status fetch failed: ${res.status}`); setStatusLoading(false); return; }
 
       const mapStageToStatus = (stage, body) => {
         if (!stage) return { status: 'pending', comment: '' };
@@ -217,75 +195,50 @@ const StudentDashboard = () => {
         return { status: 'pending', comment: stage.remarks || '' };
       };
 
-      // Build a department sequence (array of {id,name,sequence_order})
       let deptSeq = null;
       if (body && Array.isArray(body.departments) && body.departments.length) {
         deptSeq = body.departments.map(d => ({ id: d.id, name: d.name || d.department_name || `Dept ${d.id}`, sequence_order: d.sequence_order ?? null }));
       } else if (Array.isArray(body.department_sequence) && body.department_sequence.length) {
         deptSeq = body.department_sequence.map(d => ({ id: d.id, name: d.name || d.department_name || `Dept ${d.id}`, sequence_order: d.sequence_order ?? null }));
       } else {
-        // fallback to default department list (ensures all steps are shown)
         deptSeq = DEFAULT_DEPT_SEQUENCE.map(d => ({ id: d.id, name: d.name, sequence_order: d.sequence_order }));
       }
 
-      // Build labels and append final 'Completed' step
       const stepLabels = [...deptSeq.map(d => d.name)];
       if (stepLabels[stepLabels.length - 1] !== 'Completed') stepLabels.push('Completed');
-      // debug: show mapping results
-        try { console.debug('Mapped departments', { deptSeq, stepLabels }); } catch (e) {}
       setDepartmentSteps(stepLabels);
 
-      // Map statuses using stages info (match by department_id primarily, fallback to sequence_order)
       const stages = Array.isArray(body.stages) ? body.stages : [];
       const mappedStatuses = deptSeq.map((d) => {
         const stage = stages.find(s => Number(s.department_id) === Number(d.id) || (s.sequence_order != null && d.sequence_order != null && Number(s.sequence_order) === Number(d.sequence_order)));
         return mapStageToStatus(stage, body);
       });
 
-      // Add final 'Completed' status based on flags or application.status
       const completedFlag = !!(body?.flags?.is_completed || (body?.application && typeof body.application.status === 'string' && body.application.status.toLowerCase() === 'completed'));
       mappedStatuses.push(completedFlag ? { status: 'completed', comment: '' } : { status: 'pending', comment: '' });
 
       setStepStatuses(mappedStatuses);
-      try { console.debug('Set stepStatuses', mappedStatuses); } catch (e) {}
-      // Update started state from flags/application
       const startedFlag = !!(body?.flags?.is_in_progress || (body?.application && typeof body.application.status === 'string' && body.application.status.toLowerCase() !== 'pending' && body.application.status.toLowerCase() !== 'new'));
       setStarted(startedFlag);
-        setStatusLoading(false);
+      setStatusLoading(false);
     } catch (e) {
-      console.debug('fetchApplicationStatus error', e);
-        setStatusError(e?.message || String(e));
-        setStatusLoading(false);
+      setStatusError(e?.message || String(e));
+      setStatusLoading(false);
     }
   };
 
   useEffect(() => {
     statusMountedRef.current = true;
-    // initial fetch and periodic poll
     fetchApplicationStatus();
     const iv = setInterval(fetchApplicationStatus, 30000);
     return () => { statusMountedRef.current = false; clearInterval(iv); };
   }, [user, token]);
 
-  /* ---------- body scroll lock for mobile sidebar ---------- */
+  /* ---------- body scroll lock ---------- */
   useEffect(() => {
     document.body.style.overflow = sidebarOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
-
-  /* ---------- detect outside taps to close any mobile dialog ---------- */
-  useEffect(() => {
-    const onDown = (e) => {
-      if (showDialogIndex === -1) return;
-      // if click is outside dialogsRef, close
-      if (!dialogsRef.current) return;
-      if (!dialogsRef.current.contains(e.target)) {
-        setShowDialogIndex(-1);
-      }
-    };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [showDialogIndex]);
 
   const handleLogout = () => {
     logout();
@@ -299,10 +252,9 @@ const StudentDashboard = () => {
   };
 
   const handleStartProcess = async () => {
-    // Save first, then start process if save succeeded
-    if (submitting) return; // prevent duplicate
+    if (submitting) return;
     const ok = await handleSave();
-    if (!ok) return; // validation or server errors
+    if (!ok) return;
     setStarted(true);
     setStepStatuses(prev => {
       const hasInProgress = prev.some(s => s.status === 'in_progress');
@@ -314,184 +266,172 @@ const StudentDashboard = () => {
     });
   };
 
-  const handlePdfChange = (e) => setPdf(e.target.files?.[0] || null);
-  const handlePdfSubmit = (e) => { e.preventDefault(); if (!pdf) return alert('Please select a PDF to submit.'); alert(`PDF "${pdf.name}" submitted (mock).`); setPdf(null); };
-
-  const fieldClass = 'w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200';
-
   /* ---------- Sidebar content ---------- */
   const SidebarContent = ({ closeOnClick }) => (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center text-white text-lg font-semibold shadow">
+    <div className="flex flex-col h-full  font-sans">
+      <div className="flex items-center gap-3 mb-8 px-2">
+        <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white text-lg font-bold shadow-sm">
           {(formData.fullName || user?.full_name) ? ((formData.fullName || user.full_name).charAt(0).toUpperCase()) : <FiUser />}
         </div>
-        <div>
-          <div className="text-sm text-slate-500">Signed in as</div>
-          <div className="font-medium text-slate-900 truncate" title={user?.full_name || formData.fullName || 'Student'}>{user?.full_name || formData.fullName || 'Student'}</div>
-          <div className="text-xs text-slate-400">{user?.roll_number || formData.rollNumber || ''}</div>
+        <div className="overflow-hidden">
+          <div className="text-sm font-semibold text-slate-900 truncate" title={user?.full_name || formData.fullName}>
+            {user?.full_name || formData.fullName || 'Student'}
+          </div>
+          <div className="text-xs text-slate-500 truncate">{user?.roll_number || formData.rollNumber || ''}</div>
         </div>
       </div>
 
-      <nav className="mt-2 flex-1">
-        <ul className="space-y-2">
-          <li>
-            <button onClick={() => { setActive('dashboard'); if (closeOnClick) setSidebarOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-3 ${active === 'dashboard' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'}`}>
-              <FiFileText className="text-lg" /><span>Dashboard</span>
-            </button>
-          </li>
-          <li>
-            <button onClick={() => { setActive('form'); if (closeOnClick) setSidebarOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-3 ${active === 'form' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'}`}>
-              <FiFileText className="text-lg" /><span>Application</span>
-            </button>
-          </li>
-          <li>
-            <button onClick={() => { setActive('status'); if (closeOnClick) setSidebarOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-3 ${active === 'status' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'}`}>
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
-              <span>Status</span>
-            </button>
-          </li>
-        </ul>
+      <nav className="flex-1 space-y-1">
+        <button 
+          onClick={() => { setActive('dashboard'); if (closeOnClick) setSidebarOpen(false); }} 
+          className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 transition-all ${
+            active === 'dashboard' 
+              ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm' 
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          }`}
+        >
+          <FiHome className={`text-lg ${active === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span>Overview</span>
+        </button>
+
+        <button 
+          onClick={() => { setActive('form'); if (closeOnClick) setSidebarOpen(false); }} 
+          className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 transition-all ${
+            active === 'form' 
+              ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm' 
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          }`}
+        >
+          <FiFileText className={`text-lg ${active === 'form' ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span>My Application</span>
+        </button>
+
+        <button 
+          onClick={() => { setActive('status'); if (closeOnClick) setSidebarOpen(false); }} 
+          className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 transition-all ${
+            active === 'status' 
+              ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm' 
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          }`}
+        >
+          <FiActivity className={`text-lg ${active === 'status' ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span>Track Status</span>
+        </button>
       </nav>
 
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <button onClick={() => { handleLogout(); if (closeOnClick) setSidebarOpen(false); }} className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
-          <FiLogOut /> Logout
+      <div className="pt-4 border-t border-slate-100 mt-auto">
+        <button onClick={() => { handleLogout(); if (closeOnClick) setSidebarOpen(false); }} className="w-full inline-flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+          <FiLogOut className="text-lg" /> Sign Out
         </button>
       </div>
     </div>
   );
 
-  /* ---------- Stepper ---------- */
-  const Stepper = ({ steps, statuses }) => {
-    // mobile: 2 columns (4 rows) -> visually 2x4, md+: 4 columns (2 rows) -> 4x2
+  /* ---------- New Timeline Component (Order Tracking Style) ---------- */
+  const TrackingTimeline = ({ steps, statuses }) => {
+    // Calculate progress percentage
+    const total = steps.length;
+    const completedCount = statuses.filter(s => s.status === 'completed').length;
+    const progressPercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
     return (
-      <div className="w-full relative overflow-x-auto" ref={dialogsRef}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 items-start">
+      <div className="w-full">
+        {/* Progress Header */}
+        <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-8">
+          <div className="flex justify-between items-end mb-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Total Progress</div>
+              <div className="text-2xl font-bold text-slate-900">{progressPercent}% <span className="text-sm font-normal text-slate-500">Completed</span></div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-500">Next Step</div>
+              <div className="font-medium text-blue-600">
+                {steps[statuses.findIndex(s => s.status === 'in_progress') !== -1 
+                  ? statuses.findIndex(s => s.status === 'in_progress') 
+                  : statuses.findIndex(s => s.status === 'pending')] || 'Completed'}
+              </div>
+            </div>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-700 ease-out" 
+              style={{ width: `${progressPercent}%` }} 
+            />
+          </div>
+        </div>
+
+        {/* Detailed Vertical Timeline */}
+        <div className="relative pl-4 sm:pl-6 space-y-0">
+          {/* Vertical Line Background */}
+          <div className="absolute left-8 top-2 bottom-4 w-0.5 bg-slate-200 md:left-[2.25rem]" aria-hidden="true"></div>
+
           {steps.map((label, idx) => {
             const st = statuses[idx] || { status: 'pending', comment: '' };
-            const completed = st.status === 'completed';
-            const failed = st.status === 'failed';
-            const inProgress = st.status === 'in_progress';
-            const prewritten = st.comment || 'Department note: Required documents missing. Please contact the concerned department.';
+            const statusKey = (st.status || 'pending').toLowerCase();
+            
+            let statusConfig = {
+              icon: <div className="w-2.5 h-2.5 bg-slate-300 rounded-full" />,
+              colorClass: 'border-slate-300 bg-white text-slate-300',
+              textClass: 'text-slate-500',
+              badge: null
+            };
 
-            const col = idx % 4;
-            const hasRightConnector = col < 3; // on md+ this draws horizontal connector to next
-            const isStep4 = idx === 3;
+            if (statusKey === 'completed') {
+              statusConfig = {
+                icon: <FiCheck className="w-5 h-5" />,
+                colorClass: 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200',
+                textClass: 'text-slate-900',
+                badge: <span className="ml-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 bg-blue-50 rounded-full border border-blue-100">Cleared</span>
+              };
+            } else if (statusKey === 'in_progress' || statusKey === 'inprogress') {
+              statusConfig = {
+                icon: <div className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" />,
+                colorClass: 'border-blue-600 bg-white text-blue-600 ring-4 ring-blue-50',
+                textClass: 'text-blue-700 font-semibold',
+                badge: <span className="ml-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 rounded-full border border-amber-100">Processing</span>
+              };
+            } else if (statusKey === 'failed' || statusKey === 'rejected') {
+              statusConfig = {
+                icon: <FiX className="w-5 h-5" />,
+                colorClass: 'border-rose-500 bg-rose-500 text-white shadow-md shadow-rose-200',
+                textClass: 'text-rose-700',
+                badge: <span className="ml-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 bg-rose-50 rounded-full border border-rose-100">Action Required</span>
+              };
+            }
 
             return (
-              <div key={label} className="relative group">
-                <div
-                  className="flex flex-col items-center cursor-default"
-                  // on mobile taps, allow toggling dialog for failed steps
-                  onClick={(e) => {
-                    if (failed) {
-                      // toggle mobile dialog index
-                      setShowDialogIndex(prev => prev === idx ? -1 : idx);
-                    }
-                  }}
-                >
-                  <div className="relative">
-                    {completed ? (
-                      <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center shadow">
-                        <FiCheck className="text-white" />
-                      </div>
-                    ) : failed ? (
-                      <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow">
-                        <FiXCircle className="text-white" />
-                      </div>
-                    ) : inProgress ? (
-                      <div className="w-12 h-12 rounded-full bg-white border-2 border-blue-400 flex items-center justify-center">
-                        <div className="text-sm font-semibold text-blue-600">{idx + 1}</div>
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                        <div className="text-sm font-semibold text-slate-700">{idx + 1}</div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 text-xs text-center max-w-[140px] text-slate-700">
-                    {label}
-                  </div>
+              <div key={idx} className="relative flex items-start group pb-8 last:pb-0">
+                {/* Timeline Node */}
+                <div className={`
+                  relative z-10 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-colors duration-300
+                  ${statusConfig.colorClass}
+                `}>
+                  {statusConfig.icon}
                 </div>
 
-                {/* Horizontal connector: visible on md+ (connects 1→2→3→4 and 5→6→7→8) */}
-                {hasRightConnector && (
-                  <div
-                    aria-hidden
-                    className="hidden md:block"
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '100%',
-                      transform: 'translateY(-50%)',
-                      width: '64px',
-                      height: '2px',
-                      background: (statuses[idx]?.status === 'completed' && statuses[idx + 1]?.status === 'completed') ? '#16a34a' : '#E5E7EB'
-                    }}
-                  />
-                )}
-
-                {/* small connector for mobile arrangement */}
-                {hasRightConnector && (
-                  <div className="md:hidden" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '100%',
-                    transform: 'translateY(-50%)',
-                    width: '36px',
-                    height: '2px',
-                    background: '#E5E7EB'
-                  }} />
-                )}
-
-                {/* vertical connector from step 4 -> 5 (short / half) on md+ */}
-                {isStep4 && (
-                  <div aria-hidden
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      top: '100%',
-                      width: '2px',
-                      height: '26px',
-                      marginTop: 6,
-                      background: '#9CA3AF',
-                      opacity: 0.5,
-                      borderRadius: 2,
-                      zIndex: 5
-                    }}
-                    className="hidden md:block"
-                  />
-                )}
-
-                {/* Desktop hover dialog (md+: shown by CSS group-hover) */}
-                {failed && (
-                  <div className="hidden md:block absolute left-1/2 -translate-x-1/2 -top-44 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto" style={{ minWidth: 240 }}>
-                    <div className="bg-white border border-slate-200 rounded-md p-3 text-sm shadow-2xl text-slate-800">
-                      <div className="font-semibold text-sm mb-1">{label} — Comment</div>
-                      <div className="text-xs">{prewritten}</div>
-                    </div>
+                {/* Content */}
+                <div className="flex-1 ml-4 md:ml-6 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <h4 className={`text-sm md:text-base font-medium ${statusConfig.textClass}`}>
+                      {label}
+                    </h4>
+                    {statusConfig.badge}
                   </div>
-                )}
-
-                {/* Mobile dialog: controlled by showDialogIndex */}
-                {failed && showDialogIndex === idx && (
-                  <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-full mt-3 z-50" style={{ minWidth: 220 }}>
-                    <div className="bg-white border border-slate-200 rounded-md p-3 text-sm shadow-2xl text-slate-800">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-semibold text-sm mb-1">{label} — Comment</div>
-                          <div className="text-xs">{prewritten}</div>
-                        </div>
-                        <button onClick={() => setShowDialogIndex(-1)} className="ml-3 p-1 text-slate-500 hover:text-slate-700">
-                          <FiX />
-                        </button>
-                      </div>
+                  
+                  {/* Status Message / Comment */}
+                  {st.comment && (
+                    <div className="mt-2 p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-600">
+                      <p className="flex items-start gap-2">
+                        <span className="mt-0.5 text-slate-400"><FiFileText /></span>
+                        {st.comment}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
+                  
+                  {statusKey === 'pending' && (
+                    <p className="text-xs text-slate-400 mt-1">Waiting for initiation...</p>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -499,42 +439,6 @@ const StudentDashboard = () => {
       </div>
     );
   };
-
-  /* ---------- dev helpers ---------- */
-  const getCurrentIndex = () => {
-    const idx = stepStatuses.findIndex(s => s.status === 'in_progress');
-    if (idx >= 0) return idx;
-    const pending = stepStatuses.findIndex(s => s.status === 'pending');
-    return pending >= 0 ? pending : -1;
-  };
-  const advanceStepDev = () => {
-    setStepStatuses(prev => {
-      const arr = prev.map(s => ({ ...s }));
-      const cur = arr.findIndex(s => s.status === 'in_progress');
-      if (cur === -1) {
-        const firstPending = arr.findIndex(s => s.status === 'pending');
-        if (firstPending === -1) return arr;
-        arr[firstPending].status = 'in_progress';
-        return arr;
-      }
-      if (arr[cur].status !== 'failed') arr[cur].status = 'completed';
-      const nextPending = arr.findIndex((s, i) => i > cur && s.status === 'pending');
-      if (nextPending !== -1) arr[nextPending].status = 'in_progress';
-      return arr;
-    });
-  };
-  const failStepDev = () => {
-    const cur = getCurrentIndex();
-    if (cur === -1) { alert('No in-progress step to fail. Advance a step first.'); return; }
-    const prewritten = 'Department note: Required documents missing. Please contact the concerned department.';
-    setStepStatuses(prev => {
-      const arr = prev.map(s => ({ ...s }));
-      arr[cur].status = 'failed';
-      arr[cur].comment = prewritten;
-      return arr;
-    });
-  };
-  const resetSteps = () => { setStepStatuses(STATUS_STEPS.map(() => ({ status: 'pending', comment: '' }))); setStarted(false); };
 
   /* ---------- form validation & save ---------- */
   const handleSave = async () => {
@@ -561,7 +465,6 @@ const StudentDashboard = () => {
     require('batch', 'Batch');
     require('admissionType', 'Admission Type');
 
-    // If hosteller is yes, require hostel fields
     if ((formData.isHosteller ?? '').toString() === 'Yes') {
       require('hostelName', 'Hostel Name');
       require('hostelRoom', 'Hostel Room');
@@ -569,17 +472,14 @@ const StudentDashboard = () => {
 
     setFormErrors(errs);
     if (Object.keys(errs).length) {
-      // focus first invalid
       const first = Object.keys(errs)[0];
       const el = document.querySelector(`[name="${first}"]`);
       if (el && el.focus) el.focus();
       return false;
     }
 
-    // All validation passed — send to backend
     setSubmitting(true);
     setSaveMessage('');
-    // Ensure category is valid
     if (formData.category && !VALID_CATEGORIES.includes(formData.category)) {
       setFormErrors(prev => ({ ...prev, category: 'Invalid category selected' }));
       setSaveMessage('Please select a valid category');
@@ -587,14 +487,11 @@ const StudentDashboard = () => {
       return false;
     }
 
-    // Allow students to create applications — backend issues `access_token` and student object on login.
-    // (Do not block client-side based solely on the `role` claim.)
     try {
       const rawBase = import.meta.env.VITE_API_BASE || '';
       const API_BASE = rawBase.replace(/\/+$/g, '');
       const url = API_BASE ? `${API_BASE}/api/applications/create` : `/api/applications/create`;
 
-      // Build payload (snake_case) from formData and include student identifiers
       const payload = {
         enrollment_number: formData.enrollmentNumber || user?.enrollment_number || null,
         roll_number: formData.rollNumber || user?.roll_number || null,
@@ -611,14 +508,12 @@ const StudentDashboard = () => {
         is_hosteller: formData.isHosteller === 'Yes',
         hostel_name: formData.hostelName || null,
         hostel_room: formData.hostelRoom || null,
-     
         section: formData.section || null,
         batch: formData.batch || null,
         admission_year: formData.admissionYear || null,
         admission_type: formData.admissionType || null
       };
 
-      // Include nested student_update object to match backend expectation
       payload.student_update = {
         father_name: formData.fatherName || null,
         mother_name: formData.motherName || null,
@@ -632,18 +527,9 @@ const StudentDashboard = () => {
         hostel_room: formData.hostelRoom || null
       };
 
-      // Prefer token from context, fall back to common locations on the user object or localStorage
       const authToken = token || user?.access_token || user?.token || user?.accessToken || localStorage.getItem('studentToken') || localStorage.getItem('access_token') || localStorage.getItem('accessToken');
       const headers = { 'Content-Type': 'application/json' };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-      // Debug: mask token when logging to avoid exposing it fully in console
-      try {
-        const masked = authToken ? `Bearer ${authToken.slice(0, 20)}...` : null;
-        console.debug('Application POST ->', { url, headers: { ...headers, Authorization: masked }, payload });
-      } catch (e) {
-        console.debug('Application POST -> (unable to mask token)', { url, payload });
-      }
 
       const res = await fetch(url, {
         method: 'POST',
@@ -654,28 +540,17 @@ const StudentDashboard = () => {
       let body = null;
       try { body = await res.json(); } catch (e) { body = null; }
 
-      // Debug: log response status and body to reproduce 403 details
-      try {
-        console.debug('Application POST response', { status: res.status, ok: res.ok, body });
-      } catch (e) {
-        console.debug('Application POST response (failed to log)', res.status);
-      }
-
       if (!res.ok) {
-        // If backend returns a 400 with a 'detail' message, prefer showing it directly
         if (res.status === 400 && body && typeof body === 'object' && body.detail) {
           setSaveMessage(body.detail);
           setSubmitting(false);
           return false;
         }
-        // map server field errors to formErrors if present
         const serverErrors = {};
         if (body && typeof body === 'object') {
-          // common patterns: { errors: { field: ['msg'] } } or { field: ['msg'] }
           if (body.errors && typeof body.errors === 'object') {
             for (const k of Object.keys(body.errors)) {
-              const msg = Array.isArray(body.errors[k]) ? body.errors[k][0] : String(body.errors[k]);
-              serverErrors[k] = msg;
+              serverErrors[k] = Array.isArray(body.errors[k]) ? body.errors[k][0] : String(body.errors[k]);
             }
           } else {
             for (const k of Object.keys(body)) {
@@ -684,7 +559,6 @@ const StudentDashboard = () => {
           }
         }
         if (Object.keys(serverErrors).length) {
-          // translate snake_case server field names to our form keys
           const mapped = {};
           for (const k of Object.keys(serverErrors)) {
             const fk = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -699,10 +573,8 @@ const StudentDashboard = () => {
         return false;
       }
 
-      // success
       setFormErrors({});
       setSaveMessage((body && (body.message || body.detail)) || 'Application submitted successfully');
-      // Update first step to in_progress when application is created
       setStarted(true);
       setStepStatuses(prev => {
         try {
@@ -713,14 +585,10 @@ const StudentDashboard = () => {
           return prev;
         }
       });
-      // Optionally lock fields after submit — keep enrollment/roll/name read-only
       setLocked(prev => ({ ...prev, enrollmentNumber: true, rollNumber: true, fullName: true, email: true, mobile: true }));
 
-      // if backend returned updated student profile, try to persist to localStorage
       if (body && (body.student || body.user)) {
-
-          // Include nested student_update object to match backend expectation
-          payload.student_update = {
+         payload.student_update = {
             father_name: formData.fatherName || null,
             mother_name: formData.motherName || null,
             gender: formData.gender || null,
@@ -733,11 +601,10 @@ const StudentDashboard = () => {
             hostel_room: formData.hostelRoom || null
           };
         const updated = body.student || body.user;
-        try { localStorage.setItem('studentUser', JSON.stringify(updated)); } catch (e) { /* ignore */ }
+        try { localStorage.setItem('studentUser', JSON.stringify(updated)); } catch (e) { }
       }
       return true;
     } catch (err) {
-      console.error('Application submit failed', err);
       setSaveMessage(err?.message || 'Application submit failed');
       return false;
     } finally {
@@ -745,567 +612,306 @@ const StudentDashboard = () => {
     }
   };
 
-  // Dev helper: send a canned test application POST (only shown in dev builds)
-  const sendTestApplication = async () => {
-    if (!confirm('Send dev test application POST to /api/applications/create?')) return;
-    const rawBase = import.meta.env.VITE_API_BASE || '';
-    const API_BASE = rawBase.replace(/\/+/g, '');
-    const url = API_BASE ? `${API_BASE}/api/applications/create` : `/api/applications/create`;
+  const fieldClass = 'w-full px-4 py-2.5 border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all text-sm text-slate-800 placeholder-slate-400 disabled:bg-slate-50 disabled:text-slate-500';
 
-    const testPayload = {
-      enrollment_number: user?.enrollment_number || '123123213213',
-      roll_number: user?.roll_number || '235ICS056',
-      full_name: user?.full_name || 'Tanishk Kaushik',
-      student_update: {
-        father_name: 'aa',
-        mother_name: 'bb',
-        gender: 'Male',
-        category: 'GEN',
-        dob: '2025-11-24',
-        permanent_address: 'sa',
-        domicile: 'UP',
-        is_hosteller: true,
-        hostel_name: 'das',
-        hostel_room: 'dsa'
-      }
-    };
-
-    // choose auth token same as handleSave
-    const authToken = token || user?.access_token || user?.token || user?.accessToken || localStorage.getItem('studentToken') || localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-    const headers = { 'Content-Type': 'application/json' };
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-    try {
-      const masked = authToken ? `Bearer ${authToken.slice(0, 20)}...` : null;
-      console.debug('Dev test POST ->', { url, headers: { ...headers, Authorization: masked }, testPayload });
-    } catch (e) {
-      console.debug('Dev test POST ->', { url, testPayload });
-    }
-
-    try {
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(testPayload) });
-      let body = null;
-      try { body = await res.json(); } catch (e) { body = null; }
-      console.debug('Dev test POST response', { status: res.status, ok: res.ok, body });
-      if (res.ok) {
-        alert('Dev test POST succeeded');
-        setSaveMessage('Dev test POST succeeded');
-      } else {
-        alert(`Dev test POST failed: ${res.status}`);
-        setSaveMessage(body && body.message ? body.message : `Dev test failed: ${res.status}`);
-      }
-    } catch (e) {
-      console.error('Dev test POST error', e);
-      alert('Dev test POST error — see console');
-      setSaveMessage('Dev test POST error (see console)');
-    }
-  };
-
-  /* ---------- layout rendering ---------- */
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-3 sm:p-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* desktop sidebar */}
-        <aside className="hidden md:block md:col-span-3">
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-lg sticky top-6 self-start h-[calc(100vh-48px)] overflow-auto">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans text-slate-900">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:block md:col-span-3 lg:col-span-2">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm sticky top-6 h-[calc(100vh-3rem)]">
             <SidebarContent />
           </div>
         </aside>
 
-        {/* mobile sidebar overlay */}
-        <div className={`fixed inset-0 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} aria-hidden={!sidebarOpen}>
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <aside className={`absolute left-0 top-0 bottom-0 w-72 bg-white p-5 shadow-lg transform transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            {/* Removed duplicated "Signed in as" header here.
-                SidebarContent already contains the header, so render it directly and pass closeOnClick. */}
-            <div className="flex items-center justify-between mb-4">
-              <div /> {/* keep spacing so close button sits to right */}
-              <button onClick={() => setSidebarOpen(false)} className="p-2 rounded hover:bg-gray-100"><FiX /></button>
+        {/* Mobile Sidebar Overlay */}
+        <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} md:hidden`} aria-hidden={!sidebarOpen}>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className={`absolute left-0 top-0 bottom-0 w-72 bg-white p-4 shadow-2xl transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="flex items-center justify-between mb-6">
+               <span className="font-bold text-lg text-slate-800">Menu</span>
+              <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
-
             <SidebarContent closeOnClick />
           </aside>
         </div>
 
-        <main className="md:col-span-9 space-y-6">
-          <div className="flex items-center justify-between md:hidden mb-2">
-            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded bg-white border border-gray-200"><FiMenu /></button>
-            <div className="text-lg font-semibold text-slate-900">Student Dashboard</div>
-            <div />
+        <main className="md:col-span-9 lg:col-span-10 space-y-8">
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between md:hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+                 {(formData.fullName || user?.full_name || 'S').charAt(0)}
+               </div>
+               <span className="font-semibold text-slate-900">Dashboard</span>
+            </div>
+            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-slate-50 border border-slate-200 text-slate-600"><FiMenu className="w-5 h-5" /></button>
           </div>
 
-          {/* Header */}
-          <Card className="p-4 sm:p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 truncate">Student Dashboard</h1>
-              <p className="text-sm text-slate-500 mt-1 truncate">Manage NoDues application and documents</p>
-            </div>
-
-            <div className="text-left sm:text-right w-full sm:w-auto">
-              <div className="text-xs text-slate-500">Application</div>
-              <div className={`text-sm font-semibold ${stepStatuses.every(s => s.status === 'completed') ? 'text-green-600' : 'text-yellow-600'}`}>
-                {stepStatuses.every(s => s.status === 'completed') ? 'All cleared' : (stepStatuses.some(s => s.status === 'in_progress') ? `Step in progress` : 'Not started')}
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button variant="primary" onClick={handleStartProcess} disabled={submitting || stepStatuses.some(s => s.status === 'in_progress') || stepStatuses.every(s => s.status === 'completed')}>
-                  {submitting ? 'Submitting...' : (stepStatuses.some(s => s.status === 'in_progress') ? 'Process Started' : 'Start Process')}
-                </Button>
-                <Button variant="outline" onClick={() => setActive('status')} className="hidden sm:inline-block">View Status</Button>
-              </div>
-            </div>
-          </Card>
-
-          {/* DASHBOARD */}
+          {/* DASHBOARD VIEW */}
           {active === 'dashboard' && (
-            <Card className="p-4 sm:p-6 rounded-2xl shadow-lg overflow-auto">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div>
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-semibold text-white" style={{ backgroundColor: '#2563eb' }}>
-                    {(formData.fullName || user?.full_name) ? ((formData.fullName || user.full_name).charAt(0).toUpperCase()) : <FiUser />}
+            <>
+              {/* Welcome Card */}
+              <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-sm">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+                      Welcome, {formData.fullName?.split(' ')[0] || user?.full_name?.split(' ')[0] || 'Student'}!
+                    </h1>
+                    <p className="text-slate-500 mt-2 text-sm md:text-base">
+                      Manage your university No-Dues application and track your clearance status.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 w-full md:w-auto">
+                    <Button 
+                      onClick={handleStartProcess} 
+                      className={`w-full md:w-auto px-6 py-3 rounded-xl font-semibold shadow-md shadow-blue-100 transition-all ${stepStatuses.some(s => s.status === 'in_progress') ? 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                      disabled={submitting || stepStatuses.some(s => s.status === 'in_progress') || stepStatuses.every(s => s.status === 'completed')}
+                    >
+                      {submitting ? 'Initiating...' : (stepStatuses.some(s => s.status === 'in_progress') ? 'Process Active' : 'Start Clearance')}
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg sm:text-xl font-semibold text-slate-900 truncate">{formData.fullName || user?.full_name || 'Student Name'}</h3>
-                  <div className="text-sm text-slate-500 mt-1 truncate">{formData.email || user?.email || 'Email not set'}</div>
-
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <SummaryCard label="Enrollment" value={formData.enrollmentNumber || user?.enrollment_number || '—'} />
-                    <SummaryCard label="Roll" value={formData.rollNumber || user?.roll_number || '—'} />
-                    <SummaryCard label="Mobile" value={formData.mobile || user?.mobile_number || '—'} />
-                  </div>
-
-                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" onClick={() => setActive('form')} className="w-full sm:w-auto">Edit Application</Button>
-                    <Button variant="primary" onClick={() => setActive('status')} className="w-full sm:w-auto">Check Status</Button>
-                  </div>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                  <StatCard label="Enrollment No" value={formData.enrollmentNumber || user?.enrollment_number} />
+                  <StatCard label="Roll No" value={formData.rollNumber || user?.roll_number} />
+                  <StatCard label="Course" value={formData.batch || '—'} />
+                  <StatCard label="Status" value={stepStatuses.every(s => s.status === 'completed') ? 'Cleared' : 'Pending'} highlight={stepStatuses.every(s => s.status === 'completed')} />
                 </div>
               </div>
-            </Card>
+
+              {/* Action Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button 
+                  onClick={() => setActive('form')}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-left group"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <FiFileText className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">Edit Application</h3>
+                  <p className="text-sm text-slate-500">Update your personal details and documents.</p>
+                </button>
+
+                <button 
+                  onClick={() => setActive('status')}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-left group"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <FiActivity className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">Track Progress</h3>
+                  <p className="text-sm text-slate-500">View real-time status of your clearances.</p>
+                </button>
+              </div>
+            </>
           )}
 
-          {/* FORM */}
+          {/* APPLICATION FORM VIEW */}
           {active === 'form' && (
-            <Card className="p-4 sm:p-6 rounded-2xl shadow-lg overflow-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Application / Registration Details</h2>
-                <div className="text-sm text-slate-500">Missing registration fields are editable.</div>
+            <Card className="p-0 rounded-2xl shadow-sm border border-slate-200 bg-white overflow-hidden">
+              <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50">
+                <h2 className="text-xl font-bold text-slate-900">Application Details</h2>
+                <p className="text-sm text-slate-500 mt-1">Please ensure all information is correct before submitting.</p>
               </div>
 
-              <form onSubmit={async (e) => { e.preventDefault(); await handleSave(); }} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <ReadOnlyRow label="Enrollment Number" value={formData.enrollmentNumber || user?.enrollment_number} />
-                    {formErrors.enrollmentNumber && <div className="text-xs text-red-600 mt-1">{formErrors.enrollmentNumber}</div>}
-                  </div>
-                  <div>
-                    <ReadOnlyRow label="Roll Number" value={formData.rollNumber || user?.roll_number} />
-                    {formErrors.rollNumber && <div className="text-xs text-red-600 mt-1">{formErrors.rollNumber}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <ReadOnlyRow label="Full Name" value={formData.fullName || user?.full_name} />
-                    {formErrors.fullName && <div className="text-xs text-red-600 mt-1">{formErrors.fullName}</div>}
-                  </div>
-                  <div>
-                    <ReadOnlyRow label="Email" value={formData.email || user?.email} />
-                    {formErrors.email && <div className="text-xs text-red-600 mt-1">{formErrors.email}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <ReadOnlyRow label="Mobile" value={formData.mobile || user?.mobile_number} />
-                    {formErrors.mobile && <div className="text-xs text-red-600 mt-1">{formErrors.mobile}</div>}
-                  </div>
-                  <div>
-                    <InputRow label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.fatherName} />
-                    {formErrors.fatherName && <div className="text-xs text-red-600 mt-1">{formErrors.fatherName}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <InputRow label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.motherName} />
-                    {formErrors.motherName && <div className="text-xs text-red-600 mt-1">{formErrors.motherName}</div>}
-                  </div>
-                  <div>
-                    <SelectRow label="Gender" name="gender" value={formData.gender} onChange={handleChange} fieldClass={fieldClass} editable={!locked.gender} />
-                    {formErrors.gender && <div className="text-xs text-red-600 mt-1">{formErrors.gender}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                  <SelectRow
-                    label="Category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    fieldClass={fieldClass}
-                    editable={!locked.category}
-                    options={VALID_CATEGORIES.map(c => ({ v: c, l: c }))}
-                  />
-                  {formErrors.category && <div className="text-xs text-red-600 mt-1">{formErrors.category}</div>}
-                  </div>
-                  <div>
-                    <InputRow label="DOB" name="dob" type="date" value={formData.dob} onChange={handleChange} fieldClass={fieldClass} editable={!locked.dob} />
-                    {formErrors.dob && <div className="text-xs text-red-600 mt-1">{formErrors.dob}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <InputRow label="Domicile" name="domicile" value={formData.domicile} onChange={handleChange} fieldClass={fieldClass} editable={!locked.domicile} />
-                    {formErrors.domicile && <div className="text-xs text-red-600 mt-1">{formErrors.domicile}</div>}
-                  </div>
-                  <div>
-                    <SelectRow label="Hosteller" name="isHosteller" value={formData.isHosteller} onChange={handleChange} fieldClass={fieldClass} editable={!locked.isHosteller} options={[{ v: 'No', l: 'No' }, { v: 'Yes', l: 'Yes' }]} />
-                    {formErrors.isHosteller && <div className="text-xs text-red-600 mt-1">{formErrors.isHosteller}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <InputRow label="Permanent Address" name="permanentAddress" value={formData.permanentAddress} onChange={handleChange} fieldClass={fieldClass} editable={!locked.permanentAddress} />
-                    {formErrors.permanentAddress && <div className="text-xs text-red-600 mt-1">{formErrors.permanentAddress}</div>}
-                  </div>
-                </div>
-
-                {formData.isHosteller === 'Yes' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.hostelName} />
-                      {formErrors.hostelName && <div className="text-xs text-red-600 mt-1">{formErrors.hostelName}</div>}
-                    </div>
-                    <div>
-                      <InputRow label="Hostel Room" name="hostelRoom" value={formData.hostelRoom} onChange={handleChange} fieldClass={fieldClass} editable={!locked.hostelRoom} />
-                      {formErrors.hostelRoom && <div className="text-xs text-red-600 mt-1">{formErrors.hostelRoom}</div>}
+              <div className="p-6 md:p-8">
+                <form onSubmit={async (e) => { e.preventDefault(); await handleSave(); }} className="space-y-6">
+                  
+                  {/* Section: Academic Info */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-blue-600 mb-3">Academic Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <ReadOnlyField label="Enrollment Number" value={formData.enrollmentNumber || user?.enrollment_number} error={formErrors.enrollmentNumber} />
+                      <ReadOnlyField label="Roll Number" value={formData.rollNumber || user?.roll_number} error={formErrors.rollNumber} />
+                      <InputRow label="Admission Year" name="admissionYear" value={formData.admissionYear} onChange={handleChange} fieldClass={fieldClass} editable={!locked.admissionYear} error={formErrors.admissionYear} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputRow label="Batch" name="batch" value={formData.batch} onChange={handleChange} fieldClass={fieldClass} editable={!locked.batch} error={formErrors.batch} />
+                        <InputRow label="Section" name="section" value={formData.section} onChange={handleChange} fieldClass={fieldClass} editable={!locked.section} error={formErrors.section} />
+                      </div>
+                      <SelectRow label="Admission Type" name="admissionType" value={formData.admissionType} onChange={handleChange} fieldClass={fieldClass} editable={!locked.admissionType} error={formErrors.admissionType} options={[{ v: 'Regular', l: 'Regular' }, { v: 'Lateral Entry', l: 'Lateral Entry' }, { v: 'Transfer', l: 'Transfer' }]} />
                     </div>
                   </div>
-                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <InputRow label="Section" name="section" value={formData.section} onChange={handleChange} fieldClass={fieldClass} editable={!locked.section} />
-                    {formErrors.section && <div className="text-xs text-red-600 mt-1">{formErrors.section}</div>}
+                  <hr className="border-slate-100" />
+
+                  {/* Section: Personal Info */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-blue-600 mb-3">Personal Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <ReadOnlyField label="Full Name" value={formData.fullName || user?.full_name} error={formErrors.fullName} />
+                      <ReadOnlyField label="Email Address" value={formData.email || user?.email} error={formErrors.email} />
+                      <ReadOnlyField label="Mobile Number" value={formData.mobile || user?.mobile_number} error={formErrors.mobile} />
+                      <InputRow label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} fieldClass={fieldClass} editable={!locked.dob} error={formErrors.dob} />
+                      <InputRow label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.fatherName} error={formErrors.fatherName} />
+                      <InputRow label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.motherName} error={formErrors.motherName} />
+                      <div className="grid grid-cols-2 gap-4">
+                         <SelectRow 
+                           label="Gender" 
+                           name="gender" 
+                           value={formData.gender} 
+                           onChange={handleChange} 
+                           fieldClass={fieldClass} 
+                           editable={!locked.gender} 
+                           error={formErrors.gender} 
+                           options={[{ v: 'Male', l: 'Male' }, { v: 'Female', l: 'Female' }, { v: 'Other', l: 'Other' }]} // <-- ADDED THIS LINE
+                         />
+                         <SelectRow label="Category" name="category" value={formData.category} onChange={handleChange} fieldClass={fieldClass} editable={!locked.category} error={formErrors.category} options={VALID_CATEGORIES.map(c => ({ v: c, l: c }))} />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <InputRow label="Batch" name="batch" value={formData.batch} onChange={handleChange} fieldClass={fieldClass} editable={!locked.batch} />
-                    {formErrors.batch && <div className="text-xs text-red-600 mt-1">{formErrors.batch}</div>}
+                  <hr className="border-slate-100" />
+
+                  {/* Section: Address & Hostel */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-blue-600 mb-3">Residential Details</h3>
+                    <div className="grid grid-cols-1 gap-5">
+                      <InputRow label="Permanent Address" name="permanentAddress" value={formData.permanentAddress} onChange={handleChange} fieldClass={fieldClass} editable={!locked.permanentAddress} error={formErrors.permanentAddress} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <InputRow label="Domicile State" name="domicile" value={formData.domicile} onChange={handleChange} fieldClass={fieldClass} editable={!locked.domicile} error={formErrors.domicile} />
+                        <SelectRow label="Are you a Hosteller?" name="isHosteller" value={formData.isHosteller} onChange={handleChange} fieldClass={fieldClass} editable={!locked.isHosteller} error={formErrors.isHosteller} options={[{ v: 'No', l: 'No' }, { v: 'Yes', l: 'Yes' }]} />
+                      </div>
+                      
+                      {formData.isHosteller === 'Yes' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-slate-50 rounded-lg border border-slate-100 animate-in fade-in slide-in-from-top-2">
+                          <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.hostelName} error={formErrors.hostelName} />
+                          <InputRow label="Room Number" name="hostelRoom" value={formData.hostelRoom} onChange={handleChange} fieldClass={fieldClass} editable={!locked.hostelRoom} error={formErrors.hostelRoom} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <InputRow label="Admission Year" name="admissionYear" value={formData.admissionYear} onChange={handleChange} fieldClass={fieldClass} editable={!locked.admissionYear} />
-                    {formErrors.admissionYear && <div className="text-xs text-red-600 mt-1">{formErrors.admissionYear}</div>}
+
+                  {/* Actions */}
+                  <div className="pt-4 flex flex-col sm:flex-row items-center gap-4">
+                    <Button 
+                      variant="primary" 
+                      type="submit" 
+                      className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-200 transition-all"
+                      disabled={submitting}
+                    >
+                      {submitting ? 'Saving...' : 'Save & Update'}
+                    </Button>
+                 
                   </div>
-                </div>
-
-                <div>
-                  <div>
-                  <SelectRow
-                    label="Admission Type"
-                    name="admissionType"
-                    value={formData.admissionType}
-                    onChange={handleChange}
-                    fieldClass={fieldClass}
-                    editable={!locked.admissionType}
-                    options={[
-                      { v: 'Regular', l: 'Regular' },
-                      { v: 'Lateral Entry', l: 'Lateral Entry' },
-                      { v: 'Transfer', l: 'Transfer' }
-                    ]}
-                  />
-                  {formErrors.admissionType && <div className="text-xs text-red-600 mt-1">{formErrors.admissionType}</div>}
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-3">
-                  <Button variant="primary" type="submit" className="w-full sm:w-auto" disabled={submitting}>{submitting ? 'Submitting...' : 'Save Changes'}</Button>
-                  <Button variant="outline" onClick={() => {
-                    setFormData(prev => ({
-                      ...prev,
-                      // registration-backed values
-                      enrollmentNumber: user?.enrollment_number ?? prev.enrollmentNumber ?? '',
-                      rollNumber: user?.roll_number ?? prev.rollNumber ?? '',
-                      fullName: user?.full_name ?? prev.fullName ?? '',
-                      mobile: user?.mobile_number ?? prev.mobile ?? '',
-                      email: user?.email ?? prev.email ?? '',
-
-                      // other profile fields
-                      fatherName: user?.father_name ?? '',
-                      motherName: user?.mother_name ?? '',
-                      gender: user?.gender ?? '',
-                      category: user?.category ?? '',
-                      dob: user?.dob ?? '',
-                      domicile: user?.domicile ?? '',
-                      permanentAddress: user?.permanent_address ?? '',
-                      isHosteller: typeof user?.is_hosteller === 'boolean' ? (user.is_hosteller ? 'Yes' : 'No') : '',
-                      hostelName: user?.hostel_name ?? '',
-                      hostelRoom: user?.hostel_room ?? '',
-                    
-                      section: user?.section ?? '',
-                      batch: user?.batch ?? '',
-                      admissionYear: user?.admission_year ?? '',
-                      admissionType: user?.admission_type ?? ''
-                    }));
-                  }} className="w-full sm:w-auto">Reset</Button>
-                  {import.meta.env && import.meta.env.DEV && (
-                    <Button variant="outline" type="button" onClick={sendTestApplication} className="w-full sm:w-auto">Dev: Send Test</Button>
+                  {saveMessage && (
+                    <div className={`p-4 rounded-xl text-sm font-medium flex items-center gap-2 ${saveMessage.includes('success') ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                      {saveMessage.includes('success') ? <FiCheck className="w-5 h-5" /> : <FiAlertCircle className="w-5 h-5" />}
+                      {saveMessage}
+                    </div>
                   )}
-                </div>
-                {saveMessage && <div className="mt-2 text-sm text-slate-600">{saveMessage}</div>}
-              </form>
+                </form>
+              </div>
             </Card>
           )}
 
-{/* STATUS */}
-{active === 'status' && (
-  <Card className="p-6 rounded-2xl shadow-lg border border-gray-100 bg-white">
-    {/* Header Section */}
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Status</h2>
-        <p className="text-gray-600 flex items-center gap-2">
-          <FiClock className="text-indigo-500" />
-          Track your clearance progress in real-time
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="hidden sm:block text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
-          Last updated: {new Date().toLocaleTimeString()}
-        </div>
-        <button 
-          onClick={fetchApplicationStatus} 
-          title="Refresh status" 
-          className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={statusLoading}
-          aria-busy={statusLoading}
-        >
-          <FiRefreshCw className={`w-5 h-5 ${statusLoading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-    </div>
+          {/* STATUS TRACKING VIEW */}
+          {active === 'status' && (
+            <Card className="p-0 rounded-2xl shadow-sm border border-slate-200 bg-white overflow-hidden">
+              <div className="p-6 md:p-8 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    Order Tracking
+                    <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
+                      REF: {user?.roll_number}
+                    </span>
+                  </h2>
+                  <p className="text-slate-500 mt-1 text-sm">Real-time status of your No-Dues Application</p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button 
+                    onClick={fetchApplicationStatus} 
+                    disabled={statusLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-all text-sm font-medium"
+                  >
+                    <FiRefreshCw className={statusLoading ? 'animate-spin' : ''} />
+                    Refresh
+                  </button>
+                  {statusError && <span className="text-xs text-rose-500 self-center">{statusError}</span>}
+                </div>
+              </div>
 
-    {/* Progress Overview */}
-    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 mb-8 border border-indigo-100">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="text-center">
-          <div className="text-3xl font-bold text-indigo-600 mb-1">
-            {stepStatuses.filter(s => s.status === 'completed').length}
-          </div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-yellow-600 mb-1">
-            {stepStatuses.filter(s => s.status === 'pending').length}
-          </div>
-          <div className="text-sm text-gray-600">Pending</div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-blue-600 mb-1">
-            {stepStatuses.filter(s => s.status === 'in-progress').length}
-          </div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-gray-600 mb-1">
-            {departmentSteps.length}
-          </div>
-          <div className="text-sm text-gray-600">Total Steps</div>
-        </div>
-      </div>
-    </div>
+              <div className="p-6 md:p-8 bg-white">
+                <TrackingTimeline steps={departmentSteps} statuses={stepStatuses} />
+              </div>
 
-    {/* Progress Bar */}
-    <div className="mb-8">
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-        <span className="text-sm font-bold text-indigo-600">
-          {Math.round((stepStatuses.filter(s => s.status === 'completed').length / departmentSteps.length) * 100)}%
-        </span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-3">
-        <div 
-          className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${(stepStatuses.filter(s => s.status === 'completed').length / departmentSteps.length) * 100}%`
-          }}
-        ></div>
-      </div>
-    </div>
-
-    {/* Stepper Component */}
-    <div className="mb-8">
-      <Stepper steps={departmentSteps} statuses={stepStatuses} />
-    </div>
-
-    {/* Status Summary */}
-    <div className="bg-gray-50 rounded-xl p-4 mb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {stepStatuses.filter(s => s.status === 'completed').length === departmentSteps.length ? (
-            <>
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-700 font-medium">All clearances completed!</span>
-            </>
-          ) : stepStatuses.some(s => s.status === 'failed') ? (
-            <>
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-red-700 font-medium">Some clearances require attention</span>
-            </>
-          ) : (
-            <>
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-blue-700 font-medium">Clearance in progress</span>
-            </>
+              {/* Footer / Debug */}
+              <div className="bg-slate-50 border-t border-slate-200 p-4">
+                 <button 
+                  onClick={() => setShowRawStatus(!showRawStatus)}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline"
+                 >
+                   {showRawStatus ? 'Hide Debug Data' : 'View Debug Data'}
+                 </button>
+                 {showRawStatus && (
+                    <pre className="mt-2 p-4 bg-slate-900 text-slate-200 rounded-lg text-xs overflow-auto max-h-40">
+                      {JSON.stringify(lastStatusBody, null, 2)}
+                    </pre>
+                 )}
+              </div>
+            </Card>
           )}
-        </div>
-        <div className="text-sm text-gray-500">
-          {stepStatuses.filter(s => s.status === 'completed').length} of {departmentSteps.length} departments cleared
-        </div>
-      </div>
-    </div>
-
-    {/* Debug Section */}
-    <div className="border-t border-gray-200 pt-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowRawStatus(prev => !prev)}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            <FiCode />
-            {showRawStatus ? 'Hide Raw Data' : 'Show Raw Data'}
-          </button>
-          {statusLoading && (
-            <div className="flex items-center gap-2 text-sm text-blue-600">
-              <FiRefreshCw className="animate-spin" />
-              Refreshing status...
-            </div>
-          )}
-          {statusError && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-lg">
-              <FiAlertCircle />
-              {statusError}
-            </div>
-          )}
-        </div>
-
-        {/* Developer Tools */}
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            variant="outline" 
-            onClick={resetSteps}
-            className="text-xs px-3 py-2 border-gray-300 text-gray-600 hover:bg-gray-50"
-          >
-            <FiRotateCcw className="w-3 h-3 mr-1" />
-            Reset
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={failStepDev}
-            className="text-xs px-3 py-2 border-red-200 text-red-600 hover:bg-red-50"
-          >
-            <FiXCircle className="w-3 h-3 mr-1" />
-            Fail Step
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={advanceStepDev}
-            className="text-xs px-3 py-2 bg-green-600 hover:bg-green-700 text-white"
-          >
-            <FiCheckCircle className="w-3 h-3 mr-1" />
-            Advance Step
-          </Button>
-        </div>
-      </div>
-
-      {/* Raw Data Display */}
-      {showRawStatus && (
-        <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 text-xs text-gray-300 overflow-auto max-h-64">
-          <div className="flex justify-between items-center mb-3">
-            <span className="font-mono text-sm text-gray-400">API Response</span>
-            <button 
-              onClick={() => navigator.clipboard.writeText(JSON.stringify(lastStatusBody, null, 2))}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <FiCopy className="w-4 h-4" />
-            </button>
-          </div>
-          <pre className="whitespace-pre-wrap font-mono">
-            {lastStatusBody ? JSON.stringify(lastStatusBody, null, 2) : 'No response data available'}
-          </pre>
-        </div>
-      )}
-    </div>
-
-    {/* Help Text */}
-    <div className="mt-6 text-center">
-      <p className="text-sm text-gray-500">
-        Need help? Contact the administration office at{' '}
-        <a href="mailto:support@university.edu" className="text-indigo-600 hover:underline">
-          support@university.edu
-        </a>
-      </p>
-    </div>
-  </Card>
-)}
         </main>
       </div>
     </div>
   );
 };
 
-/* ---------- helpers ---------- */
-const SummaryCard = ({ label, value }) => (
-  <div className="p-3 bg-white border border-gray-100 rounded-lg text-sm min-w-0">
-    <div className="text-xs text-slate-500">{label}</div>
-    <div className="font-medium text-slate-800 mt-1 truncate">{value ?? '—'}</div>
+/* ---------- Improved Helper Components ---------- */
+const StatCard = ({ label, value, highlight }) => (
+  <div className={`p-4 rounded-xl border flex flex-col justify-center min-h-[5rem] ${highlight ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+    <span className={`text-xs font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-emerald-600' : 'text-slate-400'}`}>{label}</span>
+    <span className={`text-lg font-bold truncate ${highlight ? 'text-emerald-700' : 'text-slate-700'}`}>{value || '—'}</span>
   </div>
 );
 
-const ReadOnlyRow = ({ label, value }) => (
+const ReadOnlyField = ({ label, value, error }) => (
   <div>
-    <label className="block text-sm mb-1 text-slate-600">{label}</label>
-    <div className="px-3 py-2 rounded-md bg-gray-50 text-slate-700 border border-transparent truncate">{value ?? '—'}</div>
+    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
+    <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm font-medium">
+      {value || '—'}
+    </div>
+    {error && <span className="text-xs text-rose-500 mt-1">{error}</span>}
   </div>
 );
 
-const InputRow = ({ label, name, value, onChange, type = 'text', fieldClass, editable = true }) => (
+const InputRow = ({ label, name, value, onChange, type = 'text', fieldClass, editable = true, error }) => (
   <div>
-    <label className="block text-sm mb-1 text-slate-700">{label}</label>
-    <input name={name} value={value ?? ''} onChange={onChange} type={type}
-      className={editable ? fieldClass : 'w-full px-3 py-2 rounded-md bg-gray-50 text-slate-700 border border-transparent cursor-not-allowed'} disabled={!editable} />
+    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
+    <input 
+      name={name} 
+      value={value ?? ''} 
+      onChange={onChange} 
+      type={type}
+      disabled={!editable}
+      className={`${fieldClass} ${error ? 'border-rose-300 focus:ring-rose-100 focus:border-rose-400' : ''}`} 
+    />
+    {error && <span className="text-xs text-rose-500 mt-1">{error}</span>}
   </div>
 );
 
-const SelectRow = ({ label, name, value, onChange, fieldClass, editable = true, options }) => (
+const SelectRow = ({ label, name, value, onChange, fieldClass, editable = true, options, error }) => (
   <div>
-    <label className="block text-sm mb-1 text-slate-700">{label}</label>
-    {editable ? (
-      <select name={name} value={value ?? ''} onChange={onChange} className={fieldClass}>
-        {options ? (
-          <>
-            <option value="">Select</option>
-            {options.map((o, idx) => <option key={idx} value={o.v}>{o.l}</option>)}
-          </>
-        ) : (
-          <>
-            <option value="">Select</option>
-            <option>Male</option>
-            <option>Female</option>
-            <option>Other</option>
-          </>
-        )}
+    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
+    <div className="relative">
+      <select 
+        name={name} 
+        value={value ?? ''} 
+        onChange={onChange} 
+        disabled={!editable}
+        className={`${fieldClass} appearance-none ${error ? 'border-rose-300' : ''}`}
+      >
+        <option value="">Select Option</option>
+        {options ? options.map((o, idx) => <option key={idx} value={o.v}>{o.l}</option>) : null}
       </select>
-    ) : (
-      <div className="px-3 py-2 rounded-md bg-gray-50 text-slate-700 border border-transparent truncate">{value ?? '—'}</div>
-    )}
+      <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+        <FiChevronRight className="rotate-90 w-4 h-4" />
+      </div>
+    </div>
+    {error && <span className="text-xs text-rose-500 mt-1">{error}</span>}
   </div>
 );
 

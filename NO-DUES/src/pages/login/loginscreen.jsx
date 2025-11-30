@@ -73,37 +73,40 @@ const LoginScreen = ({
 
       const deptIdToPath = (id) => {
         // Map DB sequence ids to paths (from your SQL insert order)
-        // 1: Department (generic) -> fallback to /dashboard
+        // 1: Department (generic) -> Now correctly mapped to /department/dashboard
         // 2: Library
         // 3: Hostel
         // 4: Accounts
         // 5: Sports
         // 6: Exam Cell
         const map = {
-          1: '/dashboard',
+          1: '/department/dashboard', // <--- UPDATED: Correct path for generic Department ID
           2: '/library/dashboard',
           3: '/hostels/dashboard',
           4: '/accounts/dashboard',
           5: '/sports/dashboard',
-          6: '/exam/dashboard'
+          6: '/exam/dashboard',
+          7: '/laboratories/dashboard' // Added explicit Laboratories mapping for completeness if deptId 7 is used
         };
         return map[id] || null;
       };
 
       const roleToPath = (r, id, deptName) => {
-        if (!r) return '/dashboard';
         if (r.includes('admin')) return '/admin/dashboard';
 
-        // If department id exists, map directly
+        // 1. If department id exists, map directly
         if (id) {
           const byId = deptIdToPath(Number(id));
           if (byId) return byId;
         }
 
-        // If this is a staff account, try department name
-        if (r === 'staff' || r.includes('staff')) {
+        // 2. Explicit check for generic Department/Dept role string
+        if (r.includes('department') || r.includes('dept')) return '/department/dashboard'; // <--- ADDED
+
+        // 3. Try department name/keywords for staff/generic roles
+        if (r.includes('staff') || r.includes('office')) {
           const d = (deptName || '').replace(/[-_\s]+/g, '');
-          if (!d) return '/dashboard';
+          if (!d) return '/dashboard'; // Fallback if staff but no name/id
           if (d.includes('hostel')) return '/hostels/dashboard';
           if (d.includes('account') || d.includes('accounts')) return '/accounts/dashboard';
           if (d.includes('sport')) return '/sports/dashboard';
@@ -111,11 +114,10 @@ const LoginScreen = ({
           if (d.includes('library')) return '/library/dashboard';
           if (d.includes('crc')) return '/crc/dashboard';
           if (d.includes('laboratory') || d.includes('lab')) return '/laboratories/dashboard';
-          if (d.includes('office')) return '/office/dashboard';
-          return '/dashboard';
+          if (d.includes('office') || d.includes('dept') || d.includes('department')) return '/department/dashboard'; // <--- UPDATED
         }
 
-        // Non-staff role mapping by role string
+        // 4. Non-staff role mapping by specific role string
         if (r.includes('library')) return '/library/dashboard';
         if (r.includes('hostel') || r.includes('hostels')) return '/hostels/dashboard';
         if (r.includes('accounts') || r.includes('account')) return '/accounts/dashboard';
@@ -123,13 +125,17 @@ const LoginScreen = ({
         if (r.includes('exam')) return '/exam/dashboard';
         if (r.includes('crc')) return '/crc/dashboard';
         if (r.includes('laboratory') || r.includes('laboratories')) return '/laboratories/dashboard';
-        if (r.includes('office')) return '/office/dashboard';
         if (r.includes('student')) return '/student/dashboard';
-        return '/dashboard';
+        
+        // 5. Final fallback for generic Department/Office role string not caught above
+        if (r.includes('office') || r.includes('dept')) return '/department/dashboard';
+
+        // Final Fallback for unknown role - leads to AdminDashboard in your App.jsx
+        return '/dashboard'; 
       };
 
       const target = roleToPath(rawRole, deptId, deptNameCandidate);
-      navigate(target);
+      navigate(target, { replace: true }); // Using replace: true is good practice after login
     } catch (err) {
       const msg = err?.message || (typeof err === 'string' ? err : 'Invalid credentials. Please try again.');
       setError(msg);

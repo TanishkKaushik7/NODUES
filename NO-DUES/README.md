@@ -13,8 +13,6 @@ If you are developing a production application, we recommend using TypeScript wi
 
 ```
 
-
-```
 ```
 NO-DUES
 ├─ eslint.config.js
@@ -103,52 +101,49 @@ NO-DUES
 │  ├─ pages
 │  │  ├─ Accounts
 │  │  │  ├─ AccountsDashboard.jsx
-│  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
-│  │  ├─ Admin
-│  │  │  ├─ AdminDashboard.jsx
-│  │  │  ├─ Adminsidebar.jsx
-│  │  │  ├─ CreateUser.jsx
-│  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
-│  │  ├─ Department
 │  │  │  ├─ ApplicationActionModal.jsx
 │  │  │  ├─ ApplicationsTable.jsx
-│  │  │  ├─ DashboardFilters.jsx
+│  │  │  ├─ DashboardStats.jsx
+│  │  │  └─ HistoryPage.jsx
+│  │  ├─ Admin
+│  │  ├─ CRC
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ CRCDashboard.jsx
+│  │  │  ├─ DashboardStats.jsx
+│  │  │  └─ HistoryPage.jsx
+│  │  ├─ Hostels
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  ├─ RejectedPage.jsx
-│  │  │  └─ SchoolDashboard.jsx
-│  │  ├─ Exam
-│  │  │  ├─ ExamDashboard.jsx
-│  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
-│  │  ├─ Hostels
-│  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ HostelsDashboard.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
+│  │  │  └─ HostelsDashboard.jsx
 │  │  ├─ Laboratories
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ LaboratoriesDashboard.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
+│  │  │  └─ LabDashboard.jsx
 │  │  ├─ Library
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ LibraryDashboard.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
+│  │  │  └─ LibraryDashboard.jsx
 │  │  ├─ login
 │  │  │  └─ loginscreen.jsx
 │  │  ├─ MainPage.jsx
-│  │  ├─ Sports
+│  │  ├─ Schools
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
-│  │  │  ├─ PendingPage.jsx
-│  │  │  ├─ RejectedPage.jsx
+│  │  │  └─ SchoolDashboard.jsx
+│  │  ├─ Sports
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
+│  │  │  ├─ HistoryPage.jsx
 │  │  │  └─ SportsDashboard.jsx
 │  │  └─ Student
 │  │     ├─ Login.jsx

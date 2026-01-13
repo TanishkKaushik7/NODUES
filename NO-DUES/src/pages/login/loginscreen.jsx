@@ -28,90 +28,72 @@ const LoginScreen = ({
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  e.preventDefault();
+  setIsLoading(true);
+  setError('');
+  
+  try {
+    const result = await login(credentials);
     
-    try {
-      const result = await login(credentials);
+    // 1. Extract data from the response structure you provided
+    const returnedUser = result?.user || result;
+    const returnedToken = result?.access_token || result?.token;
+
+    const parseJwt = (t) => {
+      try {
+        const parts = t.split('.');
+        return JSON.parse(atob(parts[1]));
+      } catch (e) { return null; }
+    };
+
+    const tokenPayload = returnedToken ? parseJwt(returnedToken) : null;
+    
+    // 2. Identify the Role
+    // Your response explicitly provides "user_role": "admin"
+    const rawRole = (
+      returnedUser?.user_role || 
+      returnedUser?.role || 
+      tokenPayload?.role || 
+      ''
+    ).toLowerCase();
+
+    const deptId = returnedUser?.department_id || tokenPayload?.department_id;
+    const schoolId = returnedUser?.school_id || tokenPayload?.school_id;
+    const dName = (returnedUser?.department_name || '').toLowerCase();
+
+    // 3. Updated Role Mapping
+    const roleToPath = (r, dId, sId, dName) => {
+      // PRIORITY: Super Admin check
+      if (r === 'admin' || r.includes('super')) return '/admin/dashboard';
       
-      const returnedUser = result?.user || result;
-      const returnedToken = result?.token || null;
+      // Student check
+      if (r.includes('student')) return '/student/dashboard';
 
-      const parseJwt = (t) => {
-        try {
-          const parts = (t || '').split('.');
-          if (parts.length < 2) return null;
-          const payload = parts[1];
-          const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-          return JSON.parse(decodeURIComponent(escape(decoded)));
-        } catch (e) { return null; }
-      };
+      // Department Specifics
+      if (r.includes('crc') || r.includes('exam')) return '/crc/dashboard';
+      if (r.includes('hostel')) return '/hostels/dashboard';
+      if (r.includes('library')) return '/library/dashboard';
+      if (r.includes('lab') || dName.includes('lab')) return '/laboratories/dashboard';
+      if (r.includes('account')) return '/accounts/dashboard';
+      if (r.includes('sport')) return '/sports/dashboard';
 
-      const tokenPayload = returnedToken ? parseJwt(returnedToken) : null;
-      
-      // --- Role & ID Extraction ---
-      const roleFromUser = (returnedUser && returnedUser.role) ? returnedUser.role : null;
-      const rawRole = (roleFromUser || tokenPayload?.role || tokenPayload?.user_role || '').toString().toLowerCase();
+      // School / Dean check
+      if (r.includes('dean') || sId || r.includes('school')) return '/school/dashboard';
 
-      const deptId = (returnedUser && (returnedUser.department_id || returnedUser.dept_id)) || tokenPayload?.department_id || null;
-      const schoolId = (returnedUser && (returnedUser.school_id)) || tokenPayload?.school_id || null;
+      return '/dashboard'; 
+    };
 
-      const deptNameCandidate = (
-        (returnedUser && (returnedUser.department_name || returnedUser.school_name)) ||
-        tokenPayload?.department_name || ''
-      ).toString().toLowerCase();
-
-      // --- MAPPING LOGIC (Synchronized with your provided API Responses) ---
-      const deptIdToPath = (id) => {
-        const map = {
-          1: '/library/dashboard',      // Library User (ID 1)
-          2: '/hostels/dashboard',      // Hostel User (ID 2)
-          3: '/sports/dashboard',       // Sports User (ID 3)
-          4: '/laboratories/dashboard',  // Lab User (ID 4)
-          5: '/crc/dashboard',           // CRC/Exam User (ID 5)
-          6: '/accounts/dashboard'       // Accounts (ID 6)
-        };
-        return map[id] || null;
-      };
-
-      const roleToPath = (r, dId, sId, dName) => {
-        // 1. Permanent System Roles
-        if (r.includes('admin')) return '/admin/dashboard';
-        if (r.includes('student')) return '/student/dashboard';
-
-        // 2. PRIORITY: Explicit Role String Matches
-        if (r.includes('crc') || r.includes('exam')) return '/crc/dashboard';
-        if (r.includes('hostel')) return '/hostels/dashboard';
-        if (r.includes('library')) return '/library/dashboard';
-        if (r.includes('lab') || r.includes('laborator') || dName.includes('lab')) {
-          return '/laboratories/dashboard';
-        }
-        if (r.includes('account')) return '/accounts/dashboard';
-        if (r.includes('sport')) return '/sports/dashboard';
-
-        // 3. Dean / School Logic (If school_id is provided)
-        if (r.includes('dean') || sId || r.includes('school')) return '/school/dashboard';
-
-        // 4. Fallback: Numeric ID Mapping
-        if (dId) {
-          const byId = deptIdToPath(Number(dId));
-          if (byId) return byId;
-        }
-        
-        return '/dashboard'; 
-      };
-
-      const target = roleToPath(rawRole, deptId, schoolId, deptNameCandidate);
-      console.log(`Routing ${rawRole} (Dept ID: ${deptId}) to ${target}`);
-      navigate(target, { replace: true });
-      
-    } catch (err) {
-      setError(err?.message || 'Invalid credentials. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const target = roleToPath(rawRole, deptId, schoolId, dName);
+    
+    console.log(`Authenticated as: ${rawRole}. Redirecting to: ${target}`);
+    navigate(target, { replace: true });
+    
+  } catch (err) {
+    setError(err?.message || 'Invalid credentials.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

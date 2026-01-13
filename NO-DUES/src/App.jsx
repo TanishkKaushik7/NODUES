@@ -10,42 +10,26 @@ import StudentLogin from './pages/Student/Login';
 import StudentRegister from './pages/Student/Register';
 import StudentDashboard from './pages/Student/StudentDashboard';
 
-// Dashboards
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import CreateUser from './pages/Admin/CreateUser';
+// --- DEPARTMENT DASHBOARDS ---
 import SportsDashboard from './pages/Sports/SportsDashboard';
-import CRCDashboard from './pages/CRC/CRCDashboard'; // Updated
+import CRCDashboard from './pages/CRC/CRCDashboard';
 import AccountsDashboard from './pages/Accounts/AccountsDashboard';
 import LibraryDashboard from './pages/Library/LibraryDashboard';
 import HostelsDashboard from './pages/Hostels/HostelsDashboard';
 import LabDashboard from './pages/Laboratories/LabDashboard';
-
-// Admin Pages
-import AdminPending from './pages/Admin/PendingPage';
-import AdminHistory from './pages/Admin/HistoryPage';
-import AdminRejected from './pages/Admin/RejectedPage';
-
-// Sports Pages
-import SportsHistory from './pages/Sports/HistoryPage';
-
-// CRC Pages
-import CRCHistory from './pages/CRC/HistoryPage'; // Updated variable name from ExamHistory
-
-// Accounts Pages
-import AccountsHistory from './pages/Accounts/HistoryPage';
-
-// Library Pages
-import LibraryHistory from './pages/Library/HistoryPage';
-
-// Hostels Pages
-import HostelsHistory from './pages/Hostels/HistoryPage';
-
-// Laboratories Pages
-import LaboratoriesHistory from './pages/Laboratories/HistoryPage';
-
-// --- School Pages ---
 import SchoolDashboard from './pages/Schools/SchoolDashboard';
+
+// --- DEPARTMENT HISTORY PAGES ---
+import SportsHistory from './pages/Sports/HistoryPage';
+import CRCHistory from './pages/CRC/HistoryPage';
+import AccountsHistory from './pages/Accounts/HistoryPage';
+import LibraryHistory from './pages/Library/HistoryPage';
+import HostelsHistory from './pages/Hostels/HistoryPage';
+import LaboratoriesHistory from './pages/Laboratories/HistoryPage';
 import SchoolHistory from './pages/Schools/HistoryPage';
+
+// --- ADMIN IMPORT ---
+import AdminDashboard from './pages/Admin/AdminDashboard'; // Integrated here
 
 import './App.css';
 import HomeButton from './components/common/HomeButton';
@@ -88,19 +72,25 @@ function App() {
           {/* Login Route */}
           <Route path="/login" element={<LoginScreen />} />
 
-          {/* Role Routes */}
-          <Route path="/admin/*" element={<RoleRoutes role="admin" Dashboard={AdminDashboard} PendingComponent={AdminPending} HistoryComponent={AdminHistory} RejectedComponent={AdminRejected} CreateComponent={CreateUser} />} />
+          {/* --- ADMIN ROUTE INTEGRATION --- */}
+          <Route 
+            path="/admin/*" 
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Department Routes */}
           <Route path="/sports/*" element={<RoleRoutes role="sports" Dashboard={SportsDashboard} HistoryComponent={SportsHistory} />} />
-          
-          {/* UPDATED: CRC Route instead of Exam */}
           <Route path="/crc/*" element={<RoleRoutes role="crc" Dashboard={CRCDashboard} HistoryComponent={CRCHistory} />} />
-          
-          <Route path="/accounts/*" element={<RoleRoutes role="accounts" Dashboard={AccountsDashboard}  HistoryComponent={AccountsHistory} />} />
+          <Route path="/accounts/*" element={<RoleRoutes role="accounts" Dashboard={AccountsDashboard} HistoryComponent={AccountsHistory} />} />
           <Route path="/library/*" element={<RoleRoutes role="library" Dashboard={LibraryDashboard} HistoryComponent={LibraryHistory} />} />
           <Route path="/hostels/*" element={<RoleRoutes role="hostels" Dashboard={HostelsDashboard} HistoryComponent={HostelsHistory} />} />
-          <Route path="/laboratories/*" element={<RoleRoutes role="laboratories" Dashboard={LabDashboard} LaboratoriesHistory={LaboratoriesHistory} />} />
+          <Route path="/laboratories/*" element={<RoleRoutes role="laboratories" Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
           
-          {/* School Route */}
+          {/* School/Dean Route */}
           <Route path="/school/*" element={
             <ProtectedRoute>
               <Routes>
@@ -111,9 +101,6 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Generic routes */}
-          <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          
           {/* Root and Student Routes */}
           <Route path="/" element={<MainPage />} />
           <Route path="/student" element={<StudentAuthProvider><StudentEntry /></StudentAuthProvider>} />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft } from 'react-icons/fi';
+import { FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
@@ -13,10 +13,7 @@ const LoginScreen = ({
   systemName = "NoDues Management System",
   portalDescription = "Sign in to access your dashboard"
 }) => {
-  const [credentials, setCredentials] = useState({
-    email: '',
-    password: ''
-  });
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -25,13 +22,9 @@ const LoginScreen = ({
 
   const handleBackToMain = () => navigate('/', { replace: true });
 
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setCredentials(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -40,10 +33,8 @@ const LoginScreen = ({
     setError('');
     
     try {
-      // Use the login function from AuthContext
       const result = await login(credentials);
-
-      // Prefer server-provided role from user object, otherwise decode JWT
+      
       const returnedUser = result?.user || result;
       const returnedToken = result?.token || null;
 
@@ -54,109 +45,78 @@ const LoginScreen = ({
           const payload = parts[1];
           const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
           return JSON.parse(decodeURIComponent(escape(decoded)));
-        } catch (e) {
-          return null;
-        }
+        } catch (e) { return null; }
       };
 
       const tokenPayload = returnedToken ? parseJwt(returnedToken) : null;
+      
+      // --- Role & ID Extraction ---
       const roleFromUser = (returnedUser && returnedUser.role) ? returnedUser.role : null;
-      const rawRole = (roleFromUser || tokenPayload?.role || tokenPayload?.roles || tokenPayload?.role || '').toString().toLowerCase();
+      const rawRole = (roleFromUser || tokenPayload?.role || tokenPayload?.user_role || '').toString().toLowerCase();
 
-      // Prefer numeric department_id if provided by the server
-      const deptId = (returnedUser && (returnedUser.department_id || returnedUser.dept_id)) || tokenPayload?.department_id || tokenPayload?.dept_id || null;
+      const deptId = (returnedUser && (returnedUser.department_id || returnedUser.dept_id)) || tokenPayload?.department_id || null;
+      const schoolId = (returnedUser && (returnedUser.school_id)) || tokenPayload?.school_id || null;
 
       const deptNameCandidate = (
-        (returnedUser && (returnedUser.department_name || returnedUser.department || returnedUser.dept || returnedUser.unit || returnedUser.office)) ||
-        tokenPayload?.department || tokenPayload?.department_name || tokenPayload?.dept || tokenPayload?.unit || tokenPayload?.office || ''
+        (returnedUser && (returnedUser.department_name || returnedUser.school_name)) ||
+        tokenPayload?.department_name || ''
       ).toString().toLowerCase();
 
+      // --- MAPPING LOGIC (Synchronized with your provided API Responses) ---
       const deptIdToPath = (id) => {
-        // Map DB sequence ids to paths (from your SQL insert order)
-        // 1: Department (generic) -> Now correctly mapped to /department/dashboard
-        // 2: Library
-        // 3: Hostel
-        // 4: Accounts
-        // 5: Sports
-        // 6: Exam Cell
         const map = {
-          1: '/department/dashboard', // <--- UPDATED: Correct path for generic Department ID
-          2: '/library/dashboard',
-          3: '/hostels/dashboard',
-          4: '/accounts/dashboard',
-          5: '/sports/dashboard',
-          6: '/exam/dashboard',
-          7: '/laboratories/dashboard' // Added explicit Laboratories mapping for completeness if deptId 7 is used
+          1: '/library/dashboard',      // Library User (ID 1)
+          2: '/hostels/dashboard',      // Hostel User (ID 2)
+          3: '/sports/dashboard',       // Sports User (ID 3)
+          4: '/laboratories/dashboard',  // Lab User (ID 4)
+          5: '/crc/dashboard',           // CRC/Exam User (ID 5)
+          6: '/accounts/dashboard'       // Accounts (ID 6)
         };
         return map[id] || null;
       };
 
-      const roleToPath = (r, id, deptName) => {
+      const roleToPath = (r, dId, sId, dName) => {
+        // 1. Permanent System Roles
         if (r.includes('admin')) return '/admin/dashboard';
+        if (r.includes('student')) return '/student/dashboard';
 
-        // 1. If department id exists, map directly
-        if (id) {
-          const byId = deptIdToPath(Number(id));
+        // 2. PRIORITY: Explicit Role String Matches
+        if (r.includes('crc') || r.includes('exam')) return '/crc/dashboard';
+        if (r.includes('hostel')) return '/hostels/dashboard';
+        if (r.includes('library')) return '/library/dashboard';
+        if (r.includes('lab') || r.includes('laborator') || dName.includes('lab')) {
+          return '/laboratories/dashboard';
+        }
+        if (r.includes('account')) return '/accounts/dashboard';
+        if (r.includes('sport')) return '/sports/dashboard';
+
+        // 3. Dean / School Logic (If school_id is provided)
+        if (r.includes('dean') || sId || r.includes('school')) return '/school/dashboard';
+
+        // 4. Fallback: Numeric ID Mapping
+        if (dId) {
+          const byId = deptIdToPath(Number(dId));
           if (byId) return byId;
         }
-
-        // 2. Explicit check for generic Department/Dept role string
-        if (r.includes('department') || r.includes('dept')) return '/department/dashboard'; // <--- ADDED
-
-        // 3. Try department name/keywords for staff/generic roles
-        if (r.includes('staff') || r.includes('office')) {
-          const d = (deptName || '').replace(/[-_\s]+/g, '');
-          if (!d) return '/dashboard'; // Fallback if staff but no name/id
-          if (d.includes('hostel')) return '/hostels/dashboard';
-          if (d.includes('account') || d.includes('accounts')) return '/accounts/dashboard';
-          if (d.includes('sport')) return '/sports/dashboard';
-          if (d.includes('exam')) return '/exam/dashboard';
-          if (d.includes('library')) return '/library/dashboard';
-          if (d.includes('crc')) return '/crc/dashboard';
-          if (d.includes('laboratory') || d.includes('lab')) return '/laboratories/dashboard';
-          if (d.includes('office') || d.includes('dept') || d.includes('department')) return '/department/dashboard'; // <--- UPDATED
-        }
-
-        // 4. Non-staff role mapping by specific role string
-        if (r.includes('library')) return '/library/dashboard';
-        if (r.includes('hostel') || r.includes('hostels')) return '/hostels/dashboard';
-        if (r.includes('accounts') || r.includes('account')) return '/accounts/dashboard';
-        if (r.includes('sports')) return '/sports/dashboard';
-        if (r.includes('exam')) return '/exam/dashboard';
-        if (r.includes('crc')) return '/crc/dashboard';
-        if (r.includes('laboratory') || r.includes('laboratories')) return '/laboratories/dashboard';
-        if (r.includes('student')) return '/student/dashboard';
         
-        // 5. Final fallback for generic Department/Office role string not caught above
-        if (r.includes('office') || r.includes('dept')) return '/department/dashboard';
-
-        // Final Fallback for unknown role - leads to AdminDashboard in your App.jsx
         return '/dashboard'; 
       };
 
-      const target = roleToPath(rawRole, deptId, deptNameCandidate);
-      navigate(target, { replace: true }); // Using replace: true is good practice after login
+      const target = roleToPath(rawRole, deptId, schoolId, deptNameCandidate);
+      console.log(`Routing ${rawRole} (Dept ID: ${deptId}) to ${target}`);
+      navigate(target, { replace: true });
+      
     } catch (err) {
-      const msg = err?.message || (typeof err === 'string' ? err : 'Invalid credentials. Please try again.');
-      setError(msg);
-      console.error('Login error:', err);
+      setError(err?.message || 'Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header with animation */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-900 mb-2">{universityName}</h1>
           <p className="text-indigo-700 text-lg">{systemName}</p>
           <div className="mt-2">
@@ -166,136 +126,77 @@ const LoginScreen = ({
           </div>
         </motion.div>
 
-        {/* Back button to main */}
-        <button
-          onClick={handleBackToMain}
-          className="absolute top-6 left-6 p-2 bg-white rounded-md shadow hover:bg-gray-50"
-          aria-label="Back to main"
-        >
+        <button onClick={handleBackToMain} className="absolute top-6 left-6 p-2 bg-white rounded-md shadow hover:bg-gray-50 transition-colors">
           <FiArrowLeft className="text-gray-700" />
         </button>
 
-        {/* Login card with animation */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="p-8 pb-15 shadow-xl">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+          <Card className="p-8 pb-12 shadow-xl bg-white rounded-2xl border border-slate-100">
             <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">System Login</h2>
-            <p className="text-gray-600 mb-6 text-center">{portalDescription}</p>
+            <p className="text-gray-600 mb-8 text-center">{portalDescription}</p>
             
             {error && (
-              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+              <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg text-sm font-medium">
                 {error}
               </div>
             )}
             
-            <form onSubmit={handleSubmit}>
-
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="mb-5"
-              >
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
                 <Input
                   type="text"
-                  id="email"
                   name="email"
                   value={credentials.email}
                   onChange={handleChange}
-                  placeholder="Enter your Email.........."
+                  placeholder="Enter your email"
                   required
-                  className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full"
                   icon={<FiUser className="text-gray-400" />}
                 />
-              </motion.div>
+              </div>
               
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-                className="mb-6"
-              >
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
                 <Input
                   type="password"
-                  id="password"
                   name="password"
                   value={credentials.password}
                   onChange={handleChange}
-                  placeholder="Enter your password......."
+                  placeholder="Enter your password"
                   required
-                  className="w-full transition-all duration-300 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full"
                   icon={<FiLock className="text-gray-400" />}
                 />
-              </motion.div>
+              </div>
               
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
+              <div className="pt-2">
                 <Button
                   type="submit"
                   variant="primary"
-                  className="w-full py-3 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center border border-transparent rounded-md"
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center"
                   disabled={isLoading}
                 >
                   <AnimatePresence mode="wait">
                     {isLoading ? (
-                      <motion.span
-                        key="loading"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center justify-center"
-                      >
-                        <motion.span
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="mr-2"
-                        >
-                          <FiLogIn />
-                        </motion.span>
-                        Signing In...
+                      <motion.span key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center">
+                        <FiRefreshCw className="animate-spin mr-2" /> Authenticating...
                       </motion.span>
                     ) : (
-                      <motion.span
-                        key="signin"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center justify-center"
-                      >
-                        <FiLogIn className="mr-2" />
-                        Sign In
+                      <motion.span key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center">
+                        <FiLogIn className="mr-2" /> Sign In
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </Button>
-              </motion.div>
+              </div>
             </form>
           </Card>
         </motion.div>
 
-        {/* Footer with animation */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-center mt-6 text-xs text-gray-600"
-        >
-          <p>© 2025 {universityName}. All rights reserved.</p>
-          <p>Secure authentication system</p>
-        </motion.div>
+        <div className="text-center mt-8 text-xs text-slate-400">
+          <p>© 2026 {universityName}. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );

@@ -56,7 +56,7 @@ const MyApplications = ({
 }) => {
   const fieldClass = 'w-full px-4 py-2.5 border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all text-sm text-slate-800 placeholder-slate-400 disabled:bg-slate-50 disabled:text-slate-500';
 
-  // ✅ Show message ONLY if submitted AND NOT rejected
+  // ✅ Show "Under Progress" message ONLY if submitted AND NOT rejected
   if (hasSubmittedApplication && !isRejected) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-12 text-center flex flex-col items-center justify-center animate-fade-in min-h-[500px]">
@@ -79,7 +79,7 @@ const MyApplications = ({
   return (
     <div className="space-y-6 animate-fade-in">
       
-      {/* 🛑 REJECTION ALERT CARD */}
+      {/* 🛑 REJECTION ALERT CARD (Appears only if rejected) */}
       {isRejected && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 flex flex-col sm:flex-row gap-4 items-start shadow-sm">
           <div className="p-3 bg-white rounded-full text-rose-600 shadow-sm flex-shrink-0">

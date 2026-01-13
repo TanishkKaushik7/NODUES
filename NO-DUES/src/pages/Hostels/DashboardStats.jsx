@@ -14,8 +14,6 @@ const DashboardStats = ({ stats }) => {
   const statItems = [
     { label: 'Total', count: total, icon: FiUsers, color: 'text-indigo-500', border: 'border-indigo-500', text: 'text-gray-900' },
     { label: 'Pending', count: pending, icon: FiClock, color: 'text-yellow-500', border: 'border-yellow-500', text: 'text-yellow-600' },
-    { label: 'Approved', count: approved, icon: FiCheckCircle, color: 'text-green-500', border: 'border-green-500', text: 'text-green-600' },
-    { label: 'Rejected', count: rejected, icon: FiXCircle, color: 'text-red-500', border: 'border-red-500', text: 'text-red-600' },
   ];
 
   return (

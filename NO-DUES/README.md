@@ -12,6 +12,10 @@ Currently, two official plugins are available:
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
 ```
+
+
+```
+```
 NO-DUES
 ├─ eslint.config.js
 ├─ index.html
@@ -110,10 +114,14 @@ NO-DUES
 │  │  │  ├─ PendingPage.jsx
 │  │  │  └─ RejectedPage.jsx
 │  │  ├─ Department
-│  │  │  ├─ DepartmentDashboard.jsx
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardFilters.jsx
+│  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
 │  │  │  ├─ PendingPage.jsx
-│  │  │  └─ RejectedPage.jsx
+│  │  │  ├─ RejectedPage.jsx
+│  │  │  └─ SchoolDashboard.jsx
 │  │  ├─ Exam
 │  │  │  ├─ ExamDashboard.jsx
 │  │  │  ├─ HistoryPage.jsx
@@ -144,10 +152,12 @@ NO-DUES
 │  │  │  └─ SportsDashboard.jsx
 │  │  └─ Student
 │  │     ├─ Login.jsx
+│  │     ├─ MyApplications.jsx
+│  │     ├─ Overview.jsx
 │  │     ├─ Register.jsx
 │  │     ├─ StudentDashboard.jsx
-│  │     ├─ StudentDashboardLayout.jsx
-│  │     └─ StudentEntry.jsx
+│  │     ├─ StudentEntry.jsx
+│  │     └─ TrackStatus.jsx
 │  └─ utils
 │     ├─ applicationWorkflow.js
 │     └─ auth.js

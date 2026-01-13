@@ -21,12 +21,23 @@ const Sidebar = () => {
   const role = location.pathname.split('/')[1] || 'dashboard';
 
   // Role-based menu items
-  const menuItems = [
+  // Role-based menu items
+  let menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/${role}/dashboard` },
-    { id: 'pending', label: 'Pending', icon: <FaClock className="text-lg" />, path: `/${role}/pending` },
-    { id: 'rejected', label: 'Rejected', icon: <FaClock className="text-lg" />, path: `/${role}/rejected` },
     { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/${role}/history` },
   ];
+
+  if (role === 'laboratories') {
+    menuItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/${role}/dashboard` },
+      { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/${role}/history` },
+    ];
+  } else if (role === 'schools') {
+    menuItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: <FaTachometerAlt className="text-lg" />, path: `/${role}/dashboard` },
+      { id: 'history', label: 'History', icon: <FaHistory className="text-lg" />, path: `/${role}/history` },
+    ];
+  }
 
   // ✅ Determine active item based on current route
   const [activeItem, setActiveItem] = useState('dashboard');

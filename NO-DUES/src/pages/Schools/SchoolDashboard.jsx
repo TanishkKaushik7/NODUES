@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/common/Header';
 import Sidebar from '../../components/common/Sidebar';
 
-// Standardized components across departments
+// Child Components
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
@@ -19,32 +19,28 @@ const itemVariants = {
   visible: { y: 0, opacity: 1 },
 };
 
-const LibraryDashboard = () => {
+const SchoolDashboard = () => {
   const { user, logout, authFetch } = useAuth();
   
-  // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [filterStatus] = useState('all'); 
   
-  // Loading States
   const [isLoading, setIsLoading] = useState(true); 
   const [isViewLoading, setIsViewLoading] = useState(false); 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  // --- 1. Fetch Library-Specific Pending Applications ---
+  // --- 1. Fetch List Data ---
   const fetchApplications = async () => {
     setIsLoading(true);
     try {
-      // Fetches clearance requests specifically assigned to the Library department
       const res = await authFetch('/api/approvals/pending', { method: 'GET' });
       let data = [];
       try { data = await res.json(); } catch (e) { data = []; }
 
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Standardize "in_progress" to "Pending" for UI clarity in the admin panel
             let displayStatus = app.status || 'Pending';
             if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
 
@@ -65,7 +61,7 @@ const LibraryDashboard = () => {
 
       setApplications(mappedApplications);
     } catch (err) {
-      console.error('Failed to fetch Library applications:', err);
+      console.error('Failed to fetch applications:', err);
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +69,7 @@ const LibraryDashboard = () => {
 
   useEffect(() => { fetchApplications(); }, [authFetch]);
 
-  // --- 2. Fetch Enriched Details for Clearance Review ---
+  // --- 2. Fetch Enriched Details (View Action) ---
   const handleViewApplication = async (listApp) => {
     if (!listApp?.id) return;
     setIsViewLoading(true);
@@ -99,27 +95,26 @@ const LibraryDashboard = () => {
 
       setSelectedApplication(enrichedApp);
     } catch (err) {
-      console.error('Failed to fetch enriched library details:', err);
+      console.error('Failed to fetch details:', err);
       setSelectedApplication(listApp);
     } finally {
       setIsViewLoading(false);
     }
   };
 
-  // --- 3. Handle Library Approval/Rejection ---
-  const handleLibraryAction = async (application, action, remarksIn) => {
+  // --- 3. Handle Actions ---
+  const handleSchoolAction = async (application, action, remarksIn) => {
     if (!application) return;
     setActionError('');
-    
     if (action === 'reject' && (!remarksIn || !remarksIn.trim())) {
-      setActionError('Remarks/Reason is required when rejecting clearance');
+      setActionError('Remarks are required when rejecting');
       return;
     }
   
     const stageId = application?.active_stage?.stage_id;
-    if (!stageId) return setActionError('No actionable stage found for Library clearance.');
+    if (!stageId) return setActionError('No actionable stage found.');
   
-    const libraryDeptId = user?.department_id || user?.school_id; 
+    const schoolId = user?.department_id || user?.school_id; 
     const verb = action === 'approve' ? 'approve' : 'reject';
     
     setActionLoading(true);
@@ -127,30 +122,23 @@ const LibraryDashboard = () => {
       const res = await authFetch(`/api/approvals/${stageId}/${verb}`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ 
-            department_id: libraryDeptId || null, 
-            remarks: remarksIn || null 
-        }) 
+        body: JSON.stringify({ department_id: schoolId || null, remarks: remarksIn || null }) 
       });
   
-      if (!res.ok) throw new Error(`Library Action failed: ${res.status}`);
+      if (!res.ok) throw new Error(`Action failed: ${res.status}`);
   
       const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-      
-      // Filter out or update the application in the local list
       setApplications(applications.map(app =>
         app.id === application.id ? { ...app, status: newStatus } : app
       ));
-      
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Library action');
+      setActionError(err?.message || 'Error processing action');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // --- Search Logic ---
   const handleSearch = (e) => {
     const q = e.target.value.toLowerCase();
     setApplications(prev => prev.map(a => ({
@@ -161,58 +149,36 @@ const LibraryDashboard = () => {
 
   const filteredApplications = applications.filter(a => a.match !== false);
   const getStatusCount = (s) => applications.filter(a => a.status.toLowerCase() === s).length;
-  
-  const stats = { 
-    total: applications.length, 
-    pending: getStatusCount('pending'), 
-    approved: getStatusCount('approved'), 
-    rejected: getStatusCount('rejected') 
-  };
+  const stats = { total: applications.length, pending: getStatusCount('pending'), approved: getStatusCount('approved'), rejected: getStatusCount('rejected') };
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       <Sidebar user={user} logout={logout} />
-      
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} />
-        
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            
             <motion.div variants={itemVariants}>
-              <h1 className="text-3xl font-extrabold text-gray-900">
-                {user?.department_name || 'Library'} 
-              </h1>
-              <p className="text-gray-600 mb-6">Review pending dues and issue library clearance.</p>
+              <h1 className="text-3xl font-extrabold text-gray-900">{user?.school_name || 'School'} Dashboard</h1>
+              <p className="text-gray-600 mb-6">Process pending No-Dues requests.</p>
             </motion.div>
-
             <DashboardStats stats={stats} />
-
             <ApplicationsTable 
-              applications={filteredApplications} 
-              isLoading={isLoading} 
-              isViewLoading={isViewLoading} 
-              onView={handleViewApplication} 
-              onSearch={handleSearch} 
-              onRefresh={fetchApplications}
+              applications={filteredApplications} isLoading={isLoading} isViewLoading={isViewLoading} 
+              onView={handleViewApplication} onSearch={handleSearch} onRefresh={fetchApplications}
             />
-
           </motion.div>
         </main>
       </div>
-
       {selectedApplication && (
         <ApplicationActionModal 
-          application={selectedApplication} 
-          onClose={() => setSelectedApplication(null)}
-          onAction={handleLibraryAction} 
-          actionLoading={actionLoading} 
-          actionError={actionError}
-          userSchoolName={user?.department_name || 'Central Library'}
+          application={selectedApplication} onClose={() => setSelectedApplication(null)}
+          onAction={handleSchoolAction} actionLoading={actionLoading} actionError={actionError}
+          userSchoolName={user?.school_name || 'School'}
         />
       )}
     </div>
   );
 };
 
-export default LibraryDashboard;
+export default SchoolDashboard;

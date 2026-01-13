@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/common/Header';
 import Sidebar from '../../components/common/Sidebar';
 
-// Standardized components across departments
+// Reusing these components as they are consistent across departments
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
@@ -19,7 +19,7 @@ const itemVariants = {
   visible: { y: 0, opacity: 1 },
 };
 
-const LibraryDashboard = () => {
+const LabDashboard = () => {
   const { user, logout, authFetch } = useAuth();
   
   // State Management
@@ -33,18 +33,18 @@ const LibraryDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  // --- 1. Fetch Library-Specific Pending Applications ---
+  // --- 1. Fetch Lab-Specific Pending Applications ---
   const fetchApplications = async () => {
     setIsLoading(true);
     try {
-      // Fetches clearance requests specifically assigned to the Library department
+      // The API returns pending applications specific to the "Lab" role based on the Auth Token
       const res = await authFetch('/api/approvals/pending', { method: 'GET' });
       let data = [];
       try { data = await res.json(); } catch (e) { data = []; }
 
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Standardize "in_progress" to "Pending" for UI clarity in the admin panel
+            // Normalize "in_progress" to "Pending" for the Lab Admin's view
             let displayStatus = app.status || 'Pending';
             if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
 
@@ -65,7 +65,7 @@ const LibraryDashboard = () => {
 
       setApplications(mappedApplications);
     } catch (err) {
-      console.error('Failed to fetch Library applications:', err);
+      console.error('Failed to fetch Lab applications:', err);
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +73,7 @@ const LibraryDashboard = () => {
 
   useEffect(() => { fetchApplications(); }, [authFetch]);
 
-  // --- 2. Fetch Enriched Details for Clearance Review ---
+  // --- 2. Fetch Detailed Application Info ---
   const handleViewApplication = async (listApp) => {
     if (!listApp?.id) return;
     setIsViewLoading(true);
@@ -99,27 +99,27 @@ const LibraryDashboard = () => {
 
       setSelectedApplication(enrichedApp);
     } catch (err) {
-      console.error('Failed to fetch enriched library details:', err);
+      console.error('Failed to fetch enriched details:', err);
       setSelectedApplication(listApp);
     } finally {
       setIsViewLoading(false);
     }
   };
 
-  // --- 3. Handle Library Approval/Rejection ---
-  const handleLibraryAction = async (application, action, remarksIn) => {
+  // --- 3. Handle Lab Approval/Rejection ---
+  const handleLabAction = async (application, action, remarksIn) => {
     if (!application) return;
     setActionError('');
     
     if (action === 'reject' && (!remarksIn || !remarksIn.trim())) {
-      setActionError('Remarks/Reason is required when rejecting clearance');
+      setActionError('Remarks are required when rejecting');
       return;
     }
   
     const stageId = application?.active_stage?.stage_id;
-    if (!stageId) return setActionError('No actionable stage found for Library clearance.');
+    if (!stageId) return setActionError('No actionable stage found for Lab clearance.');
   
-    const libraryDeptId = user?.department_id || user?.school_id; 
+    const labId = user?.department_id || user?.school_id; 
     const verb = action === 'approve' ? 'approve' : 'reject';
     
     setActionLoading(true);
@@ -128,29 +128,29 @@ const LibraryDashboard = () => {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ 
-            department_id: libraryDeptId || null, 
+            department_id: labId || null, 
             remarks: remarksIn || null 
         }) 
       });
   
-      if (!res.ok) throw new Error(`Library Action failed: ${res.status}`);
+      if (!res.ok) throw new Error(`Lab Action failed: ${res.status}`);
   
       const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
       
-      // Filter out or update the application in the local list
+      // Remove from pending list locally after successful action
       setApplications(applications.map(app =>
         app.id === application.id ? { ...app, status: newStatus } : app
       ));
       
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Library action');
+      setActionError(err?.message || 'Error processing Lab action');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // --- Search Logic ---
+  // --- Search Filtering ---
   const handleSearch = (e) => {
     const q = e.target.value.toLowerCase();
     setApplications(prev => prev.map(a => ({
@@ -181,9 +181,9 @@ const LibraryDashboard = () => {
             
             <motion.div variants={itemVariants}>
               <h1 className="text-3xl font-extrabold text-gray-900">
-                {user?.department_name || 'Library'} 
+                {user?.department_name || 'Laboratories'} 
               </h1>
-              <p className="text-gray-600 mb-6">Review pending dues and issue library clearance.</p>
+              <p className="text-gray-600 mb-6">Process pending No-Dues requests for Laboratories.</p>
             </motion.div>
 
             <DashboardStats stats={stats} />
@@ -205,14 +205,14 @@ const LibraryDashboard = () => {
         <ApplicationActionModal 
           application={selectedApplication} 
           onClose={() => setSelectedApplication(null)}
-          onAction={handleLibraryAction} 
+          onAction={handleLabAction} 
           actionLoading={actionLoading} 
           actionError={actionError}
-          userSchoolName={user?.department_name || 'Central Library'}
+          userSchoolName={user?.department_name || 'Laboratories'}
         />
       )}
     </div>
   );
 };
 
-export default LibraryDashboard;
+export default LabDashboard;

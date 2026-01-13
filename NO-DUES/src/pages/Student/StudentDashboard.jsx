@@ -73,6 +73,9 @@ const StudentDashboard = () => {
   // Rejection State
   const [isRejected, setIsRejected] = useState(false);
   const [rejectionDetails, setRejectionDetails] = useState(null);
+  
+  // Store Application ID for resubmission
+  const [applicationId, setApplicationId] = useState(null);
 
   const statusMountedRef = useRef(false);
 
@@ -128,7 +131,6 @@ const StudentDashboard = () => {
     };
     setFormData(mapped);
 
-    // Initial locks based on data presence
     const initialLocks = {
       enrollmentNumber: get(s, 'enrollment_number') !== '',
       rollNumber: get(s, 'roll_number') !== '',
@@ -151,7 +153,6 @@ const StudentDashboard = () => {
       admissionType: get(s, 'admission_type') !== ''
     };
     setLocked(initialLocks);
-
   }, [user]);
 
   /* ---------- fetch application status ---------- */
@@ -177,6 +178,11 @@ const StudentDashboard = () => {
       if (!statusMountedRef.current) { setStatusLoading(false); return; }
       if (!res.ok) { setStatusError(`Status fetch failed: ${res.status}`); setStatusLoading(false); return; }
 
+      // capture ID for resubmission
+      if (body?.application?.id) {
+        setApplicationId(body.application.id);
+      }
+
       // --- CHECK FOR REJECTION ---
       const rejectedFlag = body?.flags?.is_rejected || (body?.application?.status === 'rejected');
       setIsRejected(rejectedFlag);
@@ -184,13 +190,10 @@ const StudentDashboard = () => {
       if (rejectedFlag) {
         setRejectionDetails(body?.rejection_details || { role: 'Unknown', remarks: body?.application?.remarks || 'Application Rejected' });
         
-        // ** CRITICAL: UNLOCK FIELDS IF REJECTED **
-        // Create an object where all keys in `locked` are set to false
+        // UNLOCK FIELDS IF REJECTED
         setLocked(prevLocks => {
           const unlocked = {};
-          Object.keys(prevLocks).forEach(key => {
-            unlocked[key] = false;
-          });
+          Object.keys(prevLocks).forEach(key => unlocked[key] = false);
           return unlocked;
         });
       } else {
@@ -260,8 +263,6 @@ const StudentDashboard = () => {
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
-    // Remove locked check here if you want fields to be always editable when isRejected is true, 
-    // but setting locked state to false in fetchApplicationStatus handles it cleaner.
     if (locked[name] && !isRejected) return; 
 
     if (type === 'file') {
@@ -310,49 +311,93 @@ const StudentDashboard = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  /* ---------- HANDLE SAVE / RESUBMIT ---------- */
   const handleSave = async () => {
     setSubmitting(true);
     setSaveMessage('');
     try {
       const rawBase = import.meta.env.VITE_API_BASE || '';
       const API_BASE = rawBase.replace(/\/+$/g, '');
-      const url = API_BASE ? `${API_BASE}/api/applications/create` : `/api/applications/create`;
-
-      const payload = {
-        proof_document_url: formData.proof_document_url || null,
-        remarks: formData.remarks || null,
-        father_name: formData.fatherName || null,
-        mother_name: formData.motherName || null,
-        gender: formData.gender || null,
-        category: formData.category || null,
-        dob: formData.dob || null,
-        permanent_address: formData.permanentAddress || null,
-        domicile: formData.domicile || formData.permanentAddress || null,
-        is_hosteller: formData.isHosteller === 'Yes',
-        hostel_name: formData.hostelName || null,
-        hostel_room: formData.hostelRoom || null,
-        section: formData.section || null,
-        batch: formData.batch || null,
-        admission_year: formData.admissionYear ? parseInt(formData.admissionYear) : 0,
-        admission_type: formData.admissionType || null
-      };
-
+      
       const authToken = token || user?.access_token || user?.token || localStorage.getItem('studentToken');
       const headers = { 'Content-Type': 'application/json' };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+      // Payload Construction (send only non-empty fields for PATCH)
+      let payload = {
+        proof_document_url: formData.proof_document_url,
+        remarks: formData.remarks,
+        father_name: formData.fatherName,
+        mother_name: formData.motherName,
+        gender: formData.gender,
+        category: formData.category,
+        dob: formData.dob,
+        permanent_address: formData.permanentAddress,
+        domicile: formData.domicile || formData.permanentAddress,
+        section: formData.section,
+        batch: formData.batch,
+        admission_type: formData.admissionType
+      };
+      // Only include hostel fields if hosteller
+      if (formData.isHosteller === 'Yes') {
+        payload.is_hosteller = true;
+        if (formData.hostelName) payload.hostel_name = formData.hostelName;
+        if (formData.hostelRoom) payload.hostel_room = formData.hostelRoom;
+      } else if (formData.isHosteller === 'No') {
+        payload.is_hosteller = false;
+      }
+      // Only include admission_year if valid
+      if (formData.admissionYear && !isNaN(parseInt(formData.admissionYear))) {
+        payload.admission_year = parseInt(formData.admissionYear);
+      }
+      // Remove empty string, null, or undefined fields for PATCH
+      if (isRejected && applicationId) {
+        Object.keys(payload).forEach(key => {
+          if (
+            payload[key] === '' ||
+            payload[key] === null ||
+            payload[key] === undefined
+          ) {
+            delete payload[key];
+          }
+        });
+      }
+
+      // --- LOGIC SWITCH: CREATE vs RESUBMIT ---
+      let url;
+      let method;
+
+      if (isRejected && applicationId) {
+        // 
+        // 1. RESUBMIT MODE
+        url = API_BASE ? `${API_BASE}/api/applications/${applicationId}/resubmit` : `/api/applications/${applicationId}/resubmit`;
+        method = 'PATCH';
+      } else {
+        // 2. CREATE MODE
+        url = API_BASE ? `${API_BASE}/api/applications/create` : `/api/applications/create`;
+        method = 'POST';
+      }
+
+      console.log(`Executing ${method} to ${url}`, payload);
+
+      const res = await fetch(url, { method, headers, body: JSON.stringify(payload) });
       let body = null;
       try { body = await res.json(); } catch (e) { }
 
-      if (!res.ok) throw new Error(body?.error || body?.message || 'Failed to save application');
+      if (!res.ok) throw new Error(body?.error || body?.message || body?.detail || 'Failed to process application');
 
       setSaveMessage(isRejected ? 'Application resubmitted successfully' : 'Application saved successfully');
       setStarted(true);
-      // setIsRejected(false); // Optionally optimistically clear rejection
-      fetchApplicationStatus(); // Refresh status immediately
+      
+      // Clear rejection state optimistically to update UI immediately
+      if (isRejected) {
+        setIsRejected(false); 
+      }
+      
+      fetchApplicationStatus(); // Refresh status from backend
       return true;
     } catch (err) {
+      console.error(err);
       setSaveMessage(err?.message || 'Application submit failed');
       return false;
     } finally {

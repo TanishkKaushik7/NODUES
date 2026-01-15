@@ -8,8 +8,52 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+
+// --- INTEGRATED UI COMPONENTS ---
+
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+  return (
+    <input
+      type={type}
+      className={cn(
+        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Input.displayName = "Input";
+
+const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
+  const baseStyles = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
+  
+  const variants = {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: "bg-background hover:bg-accent hover:text-accent-foreground border border-gray-200",
+    ghost: "hover:bg-accent hover:text-accent-foreground",
+  };
+
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+  };
+
+  return (
+    <button
+      className={cn(baseStyles, variants[variant], sizes[size], className)}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Button.displayName = "Button";
+
+// --- MAIN LOGIN SCREEN ---
 
 const LoginScreen = ({ 
   universityName = "Gautam Buddha University",
@@ -166,7 +210,6 @@ const LoginScreen = ({
                     value={credentials.email}
                     onChange={handleChange}
                     placeholder="Enter Your Email"
-                    // ✅ Added outline-none and focus:ring-1 for thin border
                     className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
@@ -183,7 +226,6 @@ const LoginScreen = ({
                     value={credentials.password}
                     onChange={handleChange}
                     placeholder="Enter Your Password"
-                    // ✅ Added outline-none and focus:ring-1 for thin border
                     className="pl-12 pr-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
@@ -220,8 +262,6 @@ const LoginScreen = ({
                       onChange={(e) => setCaptchaInput(e.target.value)}
                       placeholder="Type Code"
                       autoComplete="off"
-                      // ✅ Added outline-none and focus:ring-1
-                      // ✅ Kept placeholder:font-normal to make placeholder thin and text bold
                       className="h-12 bg-slate-50 border-slate-200 rounded-xl uppercase text-center text-xs font-black placeholder:font-normal tracking-[0.25em] focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 w-full"
                       required
                     />

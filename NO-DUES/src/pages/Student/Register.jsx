@@ -3,12 +3,44 @@ import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiShield, FiLogIn, FiArrowLeft, FiUser, FiMail, 
-  FiPhone, FiHash, FiLock, FiCheckCircle, FiRefreshCw, FiImage 
+  FiPhone, FiHash, FiLock, FiCheckCircle, FiRefreshCw 
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
+
+// --- INTEGRATED UI COMPONENTS ---
+
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+  return (
+    <input
+      type={type}
+      className={cn(
+        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base ring-offset-background transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Input.displayName = "Input";
+
+const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
+  const baseStyles = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+  
+  return (
+    <button
+      className={cn(baseStyles, className)}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Button.displayName = "Button";
+
+// --- MAIN REGISTRATION COMPONENT ---
 
 const StudentRegister = () => {
   const navigate = useNavigate();
@@ -25,7 +57,6 @@ const StudentRegister = () => {
     confirmPassword: '',
   });
 
-  // --- CAPTCHA States ---
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaImage, setCaptchaImage] = useState(null);
   const [captchaHash, setCaptchaHash] = useState('');
@@ -44,9 +75,6 @@ const StudentRegister = () => {
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState({});
 
-  /**
-   * ✅ Fetch Captcha Logic
-   */
   const fetchCaptcha = async () => {
     setCaptchaLoading(true);
     try {
@@ -106,14 +134,14 @@ const StudentRegister = () => {
         school_id: Number(form.schoolId),
         password: form.password,
         confirm_password: form.confirmPassword,
-        captcha_input: captchaInput, // ✅ Added for API
-        captcha_hash: captchaHash    // ✅ Added for API
+        captcha_input: captchaInput,
+        captcha_hash: captchaHash
       });
       setMessage('Success! Redirecting...');
       setTimeout(() => navigate('/student/login'), 1500);
     } catch (err) {
       setMessage(err.message || 'Registration failed.');
-      fetchCaptcha(); // Refresh captcha on error
+      fetchCaptcha();
       setCaptchaInput('');
     } finally {
       setLoading(false);
@@ -124,8 +152,7 @@ const StudentRegister = () => {
   const inputContainer = "relative transition-all duration-200 focus-within:transform focus-within:scale-[1.01]";
 
   return (
-    <div className="h-screen w-full bg-[#fcfdfe] flex items-center justify-center p-4 lg:p-0 overflow-hidden font-sans">
-      {/* Background Decor */}
+    <div className="h-screen w-full bg-[#fcfdfe] flex items-center justify-center p-4 lg:p-0 overflow-hidden font-sans relative">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-50/50 rounded-full blur-3xl" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-indigo-50/50 rounded-full blur-3xl" />
@@ -140,7 +167,6 @@ const StudentRegister = () => {
 
       <div className="w-full max-w-4xl grid lg:grid-cols-12 gap-0 bg-white rounded-[2rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden relative z-10">
         
-        {/* Left Sidebar */}
         <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
@@ -154,7 +180,6 @@ const StudentRegister = () => {
           </div>
         </div>
 
-        {/* Right Content */}
         <div className="lg:col-span-8 p-6 lg:p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
           <div className="max-w-xl mx-auto">
             <div className="mb-6">
@@ -175,14 +200,14 @@ const StudentRegister = () => {
                 <div className="space-y-1">
                   <label className={labelStyle}>Enrollment No</label>
                   <div className={inputContainer}>
-                    <FiHash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <FiHash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={14} />
                     <Input name="enrollmentNumber" value={form.enrollmentNumber} onChange={handleChange} placeholder="Enrollment Number" className={`pl-10 h-10 text-xs font-bold ${errors.enrollmentNumber ? 'border-red-300' : 'border-slate-200'}`} />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Roll Number</label>
                   <div className={inputContainer}>
-                    <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={14} />
                     <Input name="rollNumber" value={form.rollNumber} onChange={handleChange} placeholder="e.g. 23ICS" className={`pl-10 h-10 text-xs font-bold uppercase ${errors.rollNumber ? 'border-red-300' : 'border-slate-200'}`} />
                   </div>
                 </div>
@@ -215,7 +240,6 @@ const StudentRegister = () => {
                 </div>
               </div>
 
-              {/* ✅ INTEGRATED CAPTCHA SECTION */}
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex justify-between items-center mb-2">
                   <label className={labelStyle}>Security Verification</label>
@@ -225,7 +249,7 @@ const StudentRegister = () => {
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   <div className="col-span-2 h-11 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-                    {captchaLoading ? <div className="animate-pulse bg-slate-200 w-full h-full" /> : <img src={captchaImage} alt="Captcha" className="h-full w-full object-cover" />}
+                    {captchaLoading ? <div className="animate-pulse bg-slate-200 w-full h-full" /> : <img src={captchaImage} alt="Captcha" className="h-full w-full object-cover select-none" draggable="false" />}
                   </div>
                   <div className="col-span-3">
                     <Input value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Type Code" className="h-11 bg-slate-50 border-slate-200 rounded-xl text-center text-xs font-black uppercase tracking-[0.2em] focus:bg-white w-full" required />
@@ -245,7 +269,7 @@ const StudentRegister = () => {
           </div>
         </div>
       </div>
-      <style jsx>{`
+      <style jsx="true">{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }

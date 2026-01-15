@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
+// ✅ Uses the custom api instance for global session monitoring
+import api from '../../api/axios';
 
-// Reusing these components as they are consistent across departments
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
@@ -19,58 +20,56 @@ const itemVariants = {
 };
 
 const LabDashboard = () => {
-  const { user, logout, authFetch } = useAuth();
+  const { user, logout } = useAuth();
   
-  // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [filterStatus] = useState('all'); 
-  
-  // Loading States
   const [isLoading, setIsLoading] = useState(true); 
   const [isViewLoading, setIsViewLoading] = useState(false); 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
   // --- 1. Fetch Lab-Specific Pending Applications ---
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
-      // The API returns pending applications specific to the "Lab" role based on the Auth Token
-      const res = await authFetch('/api/approvals/pending', { method: 'GET' });
-      let data = [];
-      try { data = await res.json(); } catch (e) { data = []; }
+      // Ensure the token is retrieved correctly from storage
+      const authToken = localStorage.getItem('token');
+      
+      // ✅ Axios puts the response body in res.data automatically
+      const res = await api.get('/api/approvals/pending', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      const data = res.data;
 
       const mappedApplications = Array.isArray(data)
-        ? data.map(app => {
-            // Normalize "in_progress" to "Pending" for the Lab Admin's view
-            let displayStatus = app.status || 'Pending';
-            if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
-
-            return {
-                id: app.application_id,
-                displayId: app.display_id || '—',
-                rollNo: app.roll_number || '',
-                enrollment: app.enrollment_number || '',
-                name: app.student_name || '',
-                date: app.created_at || '',
-                status: displayStatus,
-                current_location: app.current_location || '',
-                active_stage: app.active_stage || null, 
-                match: true, 
-            };
-          })
+        ? data.map(app => ({
+            id: app.application_id,
+            displayId: app.display_id || '—',
+            rollNo: app.roll_number || '',
+            enrollment: app.enrollment_number || '',
+            name: app.student_name || '',
+            date: app.created_at || '',
+            status: (app.status || 'Pending').toLowerCase() === 'in_progress' ? 'Pending' : (app.status || 'Pending'),
+            current_location: app.current_location || '',
+            active_stage: app.active_stage || null, 
+            match: true, 
+        }))
         : [];
 
       setApplications(mappedApplications);
     } catch (err) {
       console.error('Failed to fetch Lab applications:', err);
+      // Errors are handled globally by the interceptor in axios.js
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchApplications(); }, [authFetch]);
+  useEffect(() => { 
+    fetchApplications(); 
+  }, [fetchApplications]);
 
   // --- 2. Fetch Detailed Application Info ---
   const handleViewApplication = async (listApp) => {
@@ -79,9 +78,8 @@ const LabDashboard = () => {
     setActionError(''); 
 
     try {
-      const res = await authFetch(`/api/approvals/enriched/${listApp.id}`, { method: 'GET' });
-      if (!res.ok) throw new Error('Failed to load details');
-      const details = await res.json();
+      const res = await api.get(`/api/approvals/enriched/${listApp.id}`);
+      const details = res.data;
 
       const enrichedApp = {
         ...details,
@@ -123,27 +121,21 @@ const LabDashboard = () => {
     
     setActionLoading(true);
     try {
-      const res = await authFetch(`/api/approvals/${stageId}/${verb}`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ 
-            department_id: labId || null, 
-            remarks: remarksIn || null 
-        }) 
+      await api.post(`/api/approvals/${stageId}/${verb}`, { 
+        department_id: labId || null, 
+        remarks: remarksIn || null 
       });
-  
-      if (!res.ok) throw new Error(`Lab Action failed: ${res.status}`);
-  
+
       const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
       
-      // Remove from pending list locally after successful action
-      setApplications(applications.map(app =>
+      setApplications(prev => prev.map(app =>
         app.id === application.id ? { ...app, status: newStatus } : app
       ));
       
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Lab action');
+      const msg = err.response?.data?.detail || 'Error processing Lab action';
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -173,10 +165,8 @@ const LabDashboard = () => {
       <Sidebar user={user} logout={logout} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            
             <motion.div variants={itemVariants}>
               <h1 className="text-3xl font-extrabold text-gray-900">
                 {user?.department_name || 'Laboratories'} 
@@ -194,7 +184,6 @@ const LabDashboard = () => {
               onSearch={handleSearch} 
               onRefresh={fetchApplications}
             />
-
           </motion.div>
         </main>
       </div>

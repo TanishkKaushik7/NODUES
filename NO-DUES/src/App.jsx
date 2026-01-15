@@ -1,8 +1,11 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StudentAuthProvider, useStudentAuth } from './contexts/StudentAuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext'; 
+import SessionTimeoutModal from './components/modals/SessionTimeoutModal';
+
+// --- PAGE IMPORTS ---
 import LoginScreen from './pages/login/loginscreen';
 import MainPage from './pages/MainPage';
 import StudentEntry from './pages/Student/StudentEntry';
@@ -32,85 +35,169 @@ import SchoolHistory from './pages/Schools/HistoryPage';
 import './App.css';
 import HomeButton from './components/common/HomeButton';
 
-// Protected Route Component
+/* -------------------------------------------------------------------------- */
+/* SESSION MANAGER                                                            */
+/* -------------------------------------------------------------------------- */
+
+const SessionManager = ({ children }) => {
+  const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
+  const timeoutTimerRef = useRef(null);
+
+  // 15-minute inactivity threshold
+  const TIMEOUT_IN_MS = 15 * 60 * 1000; 
+
+  const triggerLogout = useCallback(() => {
+    // Immediate cleanup of sensitive local data
+    localStorage.removeItem('studentToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('student');
+    
+    // Log for debugging to ensure this is being reached
+    console.warn("Session Manager: Triggering Logout Modal");
+    setIsTimeoutModalOpen(true);
+  }, []);
+
+  const resetTimer = useCallback(() => {
+    if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+    
+    // Check for tokens
+    const isActive = localStorage.getItem('studentToken') || localStorage.getItem('token');
+    
+    if (isActive && !isTimeoutModalOpen) {
+      timeoutTimerRef.current = setTimeout(triggerLogout, TIMEOUT_IN_MS);
+    }
+  }, [triggerLogout, isTimeoutModalOpen]);
+
+  useEffect(() => {
+    // 1. Backend Expiry Listener
+    const handleApiExpiry = () => {
+      console.log("Session Manager: API Expiry Event Detected");
+      triggerLogout();
+    };
+
+    window.addEventListener('session-expired', handleApiExpiry);
+
+    // 2. Activity tracking events
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    
+    // Run initial check
+    resetTimer(); 
+
+    return () => {
+      window.removeEventListener('session-expired', handleApiExpiry);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+    };
+  }, [resetTimer, triggerLogout]);
+
+  const handleRelogin = () => {
+    setIsTimeoutModalOpen(false);
+    // Hard refresh clears all memory-resident state
+    window.location.href = '/'; 
+  };
+
+  return (
+    <>
+      {/* Apply dynamic blurring and desaturation to the background 
+        while the modal is active for a premium 'locked' feel.
+      */}
+      <div className={isTimeoutModalOpen ? "filter blur-2xl pointer-events-none grayscale brightness-50 transition-all duration-700" : "transition-all duration-500"}>
+        {children}
+      </div>
+      <SessionTimeoutModal isOpen={isTimeoutModalOpen} onLogin={handleRelogin} />
+    </>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/* PROTECTION HELPERS                                                         */
+/* -------------------------------------------------------------------------- */
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null; 
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
+  return user ? children : <Navigate to="/login" replace />;
 };
 
-// Student protected route
 const StudentProtectedRoute = ({ children }) => {
   const { student, loading } = useStudentAuth();
   if (loading) return null;
-  if (!student) return <Navigate to="/student/login" replace />;
-  return children;
+  return student ? children : <Navigate to="/student/login" replace />;
 };
 
-// Role Routes Helper
-const RoleRoutes = ({ Dashboard, HistoryComponent, PendingComponent }) => (
+const RoleRoutes = ({ Dashboard, HistoryComponent }) => (
   <ProtectedRoute>
     <Routes>
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="history" element={HistoryComponent ? <HistoryComponent /> : <Navigate to="dashboard" replace />} />
-      <Route path="pending" element={PendingComponent ? <PendingComponent /> : <Navigate to="dashboard" replace />} />
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   </ProtectedRoute>
 );
 
+/* -------------------------------------------------------------------------- */
+/* ROOT APP COMPONENT                                                         */
+/* -------------------------------------------------------------------------- */
+
 function App() {
   return (
     <AuthProvider>
-      <ApplicationProvider>
-        <Routes>
-          <Route path="/login" element={<LoginScreen />} />
+      <StudentAuthProvider>
+        <ApplicationProvider>
+          {/* SessionManager wraps everything inside the Providers 
+            to ensure it can handle state from either Student or Staff portals.
+          */}
+          <SessionManager>
+            <Routes>
+              {/* PUBLIC ENTRY */}
+              <Route path="/" element={<MainPage />} />
+              <Route path="/login" element={<LoginScreen />} />
+              
+              {/* STUDENT FLOW */}
+              <Route path="/student" element={<StudentEntry />} />
+              <Route path="/student/login" element={<StudentLogin />} />
+              <Route path="/student/register" element={<StudentRegister />} />
+              <Route path="/student/dashboard" element={
+                <StudentProtectedRoute>
+                  <StudentDashboard />
+                </StudentProtectedRoute>
+              } />
 
-          {/* Admin */}
-          <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+              {/* ADMINISTRATION */}
+              <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
-          {/* Departments - Normalized Paths */}
-          <Route path="/sports/*" element={<RoleRoutes Dashboard={SportsDashboard} HistoryComponent={SportsHistory} />} />
-          <Route path="/crc/*" element={<RoleRoutes Dashboard={CRCDashboard} HistoryComponent={CRCHistory} />} />
-          
-          {/* Accounts Redirection Support */}
-          <Route path="/accounts/*" element={<RoleRoutes Dashboard={AccountsDashboard} HistoryComponent={AccountsHistory} />} />
-          <Route path="/account/*" element={<Navigate to="/accounts/dashboard" replace />} />
+              {/* DEPARTMENTAL NODES */}
+              <Route path="/sports/*" element={<RoleRoutes Dashboard={SportsDashboard} HistoryComponent={SportsHistory} />} />
+              <Route path="/crc/*" element={<RoleRoutes Dashboard={CRCDashboard} HistoryComponent={CRCHistory} />} />
+              <Route path="/accounts/*" element={<RoleRoutes Dashboard={AccountsDashboard} HistoryComponent={AccountsHistory} />} />
+              <Route path="/library/*" element={<RoleRoutes Dashboard={LibraryDashboard} HistoryComponent={LibraryHistory} />} />
+              <Route path="/hostels/*" element={<RoleRoutes Dashboard={HostelsDashboard} HistoryComponent={HostelsHistory} />} />
+              <Route path="/laboratories/*" element={<RoleRoutes Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
+              
+              {/* Alias Support */}
+              <Route path="/account/*" element={<Navigate to="/accounts/dashboard" replace />} />
+              <Route path="/hostel/*" element={<Navigate to="/hostels/dashboard" replace />} />
+              <Route path="/lab/*" element={<Navigate to="/laboratories/dashboard" replace />} />
 
-          <Route path="/library/*" element={<RoleRoutes Dashboard={LibraryDashboard} HistoryComponent={LibraryHistory} />} />
-          
-          {/* Hostel Redirection Support */}
-          <Route path="/hostels/*" element={<RoleRoutes Dashboard={HostelsDashboard} HistoryComponent={HostelsHistory} />} />
-          <Route path="/hostel/*" element={<RoleRoutes Dashboard={HostelsDashboard} HistoryComponent={HostelsHistory} />} />
-          
-          {/* ✅ FIXED: Laboratory/Lab Redirection Support */}
-          <Route path="/laboratories/*" element={<RoleRoutes Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
-          <Route path="/laboratory/*" element={<RoleRoutes Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
-          <Route path="/lab/*" element={<RoleRoutes Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
-          
-          {/* School/Dean Route */}
-          <Route path="/school/*" element={
-            <ProtectedRoute>
-              <Routes>
-                <Route path="dashboard" element={<SchoolDashboard />} />
-                <Route path="history" element={<SchoolHistory />} />
-                <Route path="*" element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            </ProtectedRoute>
-          } />
+              {/* SCHOOL DEAN NODE */}
+              <Route path="/school/*" element={
+                <ProtectedRoute>
+                  <Routes>
+                    <Route path="dashboard" element={<SchoolDashboard />} />
+                    <Route path="history" element={<SchoolHistory />} />
+                    <Route path="*" element={<Navigate to="dashboard" replace />} />
+                  </Routes>
+                </ProtectedRoute>
+              } />
 
-          {/* Root and Student Routes */}
-          <Route path="/" element={<MainPage />} />
-          <Route path="/student" element={<StudentAuthProvider><StudentEntry /></StudentAuthProvider>} />
-          <Route path="/student/login" element={<StudentAuthProvider><StudentLogin /></StudentAuthProvider>} />
-          <Route path="/student/register" element={<StudentAuthProvider><StudentRegister /></StudentAuthProvider>} />
-          <Route path="/student/dashboard" element={<StudentAuthProvider><StudentProtectedRoute><StudentDashboard /></StudentProtectedRoute></StudentAuthProvider>} />
-          
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <HomeButton />
-      </ApplicationProvider>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <HomeButton />
+          </SessionManager>
+        </ApplicationProvider>
+      </StudentAuthProvider>
     </AuthProvider>
   );
 }

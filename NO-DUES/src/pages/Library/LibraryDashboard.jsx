@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
+// ✅ IMPORT THE CUSTOM API INSTANCE
+import api from '../../api/axios'; 
 
 // Standardized components across departments
 import DashboardStats from './DashboardStats';
@@ -19,12 +21,11 @@ const itemVariants = {
 };
 
 const LibraryDashboard = () => {
-  const { user, logout, authFetch } = useAuth();
+  const { user, logout } = useAuth();
   
   // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [filterStatus] = useState('all'); 
   
   // Loading States
   const [isLoading, setIsLoading] = useState(true); 
@@ -33,19 +34,26 @@ const LibraryDashboard = () => {
   const [actionError, setActionError] = useState('');
 
   // --- 1. Fetch Library-Specific Pending Applications ---
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetches clearance requests specifically assigned to the Library department
-      const res = await authFetch('/api/approvals/pending', { method: 'GET' });
-      let data = [];
-      try { data = await res.json(); } catch (e) { data = []; }
+      const authToken = localStorage.getItem('token');
+      
+      // ✅ SWITCHED TO API INSTANCE
+      const res = await api.get('/api/approvals/pending', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      const data = res.data;
+      
+      // DEBUG: View raw response in console if list is empty
+      console.log("Library Dashboard Raw Data:", data);
 
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Standardize "in_progress" to "Pending" for UI clarity in the admin panel
-            let displayStatus = app.status || 'Pending';
-            if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
+            // Greedy mapping: treat anything actionable as "Pending"
+            const rawStatus = (app.status || '').toLowerCase();
+            const isFinalized = ['approved', 'rejected', 'completed'].includes(rawStatus);
 
             return {
                 id: app.application_id,
@@ -54,7 +62,7 @@ const LibraryDashboard = () => {
                 enrollment: app.enrollment_number || '',
                 name: app.student_name || '',
                 date: app.created_at || '',
-                status: displayStatus,
+                status: isFinalized ? (app.status || 'Processed') : 'Pending',
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
@@ -68,9 +76,11 @@ const LibraryDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchApplications(); }, [authFetch]);
+  useEffect(() => { 
+    fetchApplications(); 
+  }, [fetchApplications]);
 
   // --- 2. Fetch Enriched Details for Clearance Review ---
   const handleViewApplication = async (listApp) => {
@@ -79,9 +89,9 @@ const LibraryDashboard = () => {
     setActionError(''); 
 
     try {
-      const res = await authFetch(`/api/approvals/enriched/${listApp.id}`, { method: 'GET' });
-      if (!res.ok) throw new Error('Failed to load details');
-      const details = await res.json();
+      // ✅ SWITCHED TO API INSTANCE
+      const res = await api.get(`/api/approvals/enriched/${listApp.id}`);
+      const details = res.data;
 
       const enrichedApp = {
         ...details,
@@ -123,27 +133,19 @@ const LibraryDashboard = () => {
     
     setActionLoading(true);
     try {
-      const res = await authFetch(`/api/approvals/${stageId}/${verb}`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ 
-            department_id: libraryDeptId || null, 
-            remarks: remarksIn || null 
-        }) 
+      // ✅ SWITCHED TO API INSTANCE
+      await api.post(`/api/approvals/${stageId}/${verb}`, { 
+        department_id: libraryDeptId || null, 
+        remarks: remarksIn || null 
       });
   
-      if (!res.ok) throw new Error(`Library Action failed: ${res.status}`);
-  
-      const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-      
-      // Filter out or update the application in the local list
-      setApplications(applications.map(app =>
-        app.id === application.id ? { ...app, status: newStatus } : app
-      ));
+      // ✅ Remove the student from the local dashboard list once processed
+      setApplications(prev => prev.filter(app => app.id !== application.id));
       
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Library action');
+      const msg = err.response?.data?.detail || 'Error processing Library action';
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }

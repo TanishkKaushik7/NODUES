@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../api/axios'; 
 import { 
   FiUser, FiLogOut, FiMenu, FiX, FiHome, FiFileText, 
   FiActivity, FiShield, FiChevronRight, FiBell, FiRefreshCw 
@@ -58,6 +59,7 @@ const StudentDashboard = () => {
   const [departmentSteps, setDepartmentSteps] = useState(STATUS_STEPS);
   const [statusError, setStatusError] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   /* ---------- 1. DATA MAPPING LOGIC ---------- */
   useEffect(() => {
@@ -123,22 +125,15 @@ const StudentDashboard = () => {
   }, [user]);
 
   /* ---------- 2. FETCH STATUS LOGIC ---------- */
-  const fetchApplicationStatus = async () => {
+  const fetchApplicationStatus = useCallback(async () => {
     if (!user) return;
+    statusMountedRef.current = true;
     setStatusLoading(true);
     try {
-      const rawBase = import.meta.env.VITE_API_BASE || '';
-      const API_BASE = rawBase.replace(/\/+$/g, '');
-      const url = `${API_BASE}/api/applications/my`;
-      const authToken = token || user?.access_token || localStorage.getItem('studentToken');
-      
-      const res = await fetch(url, { 
-        headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' } 
-      });
-      const body = await res.json();
+      const res = await api.get('/api/applications/my');
+      const body = res.data;
 
       if (!statusMountedRef.current) return;
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
 
       if (body?.application?.id) setApplicationId(body.application.id);
 
@@ -148,6 +143,9 @@ const StudentDashboard = () => {
         setRejectionDetails(body?.rejection_details || { role: 'Dept', remarks: body?.application?.remarks || 'Rejected' });
         setLocked(prev => { let u = {}; Object.keys(prev).forEach(k => u[k] = false); return u; });
       }
+
+      const completedFlag = !!(body?.flags?.is_completed || body?.application?.status?.toLowerCase() === 'completed');
+      setIsCompleted(completedFlag);
 
       const mapStageToStatus = (stage, body) => {
         if (!stage) return { status: 'pending', comment: '' };
@@ -169,29 +167,34 @@ const StudentDashboard = () => {
         return mapStageToStatus(stage, body);
       });
       
-      const completedFlag = !!(body?.flags?.is_completed || body?.application?.status?.toLowerCase() === 'completed');
       mappedStatuses.push(completedFlag ? { status: 'completed', comment: '' } : { status: 'pending', comment: '' });
       setStepStatuses(mappedStatuses);
       setStarted(!!(body?.flags?.is_in_progress || body?.application));
 
     } catch (e) {
-      setStatusError(e.message);
+      if (e.response?.status === 403) {
+         setStatusError("Access Forbidden: Please re-login.");
+         logout();
+      } else {
+         setStatusError(e.message);
+      }
     } finally {
       setStatusLoading(false);
     }
-  };
+  }, [user, logout]);
 
   useEffect(() => {
     statusMountedRef.current = true;
-    fetchApplicationStatus();
-    const iv = setInterval(fetchApplicationStatus, 30000);
-    return () => { statusMountedRef.current = false; clearInterval(iv); };
-  }, [user, token]);
+    fetchApplicationStatus(); 
+    return () => { statusMountedRef.current = false; };
+  }, [fetchApplicationStatus]);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     if (locked[name] && !isRejected) return; 
 
+    // ✅ FIXED FILE UPLOAD LOGIC
+    // We use native fetch() to avoid Axios interceptors forcing JSON headers
     if (type === 'file') {
       const file = files[0];
       if (!file || file.type !== 'application/pdf') {
@@ -199,33 +202,55 @@ const StudentDashboard = () => {
         return;
       }
       setUploading(true);
+
       const data = new FormData();
-      data.append('file', file);
+      // "file" MUST match the variable name in backend: async def upload_proof(file: UploadFile ...)
+      data.append('file', file); 
+
+      // Get Base URL properly
+      const rawBase = import.meta.env.VITE_API_BASE || '';
+      const API_BASE = rawBase.replace(/\/+$/g, '');
+
+      // Get Token
       const authToken = token || user?.access_token || localStorage.getItem('studentToken');
-      const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/g, '');
-      
-      fetch(`${API_BASE}/api/utils/upload-proof`, { 
-        method: 'POST', 
-        headers: { 'Authorization': `Bearer ${authToken}` }, 
-        body: data 
+
+      fetch(`${API_BASE}/api/utils/upload-proof`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+            // ⚠️ CRITICAL: DO NOT SET 'Content-Type' manually.
+            // The browser will automatically set 'multipart/form-data; boundary=----WebKitFormBoundary...'
+        },
+        body: data
       })
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+           const errText = await res.text();
+           throw new Error(`Upload Failed: ${errText}`);
+        }
+        return res.json();
+      })
       .then(resData => {
-        if (resData.path) setFormData(prev => ({ ...prev, proof_document_url: resData.path }));
+        if (resData.path) {
+            setFormData(prev => ({ ...prev, proof_document_url: resData.path }));
+            setFormErrors(prev => ({ ...prev, [name]: '' }));
+        }
       })
-      .catch(() => setFormErrors(prev => ({ ...prev, [name]: 'Upload failed' })))
+      .catch((err) => {
+         console.error("Upload Error:", err);
+         setFormErrors(prev => ({ ...prev, [name]: 'Upload failed. Ensure file is PDF < 5MB.' }));
+      })
       .finally(() => setUploading(false));
-      return;
+      
+      return; // Stop execution here for file inputs
     }
+
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     setSubmitting(true);
     try {
-      const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/g, '');
-      const authToken = token || user?.access_token || localStorage.getItem('studentToken');
-      
       let payload = {
         proof_document_url: formData.proof_document_url,
         remarks: formData.remarks,
@@ -245,23 +270,18 @@ const StudentDashboard = () => {
         admission_year: parseInt(formData.admissionYear) || undefined
       };
 
-      const url = (isRejected && applicationId) 
-        ? `${API_BASE}/api/applications/${applicationId}/resubmit` 
-        : `${API_BASE}/api/applications/create`;
-      
-      const res = await fetch(url, {
-        method: (isRejected && applicationId) ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-        body: JSON.stringify(payload)
-      });
+      if (isRejected && applicationId) {
+        await api.patch(`/api/applications/${applicationId}/resubmit`, payload);
+      } else {
+        await api.post('/api/applications/create', payload);
+      }
 
-      if (!res.ok) throw new Error('Submission failed');
       setSaveMessage(isRejected ? 'Resubmitted Successfully' : 'Saved Successfully');
       setIsRejected(false);
       fetchApplicationStatus();
       return true;
     } catch (err) {
-      setSaveMessage(err.message);
+      setSaveMessage(err.response?.data?.detail || err.message);
       return false;
     } finally {
       setSubmitting(false);
@@ -278,13 +298,11 @@ const StudentDashboard = () => {
 
   return (
     <div className="h-screen w-full bg-[#f8fafc] flex items-stretch overflow-hidden font-sans relative">
-      {/* Background Decor */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[60%] h-[60%] bg-blue-50/40 rounded-full blur-[160px]" />
         <div className="absolute bottom-0 left-0 w-[60%] h-[60%] bg-indigo-50/40 rounded-full blur-[160px]" />
       </div>
 
-      {/* Desktop Sidebar Rail - Increased Width */}
       <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white p-10 justify-between relative z-20">
         <div>
           <div className="flex items-center gap-4 mb-16 px-2">
@@ -312,12 +330,37 @@ const StudentDashboard = () => {
           </nav>
         </div>
 
-        <button onClick={handleLogout} className="flex items-center gap-5 px-6 py-4 text-slate-400 hover:text-rose-400 text-[12px] font-black uppercase tracking-widest transition-colors">
-          <FiLogOut size={20} /> Sign Out
-        </button>
+        <div className="pt-8 border-t border-slate-800/50 space-y-4">
+          <div className="px-4 py-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-4 group hover:bg-white/[0.08] transition-all duration-300">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/20">
+              {formData.fullName?.charAt(0) || 'S'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-white truncate uppercase tracking-wider leading-none mb-1">
+                {formData.fullName || 'Student'}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Active Session
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleLogout} 
+            className="w-full flex items-center justify-between px-6 py-4 rounded-xl text-slate-400 hover:text-white hover:bg-rose-500/10 hover:border hover:border-rose-500/20 group transition-all duration-300"
+          >
+            <div className="flex items-center gap-4">
+              <FiLogOut size={18} className="group-hover:text-rose-400 transition-colors" />
+              <span className="text-[11px] font-black uppercase tracking-[0.2em]">End Session</span>
+            </div>
+            <FiChevronRight size={14} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+          </button>
+        </div>
       </aside>
 
-      {/* Main Content Area - Full Width */}
       <section className="flex-1 flex flex-col min-w-0 bg-white relative">
         <header className="h-24 border-b border-slate-50 flex items-center justify-between px-10 lg:px-14">
           <div className="flex items-center gap-4">
@@ -330,12 +373,6 @@ const StudentDashboard = () => {
           </div>
           
           <div className="flex items-center gap-6">
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-emerald-50 rounded-full border border-emerald-100">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                System Online
-              </span>
-            </div>
             <button className="p-3 bg-slate-50 rounded-2xl text-slate-600 hover:bg-slate-100 transition-colors relative">
               <FiBell size={22} />
               <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full" />
@@ -343,7 +380,6 @@ const StudentDashboard = () => {
           </div>
         </header>
 
-        {/* Content Container - Extended Padding for Breadth */}
         <div className="flex-1 overflow-y-auto px-10 py-10 lg:px-16 lg:py-14 bg-[#fcfdfe]">
           <div className="max-w-[1600px] mx-auto">
             <AnimatePresence mode="wait">
@@ -354,13 +390,26 @@ const StudentDashboard = () => {
                 exit={{ opacity: 0, y: -15 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
               >
-                {active === 'dashboard' && <Overview user={user} formData={formData} stepStatuses={stepStatuses} setActive={setActive} />}
+                {active === 'dashboard' && (
+                  <Overview 
+                    user={user} 
+                    formData={formData} 
+                    stepStatuses={stepStatuses} 
+                    setActive={setActive} 
+                    applicationId={applicationId}
+                    token={token}
+                  />
+                )}
                 {active === 'form' && (
                   <MyApplications
                     user={user} formData={formData} locked={locked} formErrors={formErrors}
                     submitting={submitting} uploading={uploading} saveMessage={saveMessage}
                     handleChange={handleChange} handleSave={handleSave}
                     hasSubmittedApplication={!!applicationId} isRejected={isRejected} rejectionDetails={rejectionDetails}
+                    isCompleted={isCompleted}
+                    stepStatuses={stepStatuses}
+                    applicationId={applicationId} 
+                    token={token}
                   />
                 )}
                 {active === 'status' && <TrackStatus stepStatuses={stepStatuses} departmentSteps={departmentSteps} loading={statusLoading} error={statusError} />}
@@ -370,7 +419,7 @@ const StudentDashboard = () => {
         </div>
       </section>
 
-      {/* Mobile Sidebar - Increased Width */}
+      {/* Mobile Sidebar */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div 
@@ -378,27 +427,33 @@ const StudentDashboard = () => {
             animate={{ x: 0 }} 
             exit={{ x: '-100%' }} 
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 left-0 w-80 bg-slate-900 z-[100] p-10 lg:hidden shadow-2xl"
+            className="fixed inset-y-0 left-0 w-80 bg-slate-900 z-[100] p-10 lg:hidden shadow-2xl flex flex-col justify-between"
           >
-            <div className="flex justify-between items-center mb-12">
-              <FiShield className="text-blue-500" size={32} />
-              <button onClick={() => setSidebarOpen(false)} className="text-white p-2">
-                <FiX size={32} />
-              </button>
-            </div>
-            <nav className="space-y-6">
-              {menuItems.map(item => (
-                <button 
-                  key={item.id} 
-                  onClick={() => { setActive(item.id); setSidebarOpen(false); }} 
-                  className={`w-full flex items-center gap-5 p-5 rounded-2xl text-[14px] font-black uppercase tracking-widest transition-all ${
-                    active === item.id ? 'bg-blue-600 text-white' : 'text-slate-400'
-                  }`}
-                >
-                  <item.icon size={24} /> {item.label}
+            <div>
+              <div className="flex justify-between items-center mb-12">
+                <FiShield className="text-blue-500" size={32} />
+                <button onClick={() => setSidebarOpen(false)} className="text-white p-2">
+                  <FiX size={32} />
                 </button>
-              ))}
-            </nav>
+              </div>
+              <nav className="space-y-6">
+                {menuItems.map(item => (
+                  <button 
+                    key={item.id} 
+                    onClick={() => { setActive(item.id); setSidebarOpen(false); }} 
+                    className={`w-full flex items-center gap-5 p-5 rounded-2xl text-[14px] font-black uppercase tracking-widest transition-all ${
+                      active === item.id ? 'bg-blue-600 text-white' : 'text-slate-400'
+                    }`}
+                  >
+                    <item.icon size={24} /> {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            
+            <button onClick={handleLogout} className="w-full flex items-center gap-5 p-5 text-slate-400 hover:text-rose-400 font-black uppercase tracking-widest transition-all">
+              <FiLogOut size={24} /> End Session
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

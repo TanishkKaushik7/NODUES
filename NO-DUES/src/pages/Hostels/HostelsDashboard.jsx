@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
+// ✅ Uses the custom api instance for global session monitoring
+import api from '../../api/axios'; 
 
-// Reusing your standardized components for consistency
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
@@ -19,33 +20,37 @@ const itemVariants = {
 };
 
 const HostelDashboard = () => {
-  const { user, logout, authFetch } = useAuth();
+  const { user, logout } = useAuth();
   
   // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [filterStatus] = useState('all'); 
-  
-  // Loading States
   const [isLoading, setIsLoading] = useState(true); 
   const [isViewLoading, setIsViewLoading] = useState(false); 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
   // --- 1. Fetch Hostel-Specific Pending Applications ---
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetches pending applications that require Hostel clearance
-      const res = await authFetch('/api/approvals/pending', { method: 'GET' });
-      let data = [];
-      try { data = await res.json(); } catch (e) { data = []; }
+      const authToken = localStorage.getItem('token');
+      
+      // ✅ Using central api instance
+      const res = await api.get('/api/approvals/pending', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      const data = res.data;
+      
+      // DEBUG: If your dashboard is empty, check this log in the F12 console
+      console.log("Hostel Dashboard Raw Data:", data);
 
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Standardize "in_progress" to "Pending" for the Admin view
-            let displayStatus = app.status || 'Pending';
-            if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
+            // Determine if the status is finalized
+            const rawStatus = (app.status || '').toLowerCase();
+            const isFinalized = ['approved', 'rejected', 'completed'].includes(rawStatus);
 
             return {
                 id: app.application_id,
@@ -54,7 +59,8 @@ const HostelDashboard = () => {
                 enrollment: app.enrollment_number || '',
                 name: app.student_name || '',
                 date: app.created_at || '',
-                status: displayStatus,
+                // If it's in the pending list and not finalized, force display as 'Pending'
+                status: isFinalized ? (app.status || 'Processed') : 'Pending',
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
@@ -68,20 +74,21 @@ const HostelDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchApplications(); }, [authFetch]);
+  useEffect(() => { 
+    fetchApplications(); 
+  }, [fetchApplications]);
 
-  // --- 2. Fetch Detailed Application Info for Modal ---
+  // --- 2. Fetch Detailed Application Info ---
   const handleViewApplication = async (listApp) => {
     if (!listApp?.id) return;
     setIsViewLoading(true);
     setActionError(''); 
 
     try {
-      const res = await authFetch(`/api/approvals/enriched/${listApp.id}`, { method: 'GET' });
-      if (!res.ok) throw new Error('Failed to load details');
-      const details = await res.json();
+      const res = await api.get(`/api/approvals/enriched/${listApp.id}`);
+      const details = res.data;
 
       const enrichedApp = {
         ...details,
@@ -98,14 +105,14 @@ const HostelDashboard = () => {
 
       setSelectedApplication(enrichedApp);
     } catch (err) {
-      console.error('Failed to fetch enriched details:', err);
+      console.error('Failed to fetch details:', err);
       setSelectedApplication(listApp);
     } finally {
       setIsViewLoading(false);
     }
   };
 
-  // --- 3. Handle Hostel Clearance (Approve/Reject) ---
+  // --- 3. Handle Hostel Action (Approve/Reject) ---
   const handleHostelAction = async (application, action, remarksIn) => {
     if (!application) return;
     setActionError('');
@@ -116,34 +123,24 @@ const HostelDashboard = () => {
     }
   
     const stageId = application?.active_stage?.stage_id;
-    if (!stageId) return setActionError('No actionable stage found for Hostel clearance.');
+    if (!stageId) return setActionError('No actionable stage found.');
   
-    const hostelDeptId = user?.department_id || user?.school_id; 
+    const hostelId = user?.department_id || user?.school_id; 
     const verb = action === 'approve' ? 'approve' : 'reject';
     
     setActionLoading(true);
     try {
-      const res = await authFetch(`/api/approvals/${stageId}/${verb}`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ 
-            department_id: hostelDeptId || null, 
-            remarks: remarksIn || null 
-        }) 
+      await api.post(`/api/approvals/${stageId}/${verb}`, { 
+        department_id: hostelId || null, 
+        remarks: remarksIn || null 
       });
-  
-      if (!res.ok) throw new Error(`Hostel Action failed: ${res.status}`);
-  
-      const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-      
-      // Update local list to reflect action
-      setApplications(applications.map(app =>
-        app.id === application.id ? { ...app, status: newStatus } : app
-      ));
-      
+
+      // ✅ Remove from dashboard list immediately upon successful action
+      setApplications(prev => prev.filter(app => app.id !== application.id));
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Hostel action');
+      const msg = err.response?.data?.detail || 'Error processing action';
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -173,15 +170,13 @@ const HostelDashboard = () => {
       <Sidebar user={user} logout={logout} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            
             <motion.div variants={itemVariants}>
               <h1 className="text-3xl font-extrabold text-gray-900">
-                {user?.department_name || 'Hostel'}
+                {user?.department_name || 'Hostel Administration'} 
               </h1>
-              <p className="text-gray-600 mb-6">Welcome, {user?.name}. Review and process pending Hostel clearance requests.</p>
+              <p className="text-gray-600 mb-6">Manage pending Hostel clearance requests and dues.</p>
             </motion.div>
 
             <DashboardStats stats={stats} />
@@ -194,7 +189,6 @@ const HostelDashboard = () => {
               onSearch={handleSearch} 
               onRefresh={fetchApplications}
             />
-
           </motion.div>
         </main>
       </div>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUser, FiLock, FiLogIn, FiShield, 
-  FiArrowLeft, FiRefreshCw, FiAlertCircle 
+  FiArrowLeft, FiRefreshCw, FiAlertCircle,
+  FiEye, FiEyeOff 
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +19,8 @@ const LoginScreen = ({
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaHash, setCaptchaHash] = useState(''); 
   
+  const [showPassword, setShowPassword] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -37,7 +40,7 @@ const LoginScreen = ({
       setCaptchaHash(response.data.captcha_hash);
     } catch (err) {
       console.error("Captcha load failed", err);
-      setError("Security service unavailable. Please refresh.");
+      setError("Too Many Requests. Please try again later.");
     } finally {
       setCaptchaLoading(false);
     }
@@ -67,32 +70,27 @@ const LoginScreen = ({
       const user = result?.user;
 
       if (user) {
-        /**
-         * ✅ ROBUST ROLE REDIRECTION
-         * Normalizes the role string and maps it to the routes defined in App.js
-         */
         const rawRole = (user.role || "").toLowerCase().trim();
         
        const roleMap = {
-  'admin': '/admin/dashboard',
-  'super_admin': '/admin/dashboard',
-  'library': '/library/dashboard',
-  'sports': '/sports/dashboard',
-  'hostel': '/hostels/dashboard',
-  'hostels': '/hostels/dashboard',
-  'dean': '/school/dashboard',
-  'school': '/school/dashboard',
-  'accounts': '/accounts/dashboard',
-  'account': '/accounts/dashboard',
-  'laboratories': '/laboratories/dashboard', // Exact match for App.js route
-  'laboratory': '/laboratories/dashboard',
-  'lab': '/laboratories/dashboard',          // Common abbreviation
-  'crc': '/crc/dashboard'
-};
+          'admin': '/admin/dashboard',
+          'super_admin': '/admin/dashboard',
+          'library': '/library/dashboard',
+          'sports': '/sports/dashboard',
+          'hostel': '/hostels/dashboard',
+          'hostels': '/hostels/dashboard',
+          'dean': '/school/dashboard',
+          'school': '/school/dashboard',
+          'accounts': '/accounts/dashboard',
+          'account': '/accounts/dashboard',
+          'laboratories': '/laboratories/dashboard',
+          'laboratory': '/laboratories/dashboard',
+          'lab': '/laboratories/dashboard',
+          'crc': '/crc/dashboard'
+        };
 
         const targetPath = roleMap[rawRole] || `/${rawRole}/dashboard`;
         
-        // Use a slight timeout to allow state to settle
         setTimeout(() => navigate(targetPath, { replace: true }), 100);
       }
     } catch (err) {
@@ -159,7 +157,7 @@ const LoginScreen = ({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
-                <label className={labelStyle}>Official Email</label>
+                <label className={labelStyle}>Registered Email</label>
                 <div className="relative group">
                   <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <Input
@@ -167,26 +165,36 @@ const LoginScreen = ({
                     type="email"
                     value={credentials.email}
                     onChange={handleChange}
-                    placeholder="admin@gbu.ac.in"
-                    className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white transition-all w-full"
+                    placeholder="Enter Your Email"
+                    // ✅ Added outline-none and focus:ring-1 for thin border
+                    className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className={labelStyle}>Access Key</label>
+                <label className={labelStyle}>Password</label>
                 <div className="relative group">
                   <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <Input
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={credentials.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
-                    className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white transition-all w-full"
+                    placeholder="Enter Your Password"
+                    // ✅ Added outline-none and focus:ring-1 for thin border
+                    className="pl-12 pr-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
                 </div>
               </div>
 
@@ -212,7 +220,9 @@ const LoginScreen = ({
                       onChange={(e) => setCaptchaInput(e.target.value)}
                       placeholder="Type Code"
                       autoComplete="off"
-                      className="h-12 bg-slate-50 border-slate-200 rounded-xl text-center text-xs font-black uppercase tracking-[0.25em] focus:bg-white w-full"
+                      // ✅ Added outline-none and focus:ring-1
+                      // ✅ Kept placeholder:font-normal to make placeholder thin and text bold
+                      className="h-12 bg-slate-50 border-slate-200 rounded-xl uppercase text-center text-xs font-black placeholder:font-normal tracking-[0.25em] focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 w-full"
                       required
                     />
                   </div>

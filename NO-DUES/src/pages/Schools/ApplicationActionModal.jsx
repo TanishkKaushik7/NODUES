@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, 
-  FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin,
-  FiRefreshCw 
+  FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin 
 } from 'react-icons/fi';
+
 const renderStatusBadge = (status) => {
   const s = (status || 'Pending').toString();
   const key = s.toLowerCase().replace(/[\s-]/g, '');
@@ -49,28 +49,16 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
 
   if (!application) return null;
 
-  // ✅ UPDATED MAPPING: strictly using the fields from your provided ApplicationRead schema
+  // Key mappings for the API response
   const email = application.student_email || application.email;
   const mobile = application.student_mobile || application.mobile;
   const address = application.permanent_address || '—';
   const name = application.student_name || application.name;
-  const rollNo = application.roll_number || '—';
-  const enrollment = application.enrollment_number || '—';
-  const proofUrl = application.proof_document_url || application.proof_url;
+  const rollNo = application.roll_number || application.rollNo;
+  const enrollment = application.enrollment_number || application.enrollment;
 
   const statusKey = (application.status || '').toLowerCase().replace(/[\s-]/g, '');
-  
-  // ✅ FIX: Verify if stage_id exists on active_stage OR if active_stage is the ID itself
-  const stageId = application.active_stage?.stage_id || application.active_stage?.id || application.stage_id;
-  const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && stageId;
-
-  // ✅ WRAPPER FUNCTION: Ensures the remark is sent as an object to prevent 400 Bad Request
-  const handleInternalAction = (type) => {
-    // If your backend Pydantic model expects a string, send 'remark'
-    // If it expects a JSON body (common), send { remarks: remark }
-    const actionPayload = { remarks: remark }; 
-    onAction(application, type, actionPayload);
-  };
+  const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && application.active_stage?.stage_id;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -81,11 +69,12 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
         exit={{ y: 50, opacity: 0 }}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
       >
+        {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gray-50 sticky top-0 z-10">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-bold text-gray-900">
-                Application: <span className="text-indigo-600 font-mono">{application.display_id || 'NEW'}</span>
+                Application: <span className="text-indigo-600 font-mono">{application.display_id || application.displayId}</span>
               </h2>
               {renderStatusBadge(application.status)}
             </div>
@@ -99,30 +88,38 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
         </div>
 
         <div className="p-8 overflow-y-auto space-y-10">
+          
+          {/* Section 1: Personal Info */}
           <section>
             <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b pb-2">
               <FiUser /> Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Full Name</label><p className="font-semibold text-gray-800">{name}</p></div>
-              <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Email</label><p className="font-medium text-gray-700 break-all">{email || '—'}</p></div>
-              <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Phone</label><p className="font-medium text-gray-700">{mobile || '—'}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Full Name</label><p className="font-semibold text-gray-800">{name}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Email Address</label><p className="font-medium text-gray-700 break-all">{email || '—'}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Phone Number</label><p className="font-medium text-gray-700">{mobile || '—'}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Father's Name</label><p className="font-medium text-gray-700">{application.father_name || '—'}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Mother's Name</label><p className="font-medium text-gray-700">{application.mother_name || '—'}</p></div>
+              <div><label className="text-xs text-gray-400 block mb-1 uppercase">Date of Birth</label><p className="font-medium text-gray-700">{formatDate(application.dob)}</p></div>
               <div className="md:col-span-3">
-                <label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Permanent Address</label>
+                <label className="text-xs text-gray-400 block mb-1 uppercase">Permanent Address</label>
                 <p className="font-medium text-gray-700">{address}</p>
               </div>
             </div>
           </section>
 
+          {/* Section 2: Academic & Hostel Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <section>
               <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b pb-2">
                 <FiBook /> Academic Profile
               </h3>
               <div className="grid grid-cols-2 gap-6">
-                <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Roll No.</label><p className="font-bold text-gray-800">{rollNo}</p></div>
-                <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Enrollment</label><p className="font-medium text-gray-700">{enrollment}</p></div>
-                <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Department/School</label><p className="font-medium text-gray-700">{application.school_name || userSchoolName || '—'}</p></div>
+                <div><label className="text-xs text-gray-400 block mb-1 uppercase">Roll Number</label><p className="font-bold text-gray-800">{rollNo}</p></div>
+                <div><label className="text-xs text-gray-400 block mb-1 uppercase">Enrollment</label><p className="font-medium text-gray-700">{enrollment}</p></div>
+                <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1 uppercase">Department</label><p className="font-medium text-gray-700">{application.school_name || userSchoolName}</p></div>
+                <div><label className="text-xs text-gray-400 block mb-1 uppercase">Admission Year</label><p className="font-medium text-gray-700">{application.admission_year || '—'}</p></div>
+                <div><label className="text-xs text-gray-400 block mb-1 uppercase">Batch</label><p className="font-medium text-gray-700">{application.batch || '—'}</p></div>
               </div>
             </section>
 
@@ -133,55 +130,51 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               {application.is_hosteller ? (
                 <div className="grid grid-cols-2 gap-6">
                   <div className="col-span-2">
-                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-1 rounded font-bold uppercase">Resident</span>
+                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-1 rounded font-bold uppercase">Hostel Resident</span>
                   </div>
-                  <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Hostel</label><p className="font-medium text-gray-700">{application.hostel_name || '—'}</p></div>
-                  <div><label className="text-xs text-gray-400 block mb-1 uppercase tracking-tighter">Room</label><p className="font-medium text-gray-700">{application.hostel_room || '—'}</p></div>
+                  <div><label className="text-xs text-gray-400 block mb-1 uppercase">Hostel Name</label><p className="font-medium text-gray-700">{application.hostel_name || '—'}</p></div>
+                  <div><label className="text-xs text-gray-400 block mb-1 uppercase">Room No.</label><p className="font-medium text-gray-700">{application.hostel_room || '—'}</p></div>
                 </div>
               ) : (
                 <div className="h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="text-sm text-gray-400 italic">Day Scholar</p>
+                  <p className="text-sm text-gray-400 italic">Day Scholar (No Hostel Data)</p>
                 </div>
               )}
             </section>
           </div>
 
-          {/* Action Area */}
+          {/* Section 3: Action Area */}
           {isActionable ? (
-            <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6 space-y-6">
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-6">
               <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <FiFileText className="text-indigo-600" /> Department Action
+                <FiFileText className="text-indigo-600" /> Department Review Action
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-widest">Review Remarks</label>
+                  <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-tighter">Review Remarks</label>
                   <textarea
                     value={remark}
                     onChange={(e) => setRemark(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl p-4 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all resize-none"
+                    className="w-full border border-gray-300 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     rows={3}
-                    placeholder="Provide a reason for approval/rejection..."
+                    placeholder="Enter approval comments or reason for rejection..."
                   />
-                  {actionError && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-xs mt-3 font-bold flex items-center gap-1 uppercase tracking-tight">
-                      <FiXCircle /> {typeof actionError === 'object' ? JSON.stringify(actionError) : actionError}
-                    </motion.p>
-                  )}
+                  {actionError && <p className="text-red-500 text-xs mt-2 font-medium flex items-center gap-1"><FiXCircle /> {actionError}</p>}
                 </div>
 
                 <div className="flex gap-4">
                   <button
                     disabled={actionLoading}
-                    onClick={() => handleInternalAction('approve')}
-                    className="flex-1 bg-emerald-600 text-white py-3.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={() => onAction(application, 'approve', remark)}
+                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {actionLoading ? <FiRefreshCw className="animate-spin" /> : <FiCheck />} Approve
+                    {actionLoading ? <FiClock className="animate-spin" /> : <FiCheck />} Approve
                   </button>
                   <button
                     disabled={actionLoading}
-                    onClick={() => handleInternalAction('reject')}
-                    className="flex-1 bg-white border-2 border-rose-600 text-rose-600 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={() => onAction(application, 'reject', remark)}
+                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <FiX /> Reject
                   </button>
@@ -190,24 +183,25 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             </div>
           ) : (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
-              <p className="text-xs text-amber-700 font-bold uppercase tracking-widest">
-                ReadOnly: Current Status {application.status}
+              <p className="text-sm text-amber-700 font-medium italic">
+                This application is locked (Current Status: {application.status}). No actions can be performed.
               </p>
             </div>
           )}
         </div>
 
+        {/* Modal Footer */}
         <div className="p-6 border-t bg-gray-50 flex justify-between items-center sticky bottom-0 z-10">
-          <button onClick={onClose} className="text-[10px] font-black text-gray-400 hover:text-gray-800 transition-colors uppercase tracking-[0.2em]">
-            Dismiss
+          <button onClick={onClose} className="text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors uppercase">
+            Close Panel
           </button>
           
-          {proofUrl && (
+          {(application.proof_document_url || application.proof_url) && (
             <button 
-              onClick={() => window.open(proofUrl, '_blank')}
-              className="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-slate-900 shadow-md transition-all flex items-center gap-2 text-xs uppercase tracking-widest"
+              onClick={() => window.open(application.proof_document_url || application.proof_url, '_blank')}
+              className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center gap-2 text-sm"
             >
-              <FiDownload /> View Document
+              <FiDownload /> Download Student Proof
             </button>
           )}
         </div>

@@ -1,15 +1,13 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { 
   FiCheck, FiInfo, FiClock, FiAlertCircle, 
   FiXCircle, FiBookOpen, FiUser, FiHome, 
-  FiFileText, FiUploadCloud, FiMail, FiPhone, FiMapPin,
-  FiRefreshCw 
+  FiFileText, FiUploadCloud, FiRefreshCw, FiCheckCircle, FiDownload 
 } from 'react-icons/fi';
 
 /* -------------------------------------------------------------------------- */
-/* SUB-COMPONENTS (FIX)                            */
+/* SUB-COMPONENTS                                                             */
 /* -------------------------------------------------------------------------- */
 
 const ReadOnlyField = ({ label, value, error }) => (
@@ -70,22 +68,105 @@ const SelectRow = ({ label, name, value, onChange, fieldClass, editable = true, 
 );
 
 /* -------------------------------------------------------------------------- */
-/* MAIN COMPONENT                               */
+/* MAIN COMPONENT                                                             */
 /* -------------------------------------------------------------------------- */
 
 const MyApplications = ({ 
   user, formData, locked, formErrors, submitting, uploading, 
   saveMessage, handleChange, handleSave, hasSubmittedApplication,
-  isRejected, rejectionDetails 
+  isRejected, rejectionDetails, stepStatuses, applicationId, token,
+  isCompleted 
 }) => {
+  const [certDownloading, setCertDownloading] = useState(false);
+  const [localFileError, setLocalFileError] = useState(''); 
   const fieldClass = 'w-full border outline-none transition-all';
+
+  const isFullyCleared = isCompleted || (stepStatuses?.length > 0 && stepStatuses?.every(s => s.status === 'completed'));
+
+  // ✅ ENHANCED FILE HANDLER
+  const onFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (file.size > maxSize) {
+      setLocalFileError(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Max 5MB.`);
+      e.target.value = null; // Reset input
+      return;
+    }
+
+    setLocalFileError('');
+    
+    // Pass the event to the parent.
+    // NOTE: The parent (StudentDashboard) MUST handle the API call and use "file" as the key.
+    handleChange(e); 
+  };
+
+  const handleDownloadCertificate = async () => {
+    if (!applicationId) return;
+    setCertDownloading(true);
+    try {
+      const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/g, '');
+      const authToken = token || localStorage.getItem('studentToken');
+      const response = await fetch(`${API_BASE}/api/applications/${applicationId}/certificate`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      if (!response.ok) throw new Error('Certificate not found.');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Clearance_Certificate_${formData.rollNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCertDownloading(false);
+    }
+  };
+
+  if (isFullyCleared) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-emerald-900/5 p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[550px]">
+        <div className="relative mb-8">
+            <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl"></div>
+            <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-emerald-500/40">
+                <FiCheckCircle className="w-10 h-10" />
+            </div>
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight uppercase">Clearance Completed</h2>
+        <p className="text-slate-500 max-w-sm mx-auto text-base font-medium leading-relaxed">
+          Congratulations! Your digital clearance process is 100% complete and verified by all departments.
+        </p>
+        
+        <div className="mt-10 flex flex-col items-center gap-6 w-full max-w-xs">
+          <Button 
+            onClick={handleDownloadCertificate}
+            disabled={certDownloading}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 transition-all flex items-center justify-center gap-3"
+          >
+            {certDownloading ? <FiRefreshCw className="animate-spin" /> : <FiDownload size={18} />}
+            Download Certificate
+          </Button>
+          
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+            Registry Archive Reference: {applicationId?.slice(0, 8)}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (hasSubmittedApplication && !isRejected) {
     return (
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-blue-900/5 p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[550px]">
         <div className="relative mb-8">
             <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
+            <div className="relative w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
                 <FiClock className="w-10 h-10" />
             </div>
         </div>
@@ -112,7 +193,7 @@ const MyApplications = ({
               <FiXCircle size={120} />
           </div>
           <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200 flex-shrink-0">
-             <FiXCircle className="w-8 h-8" />
+              <FiXCircle className="w-8 h-8" />
           </div>
           <div className="relative z-10">
             <h3 className="text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">Correction Required</h3>
@@ -188,26 +269,8 @@ const MyApplications = ({
               <InputRow label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.fatherName} error={formErrors.fatherName} />
               <InputRow label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.motherName} error={formErrors.motherName} />
               <div className="grid grid-cols-2 gap-4">
-                <SelectRow 
-                  label="Gender" 
-                  name="gender" 
-                  value={formData.gender} 
-                  onChange={handleChange} 
-                  fieldClass={fieldClass} 
-                  editable={!locked.gender} 
-                  error={formErrors.gender} 
-                  options={[{ v: 'Male', l: 'Male' }, { v: 'Female', l: 'Female' }, { v: 'Other', l: 'Other' }]} 
-                />
-                <SelectRow 
-                  label="Category" 
-                  name="category" 
-                  value={formData.category} 
-                  onChange={handleChange} 
-                  fieldClass={fieldClass} 
-                  editable={!locked.category} 
-                  error={formErrors.category} 
-                  options={['GEN', 'OBC', 'SC', 'ST'].map(c => ({ v: c, l: c }))} 
-                />
+                <SelectRow label="Gender" name="gender" value={formData.gender} onChange={handleChange} fieldClass={fieldClass} editable={!locked.gender} error={formErrors.gender} options={[{ v: 'Male', l: 'Male' }, { v: 'Female', l: 'Female' }, { v: 'Other', l: 'Other' }]} />
+                <SelectRow label="Category" name="category" value={formData.category} onChange={handleChange} fieldClass={fieldClass} editable={!locked.category} error={formErrors.category} options={['GEN', 'OBC', 'SC', 'ST'].map(c => ({ v: c, l: c }))} />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Permanent Address</label>
@@ -225,23 +288,14 @@ const MyApplications = ({
             </div>
           </section>
 
-          {/* SECTION: LOGISTICS */}
+          {/* SECTION: LOGISTICS & FILE UPLOAD */}
           <section className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <FiHome className="text-blue-600" size={18} />
                 <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Additional Details</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SelectRow 
-                label="Are you a Hosteller?" 
-                name="isHosteller" 
-                value={formData.isHosteller} 
-                onChange={handleChange} 
-                fieldClass={fieldClass} 
-                editable={!locked.isHosteller} 
-                error={formErrors.isHosteller} 
-                options={[{ v: 'Yes', l: 'Yes' }, { v: 'No', l: 'No' }]} 
-              />
+              <SelectRow label="Are you a Hosteller?" name="isHosteller" value={formData.isHosteller} onChange={handleChange} fieldClass={fieldClass} editable={!locked.isHosteller} error={formErrors.isHosteller} options={[{ v: 'Yes', l: 'Yes' }, { v: 'No', l: 'No' }]} />
               {formData.isHosteller === 'Yes' && (
                 <>
                   <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} fieldClass={fieldClass} editable={!locked.hostelName} error={formErrors.hostelName} />
@@ -257,15 +311,16 @@ const MyApplications = ({
                       type="file" 
                       name="proof_document_url" 
                       accept="application/pdf" 
-                      onChange={handleChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      onChange={onFileChange}
+                      disabled={uploading} // Disable while uploading
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                     />
                     <div className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
                       <FiUploadCloud size={16} /> {uploading ? 'Uploading...' : 'Choose PDF File'}
                     </div>
                   </div>
                   
-                  {formData.proof_document_url && (
+                  {formData.proof_document_url && !localFileError && (
                     <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-left-2">
                       <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
                         <FiCheck size={14} />
@@ -274,7 +329,12 @@ const MyApplications = ({
                     </div>
                   )}
                 </div>
-                {formErrors.proof_document_url && <div className="text-[10px] font-bold text-rose-500 mt-3 flex items-center gap-1"><FiAlertCircle size={12}/> {formErrors.proof_document_url}</div>}
+                
+                {(localFileError || formErrors.proof_document_url) && (
+                  <div className="text-[10px] font-bold text-rose-500 mt-3 flex items-center gap-1">
+                    <FiAlertCircle size={12}/> {localFileError || formErrors.proof_document_url}
+                  </div>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -296,20 +356,17 @@ const MyApplications = ({
                 <FiInfo size={20} />
                 <p className="text-xs font-medium max-w-xs">By submitting, you confirm that all provided data is true to the university records.</p>
             </div>
+            
             <Button 
               variant="primary" 
               onClick={handleSave} 
               className={`w-full sm:w-auto px-12 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white rounded-2xl shadow-2xl transition-all active:scale-95 ${
-                isRejected 
-                  ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' 
-                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+                isRejected ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
               }`}
-              disabled={submitting || uploading}
+              disabled={submitting || uploading || !!localFileError}
             >
               {submitting ? (
-                <div className="flex items-center gap-2">
-                    <FiRefreshCw className="animate-spin" /> Processing
-                </div>
+                <div className="flex items-center gap-2"><FiRefreshCw className="animate-spin" /> Processing</div>
               ) : (isRejected ? 'Resubmit Application' : 'Finalize & Update')}
             </Button>
           </div>

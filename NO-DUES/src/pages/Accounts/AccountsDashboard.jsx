@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
+// ✅ IMPORT THE CUSTOM API INSTANCE
+import api from '../../api/axios'; 
 
-// Reusing these components as they are consistent across administrative departments
+// Standardized components shared across administrative departments
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
@@ -19,12 +21,11 @@ const itemVariants = {
 };
 
 const AccountsDashboard = () => {
-  const { user, logout, authFetch } = useAuth();
+  const { user, logout } = useAuth();
   
   // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [filterStatus] = useState('all'); 
   
   // Loading States
   const [isLoading, setIsLoading] = useState(true); 
@@ -33,19 +34,26 @@ const AccountsDashboard = () => {
   const [actionError, setActionError] = useState('');
 
   // --- 1. Fetch Accounts-Specific Pending Applications ---
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
-      // The API returns pending applications specific to the "Accounts" role
-      const res = await authFetch('/api/approvals/pending', { method: 'GET' });
-      let data = [];
-      try { data = await res.json(); } catch (e) { data = []; }
+      const authToken = localStorage.getItem('token');
+      
+      // ✅ SWITCHED TO API INSTANCE
+      const res = await api.get('/api/approvals/pending', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      const data = res.data;
+      
+      // DEBUG: Verify raw data in console if the list is unexpectedly empty
+      console.log("Accounts Dashboard Raw Data:", data);
 
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Standardize "in_progress" to "Pending" for the Finance/Accounts Admin view
-            let displayStatus = app.status || 'Pending';
-            if (displayStatus.toLowerCase() === 'in_progress') displayStatus = 'Pending';
+            // Standardize any non-finalized status to "Pending"
+            const rawStatus = (app.status || '').toLowerCase();
+            const isFinalized = ['approved', 'rejected', 'completed'].includes(rawStatus);
 
             return {
                 id: app.application_id,
@@ -54,7 +62,7 @@ const AccountsDashboard = () => {
                 enrollment: app.enrollment_number || '',
                 name: app.student_name || '',
                 date: app.created_at || '',
-                status: displayStatus,
+                status: isFinalized ? (app.status || 'Processed') : 'Pending',
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
@@ -68,9 +76,11 @@ const AccountsDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchApplications(); }, [authFetch]);
+  useEffect(() => { 
+    fetchApplications(); 
+  }, [fetchApplications]);
 
   // --- 2. Fetch Detailed Application Info (Dues & Fees check) ---
   const handleViewApplication = async (listApp) => {
@@ -79,9 +89,9 @@ const AccountsDashboard = () => {
     setActionError(''); 
 
     try {
-      const res = await authFetch(`/api/approvals/enriched/${listApp.id}`, { method: 'GET' });
-      if (!res.ok) throw new Error('Failed to load application details');
-      const details = await res.json();
+      // ✅ SWITCHED TO API INSTANCE
+      const res = await api.get(`/api/approvals/enriched/${listApp.id}`);
+      const details = res.data;
 
       const enrichedApp = {
         ...details,
@@ -123,27 +133,19 @@ const AccountsDashboard = () => {
     
     setActionLoading(true);
     try {
-      const res = await authFetch(`/api/approvals/${stageId}/${verb}`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ 
-            department_id: deptId || null, 
-            remarks: remarksIn || null 
-        }) 
+      // ✅ SWITCHED TO API INSTANCE
+      await api.post(`/api/approvals/${stageId}/${verb}`, { 
+        department_id: deptId || null, 
+        remarks: remarksIn || null 
       });
-  
-      if (!res.ok) throw new Error(`Accounts action failed: ${res.status}`);
-  
-      const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-      
-      // Update local state to remove the processed entry
-      setApplications(applications.map(app =>
-        app.id === application.id ? { ...app, status: newStatus } : app
-      ));
+
+      // ✅ Filter out processed student from the dashboard view
+      setApplications(prev => prev.filter(app => app.id !== application.id));
       
       setSelectedApplication(null); 
     } catch (err) {
-      setActionError(err?.message || 'Error processing Accounts clearance');
+      const msg = err.response?.data?.detail || 'Error processing Accounts clearance';
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -173,7 +175,6 @@ const AccountsDashboard = () => {
       <Sidebar user={user} logout={logout} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
             

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft, 
-  FiRefreshCw, FiShieldOff 
+  FiRefreshCw, FiShieldOff, 
+  FiEye, FiEyeOff // ✅ Imported Eye Icons
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -19,15 +20,23 @@ const StudentLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // ✅ New State for Password Visibility
+  const [showPassword, setShowPassword] = useState(false);
+
   // --- CAPTCHA States ---
   const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaImage, setCaptchaImage] = useState(null); // Will hold Base64 string
-  const [captchaHash, setCaptchaHash] = useState('');    // Will hold hashed value from server
+  const [captchaImage, setCaptchaImage] = useState(null); 
+  const [captchaHash, setCaptchaHash] = useState('');    
   const [captchaLoading, setCaptchaLoading] = useState(true);
+
+  // --- 1. CLEAN SLATE PROTOCOL ---
+  useEffect(() => {
+    localStorage.removeItem('studentToken');
+    localStorage.removeItem('token');
+  }, []);
 
   /**
    * ✅ Integrated Fetch Captcha Logic
-   * Fetches both the image (Base64) and the security hash via JSON
    */
   const fetchCaptcha = async () => {
     setCaptchaLoading(true);
@@ -37,15 +46,17 @@ const StudentLogin = () => {
       const rawBase = import.meta.env.VITE_API_BASE || '';
       const API_BASE = rawBase.replace(/\/+$/g, ''); 
       
-      // Standard GET request (Now expecting JSON instead of a Blob)
       const response = await axios.get(`${API_BASE}/api/captcha/generate`);
 
-      // Server returns: { image: "data:image/png;base64,...", captcha_hash: "..." }
       setCaptchaImage(response.data.image); 
       setCaptchaHash(response.data.captcha_hash); 
     } catch (err) {
       console.error("Captcha load failed", err);
-      setError("Security service unavailable. Please refresh.");
+      if (err.response?.status === 429) {
+          setError("Too many requests. Please wait a moment.");
+      } else {
+          setError("Security service unavailable. Please refresh.");
+      }
     } finally {
       setCaptchaLoading(false);
     }
@@ -60,10 +71,6 @@ const StudentLogin = () => {
     setCredentials(prev => ({ ...prev, [name]: value }));
   };
 
-  /**
-   * ✅ Integrated Login Submission Logic
-   * Sends credentials, user input, AND the stored captcha_hash
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -84,16 +91,17 @@ const StudentLogin = () => {
         identifier: credentials.identifier, 
         password: credentials.password,
         captcha_input: captchaInput,
-        captcha_hash: captchaHash // <--- Security hash passed from state
+        captcha_hash: captchaHash 
       });
       
       navigate('/student/dashboard');
 
     } catch (err) {
-      // Error handling logic
       let errorMsg = 'Login failed';
 
-      if (err.response?.data?.detail) {
+      if (err.response?.status === 403) {
+        errorMsg = "Access Forbidden. Your account may be locked or credentials invalid.";
+      } else if (err.response?.data?.detail) {
         const detail = err.response.data.detail;
         errorMsg = Array.isArray(detail) ? detail[0].msg : detail;
       } else if (err.message) {
@@ -101,8 +109,6 @@ const StudentLogin = () => {
       }
 
       setError(String(errorMsg));
-
-      // Security Best Practice: Refresh captcha on every failed attempt
       fetchCaptcha(); 
       setCaptchaInput(''); 
       
@@ -188,7 +194,8 @@ const StudentLogin = () => {
                     name="identifier"
                     value={credentials.identifier}
                     onChange={handleChange}
-                    className="pl-12 h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-bold focus:bg-white transition-all w-full"
+                    // ✅ Updated Class: outline-none, ring-1, ring-blue-500
+                    className="pl-12 h-11 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all w-full"
                     required
                   />
                 </div>
@@ -203,27 +210,38 @@ const StudentLogin = () => {
                   <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <Input
                     name="password"
-                    type="password"
+                    // ✅ Dynamic Type
+                    type={showPassword ? "text" : "password"}
                     value={credentials.password}
                     onChange={handleChange}
-                    className="pl-12 h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-bold focus:bg-white transition-all w-full"
+                    // ✅ Updated Class + Padding Right for Eye Icon
+                    className="pl-12 pr-10 h-11 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all w-full"
                     required
                   />
+                  
+                  {/* ✅ Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 cursor-pointer outline-none transition-colors"
+                  >
+                    {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                  </button>
                 </div>
               </div>
 
               {/* CAPTCHA SECTION */}
               <div className="space-y-1 pt-2 border-t border-slate-50">
                 <div className="flex justify-between items-center mb-1">
-                   <label className={labelStyle}>Security Verification</label>
-                   <button 
-                     type="button" 
-                     onClick={fetchCaptcha} 
-                     className="text-[9px] font-black text-slate-400 hover:text-blue-600 uppercase flex items-center gap-1 transition-colors"
-                     disabled={captchaLoading}
-                   >
-                     <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh
-                   </button>
+                    <label className={labelStyle}>Security Verification</label>
+                    <button 
+                      type="button" 
+                      onClick={fetchCaptcha} 
+                      className="text-[9px] font-black text-slate-400 hover:text-blue-600 uppercase flex items-center gap-1 transition-colors"
+                      disabled={captchaLoading}
+                    >
+                      <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh
+                    </button>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   <div className="col-span-2 h-11 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
@@ -244,7 +262,8 @@ const StudentLogin = () => {
                       onChange={(e) => setCaptchaInput(e.target.value)}
                       placeholder="CODE"
                       autoComplete="off"
-                      className="h-11 bg-slate-50 border-slate-200 rounded-xl text-center text-xs font-black uppercase tracking-[0.25em] focus:bg-white w-full"
+                      // ✅ Updated Class: Thin blue border
+                      className="h-11 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-black uppercase tracking-[0.25em] focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-full"
                       required
                     />
                   </div>

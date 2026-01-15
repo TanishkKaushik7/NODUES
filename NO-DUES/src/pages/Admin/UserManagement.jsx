@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, UserPlus, Filter, MoreVertical, Edit2, 
-  Trash2, Shield, Mail, Loader2, RefreshCw
+  Trash2, Shield, Mail, Loader2, RefreshCw, Users // ✅ Added Users Icon
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RegisterUserModal from './RegisterUserModal';
@@ -10,6 +10,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 const UserManagement = () => {
   const { authFetch } = useAuth();
   const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0); // ✅ New State for Total Count
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -43,9 +44,22 @@ const UserManagement = () => {
       setLoading(true);
       const query = new URLSearchParams({ ...(roleFilter && { role: roleFilter }) }).toString();
       const response = await authFetch(`/api/admin/users?${query}`);
+      
       if (response.ok) {
         const data = await response.json();
-        setUsers(data);
+        
+        // ✅ FIX: Handle the { total, users } structure correctly
+        if (data.users && Array.isArray(data.users)) {
+            setUsers(data.users);
+            setTotalUsers(data.total || data.users.length); // Set total from API or length
+        } else if (Array.isArray(data)) {
+            // Fallback in case API just returns an array
+            setUsers(data);
+            setTotalUsers(data.length);
+        } else {
+            setUsers([]);
+            setTotalUsers(0);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -73,6 +87,7 @@ const UserManagement = () => {
       });
       if (response.ok) {
         setUsers(prev => prev.filter(u => u.id !== deletingUser.id));
+        setTotalUsers(prev => prev - 1); // ✅ Decrease count on delete
         setDeletingUser(null);
         setActiveActionId(null);
       }
@@ -106,7 +121,7 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
-      {/* ✅ NEW Header Area with Title */}
+      {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">User Management</h1>
@@ -114,7 +129,15 @@ const UserManagement = () => {
             Maintain and audit university staff, student, and authority accounts.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+           {/* ✅ NEW: Total Users Display */}
+           <div className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl mr-2">
+              <Users className="h-4 w-4" />
+              <span className="text-xs font-black uppercase tracking-widest">
+                Total: {totalUsers}
+              </span>
+           </div>
+
            <button onClick={fetchUsers} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm active:scale-95">
               <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
            </button>
@@ -165,6 +188,12 @@ const UserManagement = () => {
 
       {/* Users Table */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+        {/* ✅ Mobile View for Total Count (Optional, visible on small screens) */}
+        <div className="md:hidden px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+           <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Registered</span>
+           <span className="text-sm font-black text-slate-800">{totalUsers}</span>
+        </div>
+
         <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50/50 text-slate-400 font-bold text-[10px] uppercase tracking-widest border-b border-slate-100">
@@ -183,6 +212,12 @@ const UserManagement = () => {
                     <p className="text-slate-400 mt-4 font-bold uppercase text-[10px] tracking-widest">Building Table Structure...</p>
                   </td>
                 </tr>
+              ) : filteredUsers.length === 0 ? (
+                 <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
+                       No users found
+                    </td>
+                 </tr>
               ) : filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-4">
@@ -205,13 +240,13 @@ const UserManagement = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                       <span className="font-bold text-slate-700 tracking-tight">
-                         {user.school_id ? getSchoolCode(user.school_id) : (getDeptName(user.department_id) || user.department_name || 'System Level')}
-                       </span>
-                       <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">
-                         {user.school_id ? 'Academic School' : (user.department_id ? 'Central Authority' : 'Global')}
-                       </span>
-                    </div>
+                        <span className="font-bold text-slate-700 tracking-tight">
+                          {user.school_id ? getSchoolCode(user.school_id) : (getDeptName(user.department_id) || user.department_name || 'System Level')}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">
+                          {user.school_id ? 'Academic School' : (user.department_id ? 'Central Authority' : 'Global')}
+                        </span>
+                     </div>
                   </td>
                   <td className="px-8 py-4 text-right">
                     <button 
@@ -249,7 +284,6 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* ✅ Modals */}
       <RegisterUserModal 
         isOpen={isRegisterModalOpen} 
         onClose={() => { setIsRegisterModalOpen(false); setEditingUser(null); }} 

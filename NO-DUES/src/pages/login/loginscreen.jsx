@@ -18,7 +18,8 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
     <input
       type={type}
       className={cn(
-        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        // Responsive text size: text-base on mobile (prevents iOS zoom), text-sm on desktop
+        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={ref}
@@ -149,45 +150,50 @@ const LoginScreen = ({
   const labelStyle = "text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-1 block";
 
   return (
-    <div className="h-screen w-full bg-[#f8fafc] flex items-center justify-center p-4 lg:p-0 overflow-hidden font-sans relative">
+    // ✅ RESPONSIVE FIX: Changed h-screen to min-h-screen to allow scrolling on mobile
+    // ✅ RESPONSIVE FIX: Added padding (p-4 sm:p-6)
+    <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-4 sm:p-6 font-sans relative">
       {/* Background Decor */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-blue-50/50 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-indigo-50/50 rounded-full blur-[120px]" />
       </div>
 
       <button 
         onClick={() => navigate('/', { replace: true })} 
-        className="absolute top-8 left-8 p-3 bg-white rounded-2xl shadow-xl hover:bg-slate-50 transition-all active:scale-95 z-50 border border-slate-100"
+        // ✅ RESPONSIVE FIX: Adjusted positioning for mobile
+        className="absolute top-4 left-4 sm:top-8 sm:left-8 p-3 bg-white rounded-2xl shadow-xl hover:bg-slate-50 transition-all active:scale-95 z-50 border border-slate-100"
       >
         <FiArrowLeft className="text-slate-700" size={20} />
       </button>
 
-      <div className="w-full h-full lg:h-auto max-w-4xl grid lg:grid-cols-10 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/10 border border-slate-100 overflow-hidden relative z-10">
+      {/* ✅ RESPONSIVE FIX: Changed to grid-cols-1 on mobile, 10 on large screens */}
+      {/* ✅ RESPONSIVE FIX: Added my-8 on mobile to prevent touching edges */}
+      <div className="w-full max-w-[400px] lg:max-w-4xl grid grid-cols-1 lg:grid-cols-10 bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl shadow-blue-900/10 border border-slate-100 overflow-hidden relative z-10 my-12 lg:my-0">
         
-        {/* Left Side: Institutional Branding */}
-        <div className="lg:col-span-4 bg-slate-900 p-10 flex flex-col justify-between text-white relative overflow-hidden">
+        {/* Left Side: Institutional Branding - ✅ RESPONSIVE FIX: Stacks on mobile */}
+        <div className="lg:col-span-4 bg-slate-900 p-8 sm:p-10 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
           
           <div className="relative z-10">
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-8 shadow-xl shadow-blue-500/20">
-              <FiShield size={28} />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 shadow-xl shadow-blue-500/20">
+              <FiShield size={24} className="sm:w-7 sm:h-7" />
             </div>
-            <h1 className="text-2xl font-black leading-tight tracking-tight uppercase">
+            <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight uppercase">
               {universityName}
             </h1>
             <div className="h-1 w-12 bg-blue-500 mt-4 rounded-full" />
-            <p className="text-slate-400 text-xs mt-6 font-bold uppercase tracking-[0.2em]">{systemName}</p>
+            <p className="text-slate-400 text-xs mt-4 sm:mt-6 font-bold uppercase tracking-[0.2em]">{systemName}</p>
           </div>
         </div>
 
         {/* Right Side: Form Content */}
-        <div className="lg:col-span-6 p-8 lg:p-12 flex flex-col justify-center bg-white">
-          <div className="max-w-sm mx-auto w-full">
-            <div className="mb-8">
-              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Authority Login</h2>
+        <div className="lg:col-span-6 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-white">
+          <div className="w-full">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-tight">Authority Login</h2>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Registry Credentials Required</p>
             </div>
 
@@ -210,7 +216,8 @@ const LoginScreen = ({
                     value={credentials.email}
                     onChange={handleChange}
                     placeholder="Enter Your Email"
-                    className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
+                    // ✅ RESPONSIVE FIX: text-base on mobile
+                    className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-base md:text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
                 </div>
@@ -226,7 +233,8 @@ const LoginScreen = ({
                     value={credentials.password}
                     onChange={handleChange}
                     placeholder="Enter Your Password"
-                    className="pl-12 pr-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
+                    // ✅ RESPONSIVE FIX: text-base on mobile
+                    className="pl-12 pr-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-base md:text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
                   

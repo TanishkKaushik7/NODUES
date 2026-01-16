@@ -20,9 +20,6 @@ const HomeButton = () => {
       
       <div className="relative flex items-center gap-2">
         {/* Animated text anchored to the right */}
-        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-500 ease-in-out whitespace-nowrap">
-          Portal Selection
-        </span>
         {/* Icon color changed to white for maximum visibility against the dark button */}
         <FiHome className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
       </div>

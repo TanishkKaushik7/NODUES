@@ -170,30 +170,43 @@ const SchoolDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
+    // ✅ RESPONSIVE FIX: Used 'fixed inset-0' + 'h-[100dvh]'
+    // This locks the entire app to the viewport, forcing the browser to respect the bottom boundary.
+    <div className="fixed inset-0 flex bg-gray-100 font-sans overflow-hidden">
       <Sidebar user={user} logout={logout} />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-20 pt-16 sm:p-6 lg:p-8">
+          <motion.div 
+            initial="hidden" 
+            animate="visible" 
+            variants={containerVariants}
+            className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-6"
+          >
             
             <motion.div variants={itemVariants}>
-              <h1 className="text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
                 {user?.school_name || 'School'} Dashboard
               </h1>
-              <p className="text-gray-600 mb-6">Review and process pending No-Dues requests for your school.</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2 mb-2 sm:mb-4">
+                Review and process pending No-Dues requests for your school.
+              </p>
             </motion.div>
 
-            <DashboardStats stats={stats} />
+            <motion.div variants={itemVariants}>
+                <DashboardStats stats={stats} />
+            </motion.div>
 
-            <ApplicationsTable 
-              applications={filteredApplications} 
-              isLoading={isLoading} 
-              isViewLoading={isViewLoading} 
-              onView={handleViewApplication} 
-              onSearch={handleSearch} 
-              onRefresh={fetchApplications}
-            />
+            <motion.div variants={itemVariants} className="w-full">
+              <ApplicationsTable 
+                applications={filteredApplications} 
+                isLoading={isLoading} 
+                isViewLoading={isViewLoading} 
+                onView={handleViewApplication} 
+                onSearch={handleSearch} 
+                onRefresh={fetchApplications}
+              />
+            </motion.div>
 
           </motion.div>
         </main>

@@ -168,31 +168,28 @@ const MyApplications = ({
 
   if (isFullyCleared) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-emerald-900/5 p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[550px]">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-emerald-900/5 p-6 sm:p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[450px] sm:min-h-[550px]">
         <div className="relative mb-8">
             <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl"></div>
-            <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-emerald-500/40">
-                <FiCheckCircle className="w-10 h-10" />
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl sm:rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-emerald-500/40">
+                <FiCheckCircle className="w-8 h-8 sm:w-10 sm:h-10" />
             </div>
         </div>
-        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight uppercase">Clearance Completed</h2>
-        <p className="text-slate-500 max-w-sm mx-auto text-base font-medium leading-relaxed">
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-4 tracking-tight uppercase px-4">Clearance Completed</h2>
+        <p className="text-slate-500 max-w-sm mx-auto text-sm sm:text-base font-medium leading-relaxed px-4">
           Congratulations! Your digital clearance process is 100% complete and verified by all departments.
         </p>
         
-        <div className="mt-10 flex flex-col items-center gap-6 w-full max-w-xs">
+        <div className="mt-10 flex flex-col items-center gap-6 w-full max-w-xs px-6">
           <Button 
             onClick={handleDownloadCertificate}
             disabled={certDownloading}
             variant="success"
-            className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em]"
+            className="w-full py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-[0.2em]"
           >
             {certDownloading ? <FiRefreshCw className="animate-spin" /> : <FiDownload size={18} />}
             Download Certificate
           </Button>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-            Registry Archive Reference: {applicationId?.slice(0, 8)}
-          </p>
         </div>
       </div>
     );
@@ -200,20 +197,20 @@ const MyApplications = ({
 
   if (hasSubmittedApplication && !isRejected) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-blue-900/5 p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[550px]">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-blue-900/5 p-6 sm:p-12 text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 min-h-[450px] sm:min-h-[550px]">
         <div className="relative mb-8">
             <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div className="relative w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
-                <FiClock className="w-10 h-10" />
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl sm:rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                <FiClock className="w-8 h-8 sm:w-10 sm:h-10" />
             </div>
         </div>
-        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight uppercase">Application Processing</h2>
-        <p className="text-slate-500 max-sm mx-auto text-base font-medium leading-relaxed">
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-4 tracking-tight uppercase px-4">Application Processing</h2>
+        <p className="text-slate-500 max-sm mx-auto text-sm sm:text-base font-medium leading-relaxed px-4">
           Your digital clearance is currently being reviewed by the administrative heads.
         </p>
         <div className="mt-10 px-6 py-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4 max-w-md w-full">
           <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
-          <p className="text-xs text-slate-600 font-black uppercase tracking-widest">
+          <p className="text-[10px] sm:text-xs text-slate-600 font-black uppercase tracking-widest">
             Check "Track Status" for real-time updates
           </p>
         </div>
@@ -222,23 +219,23 @@ const MyApplications = ({
   }
 
   return (
-    <div className="space-y-8 pb-12 mt-[-50px] animate-in fade-in duration-700">
+    <div className="space-y-8 pb-12 mt-0 lg:mt-[-50px] animate-in fade-in duration-700">
       
       {isRejected && (
-        <div className="relative group overflow-hidden bg-rose-50/50 border border-rose-100 rounded-3xl p-8 flex flex-col sm:flex-row gap-6 items-start shadow-sm">
-          <div className="absolute top-0 right-0 p-8 opacity-5">
+        <div className="relative group overflow-hidden bg-rose-50/50 border border-rose-100 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start shadow-sm mx-2 sm:mx-0">
+          <div className="absolute top-0 right-0 p-8 opacity-5 hidden sm:block">
               <FiXCircle size={120} />
           </div>
-          <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200 flex-shrink-0">
-              <FiXCircle className="w-8 h-8" />
+          <div className="p-3 sm:p-4 bg-rose-600 text-white rounded-xl sm:rounded-2xl shadow-lg shadow-rose-200 flex-shrink-0">
+              <FiXCircle className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
-          <div className="relative z-10">
-            <h3 className="text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">Correction Required</h3>
-            <p className="text-rose-700/80 text-sm font-bold mb-4 uppercase tracking-wide">
+          <div className="relative z-10 w-full">
+            <h3 className="text-lg sm:text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">Correction Required</h3>
+            <p className="text-rose-700/80 text-[11px] sm:text-sm font-bold mb-4 uppercase tracking-wide">
               Rejected by <span className="bg-rose-200/50 px-2 py-0.5 rounded text-rose-900">{rejectionDetails?.role?.toUpperCase()}</span>
             </p>
             {rejectionDetails?.remarks && (
-              <div className="bg-white p-4 rounded-xl border border-rose-100 text-sm font-bold text-rose-800 shadow-sm italic">
+              <div className="bg-white p-3 sm:p-4 rounded-xl border border-rose-100 text-[11px] sm:text-sm font-bold text-rose-800 shadow-sm italic">
                 "{rejectionDetails.remarks}"
               </div>
             )}
@@ -246,31 +243,32 @@ const MyApplications = ({
         </div>
       )}
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 overflow-hidden">
-        <div className="p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 overflow-hidden mx-2 sm:mx-0">
+        <div className="p-6 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <FiFileText size={24}/>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <FiFileText className="w-5 h-5 sm:w-6 sm:h-6"/>
             </div>
             <div>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Application Form</h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Digital Clearance Registry</p>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 uppercase tracking-tight">Application Form</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Digital Clearance Registry</p>
             </div>
           </div>
           {saveMessage && (
-            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl">
+            <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl">
               {saveMessage}
             </div>
           )}
         </div>
         
-        <div className="p-8 sm:p-10 space-y-12">
+        <div className="p-6 sm:p-10 space-y-10 sm:space-y-12">
+          {/* SECTION: ACADEMIC */}
           <section className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <FiBookOpen className="text-blue-600" size={18} />
-                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Academic Details</h3>
+                <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Academic Details</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
               <InputRow label="Enrollment Number" name="enrollmentNumber" value={formData.enrollmentNumber} onChange={handleChange} editable={!locked.enrollmentNumber} error={formErrors.enrollmentNumber} />
               <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={formErrors.rollNumber} />
               <InputRow label="Admission Year" name="admissionYear" type="number" value={formData.admissionYear} onChange={handleChange} editable={!locked.admissionYear} error={formErrors.admissionYear} />
@@ -282,12 +280,13 @@ const MyApplications = ({
             </div>
           </section>
 
+          {/* SECTION: PERSONAL */}
           <section className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <FiUser className="text-blue-600" size={18} />
-                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Personal Information</h3>
+                <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Personal Information</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
               <ReadOnlyField label="Full Name" value={formData.fullName || user?.full_name} error={formErrors.fullName} />
               <ReadOnlyField label="Email Address" value={formData.email || user?.email} error={formErrors.email} />
               <ReadOnlyField label="Mobile Number" value={formData.mobile || user?.mobile_number} error={formErrors.mobile} />
@@ -316,24 +315,25 @@ const MyApplications = ({
             </div>
           </section>
 
+          {/* SECTION: LOGISTICS */}
           <section className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <FiHome className="text-blue-600" size={18} />
-                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Additional Details</h3>
+                <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Additional Details</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
               <SelectRow label="Are you a Hosteller?" name="isHosteller" value={formData.isHosteller} onChange={handleChange} editable={!locked.isHosteller} error={formErrors.isHosteller} options={[{ v: 'Yes', l: 'Yes' }, { v: 'No', l: 'No' }]} />
               {formData.isHosteller === 'Yes' && (
-                <>
+                <div className="md:contents grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
                   <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} editable={!locked.hostelName} error={formErrors.hostelName} />
                   <InputRow label="Hostel Room" name="hostelRoom" value={formData.hostelRoom} onChange={handleChange} editable={!locked.hostelRoom} error={formErrors.hostelRoom} />
-                </>
+                </div>
               )}
               
-              <div className="md:col-span-2 bg-blue-50/30 p-8 rounded-3xl border border-blue-100/50">
+              <div className="md:col-span-2 bg-blue-50/30 p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-blue-100/50">
                 <label className="block text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Verification Document (PDF)</label>
                 <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div className="relative group cursor-pointer">
+                  <div className="relative group cursor-pointer w-full sm:w-auto">
                     <input 
                       type="file" 
                       name="proof_document_url" 
@@ -342,14 +342,14 @@ const MyApplications = ({
                       disabled={uploading}
                       className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                     />
-                    <div className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                    <div className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 group-hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
                       <FiUploadCloud size={16} /> {uploading ? 'Uploading...' : 'Choose PDF File'}
                     </div>
                   </div>
                   
                   {formData.proof_document_url && !localFileError && (
-                    <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-left-2">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                    <div className="flex items-center justify-center gap-3 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-left-2 w-full sm:w-auto">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
                         <FiCheck size={14} />
                       </div>
                       <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Document Secured</span>
@@ -378,16 +378,16 @@ const MyApplications = ({
             </div>
           </section>
 
-          <div className="pt-10 flex flex-col sm:flex-row items-center justify-between border-t border-slate-50 gap-6">
-            <div className="flex items-center gap-3 text-slate-400">
-                <FiInfo size={20} />
-                <p className="text-xs font-medium max-w-xs">By submitting, you confirm that all provided data is true to the university records.</p>
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-between border-t border-slate-50 gap-6">
+            <div className="flex items-start sm:items-center gap-3 text-slate-400">
+                <FiInfo size={20} className="mt-0.5 sm:mt-0 flex-shrink-0" />
+                <p className="text-[11px] sm:text-xs font-medium max-w-xs leading-relaxed">By submitting, you confirm that all provided data is true to the university records.</p>
             </div>
             
             <Button 
               variant={isRejected ? "danger" : "primary"} 
               onClick={handleSave} 
-              className="w-full sm:w-auto px-12 py-4 text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl"
+              className="w-full sm:w-auto px-10 sm:px-12 py-3.5 sm:py-4 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl"
               disabled={submitting || uploading || !!localFileError}
             >
               {submitting ? (

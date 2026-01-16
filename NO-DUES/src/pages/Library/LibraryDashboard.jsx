@@ -171,31 +171,43 @@ const LibraryDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar user={user} logout={logout} />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+        {/* ✅ RESPONSIVE FIX: Added pt-16 on mobile for hamburger clearance, overflow-x-hidden */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-16 sm:p-6 lg:p-8">
+          <motion.div 
+            initial="hidden" 
+            animate="visible" 
+            variants={containerVariants}
+            className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-6"
+          >
             
             <motion.div variants={itemVariants}>
-              <h1 className="text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
                 {user?.department_name || 'Library'} 
               </h1>
-              <p className="text-gray-600 mb-6">Review pending dues and issue library clearance.</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2 mb-2 sm:mb-4">
+                Review pending dues and issue library clearance.
+              </p>
             </motion.div>
 
-            <DashboardStats stats={stats} />
+            <motion.div variants={itemVariants}>
+                <DashboardStats stats={stats} />
+            </motion.div>
 
-            <ApplicationsTable 
-              applications={filteredApplications} 
-              isLoading={isLoading} 
-              isViewLoading={isViewLoading} 
-              onView={handleViewApplication} 
-              onSearch={handleSearch} 
-              onRefresh={fetchApplications}
-            />
+            <motion.div variants={itemVariants} className="w-full">
+                <ApplicationsTable 
+                applications={filteredApplications} 
+                isLoading={isLoading} 
+                isViewLoading={isViewLoading} 
+                onView={handleViewApplication} 
+                onSearch={handleSearch} 
+                onRefresh={fetchApplications}
+                />
+            </motion.div>
 
           </motion.div>
         </main>

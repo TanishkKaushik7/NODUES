@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   FaTachometerAlt, 
   FaHistory, 
@@ -26,9 +26,15 @@ const Sidebar = () => {
   ];
 
   const [activeItem, setActiveItem] = useState('dashboard');
+  
   useEffect(() => {
     const currentPath = location.pathname.split('/').pop();
     setActiveItem(currentPath);
+    
+    // ✅ RESPONSIVE IMPROVEMENT: Automatically close sidebar on mobile when route changes
+    if (window.innerWidth < 768) {
+      setIsOpen(false);
+    }
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -38,9 +44,18 @@ const Sidebar = () => {
 
   return (
     <>
+      {/* ✅ RESPONSIVE IMPROVEMENT: Overlay/Backdrop for Mobile */}
+      {/* This creates a dark background when menu is open on mobile, allowing click-to-close */}
+      {isOpen && (
+        <div 
+          className="fixed inset- z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
       {/* Mobile Toggle Button */}
       <button
-        className="md:hidden fixed top-5 left-5 z-[60] p-3 bg-blue-600 text-white rounded-xl shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-[60] p-3 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
@@ -48,14 +63,15 @@ const Sidebar = () => {
 
       {/* Sidebar Container */}
       <div 
-        className={`fixed md:relative w-72 bg-white border-r border-slate-200 text-slate-600 h-screen z-50 transition-all duration-500 ease-in-out transform ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed md:sticky top-0 h-screen w-72 bg-white border-r border-slate-200 text-slate-600 z-50 transition-transform duration-300 ease-in-out transform 
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:translate-x-0 shadow-2xl md:shadow-none`} 
+        // ✅ RESPONSIVE IMPROVEMENT: Added 'md:translate-x-0' to force visibility on desktop regardless of toggle state
+        // ✅ RESPONSIVE IMPROVEMENT: Added 'md:sticky top-0' for better desktop scrolling behavior if needed
       >
-        {/* ✅ Flex Column with h-full and overflow-hidden ensures no outer scroll */}
         <div className="flex flex-col h-full overflow-hidden">
           
-          {/* Branding Section - Fixed at top */}
+          {/* Branding Section */}
           <div className="px-8 py-8 shrink-0">
             <div className="flex items-center space-x-4">
               <div className="p-3 bg-blue-600 rounded-2xl shadow-md shadow-blue-200">
@@ -72,7 +88,7 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {/* ✅ Navigation Section - flex-1 allows it to take available space */}
+          {/* Navigation Section */}
           <nav className="flex-1 px-4 overflow-y-auto custom-scrollbar">
             <p className="px-4 mb-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">
               Menu Principal
@@ -105,7 +121,7 @@ const Sidebar = () => {
             </ul>
           </nav>
 
-          {/* User Profile & Logout Section - Fixed at bottom */}
+          {/* User Profile & Logout Section */}
           <div className="p-4 mx-4 mb-4 rounded-[2rem] bg-slate-50 border border-slate-100 shadow-sm shrink-0">
             <div className="flex items-center space-x-3 mb-4 px-2">
               <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center text-blue-600 border border-slate-200 shadow-sm shrink-0">

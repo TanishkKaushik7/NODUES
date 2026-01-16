@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, CheckCircle, Clock, Loader2, 
-  User, ShieldCheck, ShieldAlert, Zap, Lock
+  ShieldCheck, ShieldAlert, Lock, Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RejectionModal from './RejectionModal';
@@ -13,9 +13,10 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   const [stageToReject, setStageToReject] = useState(null);
-  
-  // ✅ GLOBAL LOCK: This state prevents any interaction while an action or refresh is in progress
   const [isSystemLocked, setIsSystemLocked] = useState(false);
+
+  // ✅ COMPLETION CHECK: If the global application status is completed, we lock all overrides
+  const isApplicationComplete = application.status === 'completed';
 
   const fetchStages = useCallback(async () => {
     try {
@@ -28,7 +29,6 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
       console.error("Stage Fetch Error:", error); 
     } finally { 
       setLoading(false);
-      // ✅ UNLOCK: Data is fetched and displayed, allow next action
       setIsSystemLocked(false); 
     }
   }, [application.application_id, authFetch]);
@@ -41,10 +41,8 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
   }, [isOpen, fetchStages]);
 
   const handleAdminOverride = async (stageId, action, remarks = "") => {
-    // Safety check: Don't allow if system is currently locked
-    if (isSystemLocked) return;
+    if (isSystemLocked || isApplicationComplete) return;
 
-    // ✅ LOCK: Start of the process
     setIsSystemLocked(true);
     setProcessingId(stageId);
 
@@ -61,13 +59,11 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
 
       if (res.ok) {
         setStageToReject(null); 
-        // We do NOT set isSystemLocked to false here. 
-        // We wait for fetchStages to finish re-syncing the UI first.
         await fetchStages();
       } else {
         const err = await res.json();
         alert(`Override Failed: ${err.detail || 'Invalid Stage ID'}`);
-        setIsSystemLocked(false); // Unlock on failure so they can try again
+        setIsSystemLocked(false);
       }
     } catch (err) { 
         alert("Network error. Could not connect to the GBU Server."); 
@@ -88,22 +84,22 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
             {/* Header */}
             <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-5">
-                <div className="h-16 w-16 rounded-[1.5rem] bg-[#1e40af] text-white flex items-center justify-center text-2xl font-black shadow-xl shadow-blue-100 uppercase">
-                  {application.student_name?.[0]}
+                <div className={`h-16 w-16 rounded-[1.5rem] flex items-center justify-center text-2xl font-black shadow-xl uppercase ${isApplicationComplete ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-[#1e40af] text-white shadow-blue-100'}`}>
+                  {isApplicationComplete ? <Check size={32} strokeWidth={3} /> : application.student_name?.[0]}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{application.student_name}</h3>
-                    {isSystemLocked && (
-                       <span className="flex items-center gap-1 px-2 py-1 bg-slate-900 text-white text-[8px] font-black uppercase rounded-md animate-pulse">
-                        <Loader2 size={10} className="animate-spin" /> System Busy
+                    {isApplicationComplete && (
+                       <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase rounded-md">
+                        Clearance Finalized
                        </span>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">{application.display_id} </p>
                 </div>
               </div>
-              <button disabled={isSystemLocked} onClick={onClose} className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:bg-slate-50 transition-all disabled:opacity-30">
+              <button disabled={isSystemLocked} onClick={onClose} className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:bg-slate-50 transition-all">
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
@@ -124,7 +120,6 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
 
                       return (
                         <div key={stage.stage_id} className="relative pl-16 group">
-                          {/* Status Badge */}
                           <div className={`absolute left-0 h-14 w-14 rounded-2xl flex items-center justify-center z-10 border-4 border-white shadow-lg ${
                             stage.status === 'approved' ? 'bg-emerald-500 text-white' : 
                             stage.status === 'rejected' ? 'bg-rose-500 text-white' : 
@@ -143,7 +138,8 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
                               </div>
 
                               <div className="flex gap-2 shrink-0">
-                                {!isAccounts ? (
+                                {/* ✅ LOGIC UPDATE: Disable if isAccounts OR if the entire application is already complete */}
+                                {(!isAccounts && !isApplicationComplete) ? (
                                   <>
                                     <button 
                                       disabled={isSystemLocked || stage.status === 'approved'}
@@ -161,8 +157,8 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
                                     </button>
                                   </>
                                 ) : (
-                                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-400 rounded-xl text-[9px] font-black uppercase border border-slate-200">
-                                    <Lock size={12} /> Override Locked
+                                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase border border-slate-100">
+                                    <Lock size={12} /> {isApplicationComplete ? 'Clearance Locked' : 'Override Locked'}
                                   </div>
                                 )}
                               </div>
@@ -180,7 +176,7 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
             {/* Footer */}
             <div className="p-10 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                {isSystemLocked ? 'SYSTEM BUSY: RE-SYNCING NODES...' : 'STATUS: READY FOR OVERRIDE'}
+                {isApplicationComplete ? 'ARCHIVED RECORD: MODIFICATIONS DISABLED' : isSystemLocked ? 'SYSTEM BUSY: RE-SYNCING NODES...' : 'STATUS: READY FOR OVERRIDE'}
               </span>
               <button disabled={isSystemLocked} onClick={onClose} className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] disabled:opacity-30">
                 Close Panel

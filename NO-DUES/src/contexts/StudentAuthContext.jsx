@@ -40,9 +40,9 @@ export const StudentAuthProvider = ({ children }) => {
 
   /**
    * ✅ LOGIN LOGIC
-   * Sends identifier, password, captcha_input, and captcha_hash
+   * Sends identifier, password, captcha_input, captcha_hash, AND captcha_ts
    */
-  const login = async ({ identifier, password, captcha_input, captcha_hash }) => {
+  const login = async ({ identifier, password, captcha_input, captcha_hash, captcha_ts }) => {
     const url = getUrl('/api/students/login');
     
     try {
@@ -57,7 +57,8 @@ export const StudentAuthProvider = ({ children }) => {
           identifier, 
           password, 
           captcha_input, 
-          captcha_hash 
+          captcha_hash,
+          captcha_ts // ✅ ADDED: Timestamp is now sent to the backend
         })
       });
 
@@ -94,7 +95,7 @@ export const StudentAuthProvider = ({ children }) => {
 
   /**
    * ✅ REGISTER LOGIC
-   * Integrated: Now correctly handles captcha payload
+   * Payload already contains captcha_input, captcha_hash, and captcha_ts from the form component
    */
   const register = async (payload) => {
     const url = getUrl('/api/students/register');
@@ -107,7 +108,7 @@ export const StudentAuthProvider = ({ children }) => {
           'Accept': 'application/json' 
         },
         credentials: 'include',
-        // Payload already contains captcha_input and captcha_hash from the Register form state
+        // Payload object passed from Register component must include captcha_ts
         body: JSON.stringify(payload)
       });
 
@@ -116,7 +117,6 @@ export const StudentAuthProvider = ({ children }) => {
       if (!res.ok) {
         let message = 'Registration failed';
         if (data.detail) {
-          // Parse FastAPI detail array or string
           message = Array.isArray(data.detail) ? data.detail[0].msg : data.detail;
         }
         

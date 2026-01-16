@@ -17,7 +17,8 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
     <input
       type={type}
       className={cn(
-        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base ring-offset-background transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        // Responsive text size: text-base on mobile prevents iOS zoom, text-sm on desktop
+        "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base md:text-sm ring-offset-background transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={ref}
@@ -152,22 +153,28 @@ const StudentRegister = () => {
   const inputContainer = "relative transition-all duration-200 focus-within:transform focus-within:scale-[1.01]";
 
   return (
-    <div className="h-screen w-full bg-[#fcfdfe] flex items-center justify-center p-4 lg:p-0 overflow-hidden font-sans relative">
+    // ✅ RESPONSIVE FIX: Changed h-screen to min-h-screen to allow scrolling on mobile
+    // ✅ RESPONSIVE FIX: Added py-8 for vertical breathing room when scrolling
+    <div className="min-h-screen w-full bg-[#fcfdfe] flex items-center justify-center p-4 py-8 lg:p-0 font-sans relative">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-50/50 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-indigo-50/50 rounded-full blur-3xl" />
+        <div className="absolute top-[-10%] right-[-5%] w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-blue-50/50 rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-indigo-50/50 rounded-full blur-3xl" />
       </div>
 
       <button
         onClick={() => navigate('/', { replace: true })}
-        className="absolute top-6 left-6 p-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 z-50 transition-all"
+        // ✅ RESPONSIVE FIX: Adjusted positioning for mobile
+        className="absolute top-4 left-4 lg:top-6 lg:left-6 p-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 z-50 transition-all"
       >
         <FiArrowLeft className="text-slate-600" size={18} />
       </button>
 
-      <div className="w-full max-w-4xl grid lg:grid-cols-12 gap-0 bg-white rounded-[2rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden relative z-10">
+      {/* ✅ RESPONSIVE FIX: Changed to grid-cols-1 on mobile, 12 on large screens */}
+      {/* ✅ RESPONSIVE FIX: Added my-8 on mobile to prevent touching edges */}
+      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-[2rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden relative z-10 my-8 lg:my-0">
         
-        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden">
+        {/* Left Side (Branding) */}
+        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
@@ -180,7 +187,9 @@ const StudentRegister = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-8 p-6 lg:p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        {/* Right Side (Form) */}
+        {/* ✅ RESPONSIVE FIX: Removed fixed max-h on mobile to allow natural scroll. Added lg:max-h-[90vh] for desktop. */}
+        <div className="lg:col-span-8 p-6 lg:p-10 lg:max-h-[90vh] lg:overflow-y-auto custom-scrollbar">
           <div className="max-w-xl mx-auto">
             <div className="mb-6">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Student Registration</h2>
@@ -196,54 +205,57 @@ const StudentRegister = () => {
             </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              {/* ✅ RESPONSIVE FIX: Changed grid-cols-2 to grid-cols-1 sm:grid-cols-2 (Stack on mobile) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className={labelStyle}>Enrollment No</label>
                   <div className={inputContainer}>
                     <FiHash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={14} />
-                    <Input name="enrollmentNumber" value={form.enrollmentNumber} onChange={handleChange} placeholder="Enrollment Number" className={`pl-10 h-10 text-xs font-bold ${errors.enrollmentNumber ? 'border-red-300' : 'border-slate-200'}`} />
+                    {/* ✅ RESPONSIVE FIX: text-base on mobile, sm:text-xs on desktop. h-11 for better touch. */}
+                    <Input name="enrollmentNumber" value={form.enrollmentNumber} onChange={handleChange} placeholder="Enrollment Number" className={`pl-10 h-11 text-base sm:text-xs font-bold ${errors.enrollmentNumber ? 'border-red-300' : 'border-slate-200'}`} />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Roll Number</label>
                   <div className={inputContainer}>
                     <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={14} />
-                    <Input name="rollNumber" value={form.rollNumber} onChange={handleChange} placeholder="e.g. 23ICS" className={`pl-10 h-10 text-xs font-bold uppercase ${errors.rollNumber ? 'border-red-300' : 'border-slate-200'}`} />
+                    <Input name="rollNumber" value={form.rollNumber} onChange={handleChange} placeholder="e.g. 23ICS" className={`pl-10 h-11 text-base sm:text-xs font-bold uppercase ${errors.rollNumber ? 'border-red-300' : 'border-slate-200'}`} />
                   </div>
                 </div>
-                <div className="col-span-2 space-y-1">
+                {/* ✅ RESPONSIVE FIX: col-span-1 on mobile, sm:col-span-2 on desktop */}
+                <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Full Name</label>
-                  <Input name="fullName" value={form.fullName} onChange={handleChange} placeholder="As per official documents" className="h-10 text-xs font-bold bg-slate-50" />
+                  <Input name="fullName" value={form.fullName} onChange={handleChange} placeholder="As per official documents" className="h-11 text-base sm:text-xs font-bold bg-slate-50" />
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Official Email</label>
-                  <Input name="email" value={form.email} onChange={handleChange} placeholder="name@gbu.ac.in" className="h-10 text-xs font-bold bg-slate-50" />
+                  <Input name="email" value={form.email} onChange={handleChange} placeholder="name@gbu.ac.in" className="h-11 text-base sm:text-xs font-bold bg-slate-50" />
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Mobile</label>
-                  <Input name="mobileNumber" value={form.mobileNumber} onChange={handleChange} placeholder="10 Digits" className="h-10 text-xs font-bold bg-slate-50" />
+                  <Input name="mobileNumber" value={form.mobileNumber} onChange={handleChange} placeholder="10 Digits" className="h-11 text-base sm:text-xs font-bold bg-slate-50" />
                 </div>
-                <div className="col-span-2 space-y-1">
+                <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Academic School</label>
-                  <select name="schoolId" value={form.schoolId} onChange={handleChange} className="w-full h-10 px-4 rounded-lg text-xs font-bold border border-slate-200 bg-slate-50 outline-none">
+                  <select name="schoolId" value={form.schoolId} onChange={handleChange} className="w-full h-11 px-4 rounded-lg text-base sm:text-xs font-bold border border-slate-200 bg-slate-50 outline-none">
                     <option value="">Select University School</option>
                     {schoolOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Password</label>
-                  <Input name="password" type="password" value={form.password} onChange={handleChange} className="h-10 text-xs font-bold bg-slate-50" />
+                  <Input name="password" type="password" value={form.password} onChange={handleChange} className="h-11 text-base sm:text-xs font-bold bg-slate-50" />
                 </div>
                 <div className="space-y-1">
                   <label className={labelStyle}>Confirm</label>
-                  <Input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="h-10 text-xs font-bold bg-slate-50" />
+                  <Input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="h-11 text-base sm:text-xs font-bold bg-slate-50" />
                 </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex justify-between items-center mb-2">
                   <label className={labelStyle}>Security Verification</label>
-                  <button type="button" onClick={fetchCaptcha} className="text-[9px] font-black text-slate-400 hover:text-blue-600 uppercase flex items-center gap-1 transition-colors">
+                  <button type="button" onClick={fetchCaptcha} className="text-[9px] font-black text-blue-600 cursor-pointer uppercase flex items-center gap-1 transition-colors">
                     <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh
                   </button>
                 </div>
@@ -252,7 +264,7 @@ const StudentRegister = () => {
                     {captchaLoading ? <div className="animate-pulse bg-slate-200 w-full h-full" /> : <img src={captchaImage} alt="Captcha" className="h-full w-full object-cover select-none" draggable="false" />}
                   </div>
                   <div className="col-span-3">
-                    <Input value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Type Code" className="h-11 bg-slate-50 border-slate-200 rounded-xl text-center text-xs font-black uppercase tracking-[0.2em] focus:bg-white w-full" required />
+                    <Input value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Type Code" className="h-11 bg-slate-50 border-slate-200 rounded-xl text-center text-sm sm:text-xs font-black uppercase tracking-[0.2em] focus:bg-white w-full" required />
                   </div>
                 </div>
               </div>

@@ -115,7 +115,7 @@ const StudentLogin = () => {
       });
       navigate('/student/dashboard');
     } catch (err) {
-      let errorMsg = err.response?.data?.detail || 'Login failed';
+      let errorMsg = err.response?.data?.detail || 'Invalid verification code.';
       setError(String(errorMsg));
       fetchCaptcha(true); 
       setCaptchaInput(''); 

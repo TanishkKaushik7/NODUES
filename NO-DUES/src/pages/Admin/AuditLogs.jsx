@@ -72,7 +72,7 @@ const AuditLogs = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 h-screen flex flex-col overflow-hidden p-6">
+    <div className="space-y-6 mt-[-20px] animate-in fade-in duration-500 h-screen flex flex-col overflow-hidden p-6">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0">
         <div>
@@ -87,10 +87,6 @@ const AuditLogs = () => {
             title="Sync Registry"
           >
             <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-500' : ''}`} />
-          </button>
-          <button className="flex items-center px-5 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-95">
-            <Download className="h-4 w-4 mr-2" />
-            Export Audit CSV
           </button>
         </div>
       </div>

@@ -11,7 +11,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   const profile = user || {
-    name: "Super Admin",
+    name: "Admin",
     email: "admin@example.com",
     id: "dac3030a-cf8b-4cfa-abc4-19386f817ead",
     role: "admin",
@@ -116,7 +116,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex items-start gap-3">
                   <Shield size={16} className="text-blue-600 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-blue-700 leading-relaxed font-bold">
-                    Super Admin privileges active. All structural overrides are logged.
+                   Admin privileges active. All structural overrides are logged.
                   </p>
                 </div>
               </div>

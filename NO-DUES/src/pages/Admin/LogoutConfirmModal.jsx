@@ -47,7 +47,7 @@ const LogoutConfirmModal = ({ isOpen, onClose }) => {
             {/* Text Content */}
             <h3 className="text-2xl font-black text-slate-800 tracking-tight">End Session?</h3>
             <p className="text-sm text-slate-500 mt-3 leading-relaxed">
-              You are about to sign out of the <span className="font-bold text-slate-700">GBU Super Admin Portal</span>. 
+              You are about to sign out of the <span className="font-bold text-slate-700">GBU Admin Portal</span>. 
               Any unsaved configuration changes may be lost.
             </p>
 

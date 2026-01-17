@@ -169,8 +169,7 @@ const UserManagement = () => {
           >
             <option value="">All Account Roles</option>
             <optgroup label="Core System">
-                <option value="super_admin">Super Admin</option>
-                <option value="admin">Administrator</option>
+                <option value="admin">Admin</option>
                 <option value="student">Student</option>
             </optgroup>
             <optgroup label="Departmental Authorities">

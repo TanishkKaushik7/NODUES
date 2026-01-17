@@ -70,7 +70,7 @@ const ApplicationManagement = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Application Control</h1>
-          <p className="text-slate-500 text-sm mt-1">Super Admin override panel for system-wide clearance states.</p>
+          <p className="text-slate-500 text-sm mt-1">Admin override panel for system-wide clearance states.</p>
         </div>
         <button 
           onClick={() => fetchApplications()} 

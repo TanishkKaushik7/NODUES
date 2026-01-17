@@ -321,7 +321,11 @@ const TrackStatus = () => {
 
       if (data.application && data.application.updated_at) setLastActionDate(data.application.updated_at);
 
-      const newStatuses = { ...statuses };
+      const newStatuses = {
+        school: STATUS.LOCKED, lib: STATUS.LOCKED, hostel: STATUS.LOCKED,
+        sports: STATUS.LOCKED, labs: STATUS.LOCKED, crc: STATUS.LOCKED,
+        accounts: STATUS.LOCKED
+      };
       const newMeta = {};
 
       const mapStatus = (apiStatus) => {
@@ -333,13 +337,20 @@ const TrackStatus = () => {
         return STATUS.LOCKED;
       };
 
+      // ✅ FIX: Track if Hostel stage was found in API response
+      let hostelStageFound = false;
+
+      // 1. Map all stages directly from backend
       if (data.stages && Array.isArray(data.stages)) {
         data.stages.forEach(stage => {
           let key = null;
           switch(stage.verifier_role) {
             case 'dean': key = 'school'; break;
             case 'library': key = 'lib'; break;
-            case 'hostel': key = 'hostel'; break;
+            case 'hostel': 
+                key = 'hostel'; 
+                hostelStageFound = true; // Mark as found
+                break;
             case 'sports': key = 'sports'; break;
             case 'lab': key = 'labs'; break;
             case 'crc': key = 'crc'; break;
@@ -348,18 +359,19 @@ const TrackStatus = () => {
           }
           if (key) {
             newStatuses[key] = mapStatus(stage.status);
-            newMeta[key] = { date: stage.updated_at, comments: stage.comments || stage.remarks, officer: stage.display_name };
+            newMeta[key] = { 
+              date: stage.updated_at, 
+              comments: stage.comments || stage.remarks, 
+              officer: stage.display_name 
+            };
           }
         });
       }
 
-      /* -------------------------------------------------------------------------- */
-      /* ✅ OVERRIDE LOGIC FOR NON-HOSTELLERS                                       */
-      /* -------------------------------------------------------------------------- */
-      // Checking both nested and root properties for maximum compatibility
-      const isHosteller = user?.student?.is_hosteller === true || user?.is_hosteller === true;
-      
-      if (!isHosteller) {
+      // ✅ FIX: Only skip hostel if the backend did NOT return a hostel stage
+      // This implies the student is a Day Scholar and the backend logic skipped it.
+      // If the backend sent a Hostel stage (even pending), we show it.
+      if (!hostelStageFound) {
         newStatuses.hostel = STATUS.SKIPPED;
         newMeta.hostel = {
           date: null,
@@ -423,7 +435,7 @@ const TrackStatus = () => {
         )}
 
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-             style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+              style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
         </div>
 
         {/* WORKFLOW CONTAINER */}

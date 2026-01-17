@@ -152,7 +152,7 @@ const Reports = () => {
                   Output Format
                 </label>
                 <div className="flex gap-2">
-                  {['csv', 'pdf'].map((fmt) => (
+                  {['csv'].map((fmt) => (
                     <button
                       key={fmt}
                       type="button"

@@ -32,27 +32,29 @@ const Button = React.forwardRef(({ className, variant = "primary", disabled, chi
   );
 });
 
+const Label = ({ children, required }) => (
+  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
+    {children} {required && <span className="text-rose-500 ml-0.5">*</span>}
+  </label>
+);
+
 const ReadOnlyField = ({ label, value, error }) => (
   <div className="group">
-    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
-      {label}
-    </label>
+    <Label required>{label}</Label>
     <div className="w-full px-4 py-3 bg-slate-50/80 border border-slate-100 rounded-xl text-slate-600 text-sm font-bold flex items-center gap-2 group-hover:border-slate-200 transition-all">
       <span className="truncate">{value || '—'}</span>
     </div>
     {error && (
-      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1">
+      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
         <FiAlertCircle size={12}/> {error}
       </span>
     )}
   </div>
 );
 
-const InputRow = ({ label, name, value, onChange, type = 'text', editable = true, error }) => (
+const InputRow = ({ label, name, value, onChange, type = 'text', editable = true, error, required = true }) => (
   <div className="group">
-    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
-      {label}
-    </label>
+    <Label required={required}>{label}</Label>
     <input 
       name={name} 
       value={value ?? ''} 
@@ -64,22 +66,20 @@ const InputRow = ({ label, name, value, onChange, type = 'text', editable = true
         editable 
           ? "bg-white border-slate-200 hover:border-blue-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500" 
           : "bg-slate-50 text-slate-400 border-slate-100",
-        error ? "border-rose-300 bg-rose-50/30" : ""
+        error ? "border-rose-400 bg-rose-50/50" : ""
       )}
     />
     {error && (
-      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1">
+      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
         <FiAlertCircle size={12}/> {error}
       </span>
     )}
   </div>
 );
 
-const SelectRow = ({ label, name, value, onChange, editable = true, options, error }) => (
+const SelectRow = ({ label, name, value, onChange, editable = true, options, error, required = true }) => (
   <div className="group">
-    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
-      {label}
-    </label>
+    <Label required={required}>{label}</Label>
     <div className="relative">
       <select 
         name={name} 
@@ -91,7 +91,7 @@ const SelectRow = ({ label, name, value, onChange, editable = true, options, err
             editable 
               ? "bg-white border-slate-200 hover:border-blue-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500" 
               : "bg-slate-50 text-slate-400 border-slate-100",
-            error ? "border-rose-300" : ""
+            error ? "border-rose-400 bg-rose-50/50" : ""
         )}
       >
         <option value="">Select Option</option>
@@ -104,27 +104,77 @@ const SelectRow = ({ label, name, value, onChange, editable = true, options, err
       </div>
     </div>
     {error && (
-      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1">
+      <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
         <FiAlertCircle size={12}/> {error}
       </span>
     )}
   </div>
 );
 
-/* -------------------------------------------------------------------------- */
-/* MAIN COMPONENT                                                             */
-/* -------------------------------------------------------------------------- */
-
 const MyApplications = ({ 
-  user, formData, locked, formErrors, submitting, uploading, 
+  user, formData, locked, formErrors: externalErrors, submitting, uploading, 
   saveMessage, handleChange, handleSave, hasSubmittedApplication,
   isRejected, rejectionDetails, stepStatuses, applicationId, token,
   isCompleted 
 }) => {
   const [certDownloading, setCertDownloading] = useState(false);
   const [localFileError, setLocalFileError] = useState(''); 
+  const [validationError, setValidationError] = useState('');
+  const [localFieldErrors, setLocalFieldErrors] = useState({});
 
+  const combinedErrors = { ...externalErrors, ...localFieldErrors };
   const isFullyCleared = isCompleted || (stepStatuses?.length > 0 && stepStatuses?.every(s => s.status === 'completed'));
+
+  const validateAndSave = (e) => {
+    setValidationError('');
+    setLocalFieldErrors({});
+    
+    const mandatoryKeys = [
+      'enrollmentNumber', 'rollNumber', 'admissionYear', 'batch', 'section', 
+      'admissionType', 'dob', 'fatherName', 'motherName', 'gender', 
+      'category', 'permanentAddress', 'isHosteller', 'proof_document_url'
+    ];
+
+    if (formData.isHosteller === 'Yes') {
+      mandatoryKeys.push('hostelName', 'hostelRoom');
+    }
+
+    const newErrors = {};
+    mandatoryKeys.forEach(key => {
+      if (!formData[key] || String(formData[key]).trim() === '') {
+        newErrors[key] = `Required field`;
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setLocalFieldErrors(newErrors);
+      setValidationError('Your application is incomplete. Please fill all highlighted fields.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // MAP TO BACKEND SCHEMA (Snake Case)
+    const payload = {
+      proof_document_url: formData.proof_document_url,
+      remarks: formData.remarks || "",
+      father_name: formData.fatherName,
+      mother_name: formData.motherName,
+      gender: formData.gender,
+      category: formData.category,
+      dob: formData.dob,
+      permanent_address: formData.permanentAddress,
+      domicile: formData.domicile || "State", 
+      is_hosteller: formData.isHosteller === 'Yes',
+      hostel_name: formData.isHosteller === 'Yes' ? formData.hostelName : null,
+      hostel_room: formData.isHosteller === 'Yes' ? formData.hostelRoom : null,
+      section: formData.section,
+      batch: formData.batch,
+      admission_year: parseInt(formData.admissionYear),
+      admission_type: formData.admissionType
+    };
+
+    handleSave(payload);
+  };
 
   const onFileChange = (e) => {
     const file = e.target.files[0];
@@ -137,6 +187,7 @@ const MyApplications = ({
       return;
     }
     setLocalFileError('');
+    setLocalFieldErrors(prev => ({ ...prev, proof_document_url: null }));
     handleChange(e); 
   };
 
@@ -221,24 +272,21 @@ const MyApplications = ({
   return (
     <div className="space-y-8 pb-12 mt-0 lg:mt-[-50px] animate-in fade-in duration-700">
       
-      {isRejected && (
-        <div className="relative group overflow-hidden bg-rose-50/50 border border-rose-100 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start shadow-sm mx-2 sm:mx-0">
-          <div className="absolute top-0 right-0 p-8 opacity-5 hidden sm:block">
-              <FiXCircle size={120} />
-          </div>
+      {(isRejected || validationError) && (
+        <div className="relative group overflow-hidden bg-rose-50 border border-rose-100 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start shadow-sm mx-2 sm:mx-0 animate-in slide-in-from-top-4">
           <div className="p-3 sm:p-4 bg-rose-600 text-white rounded-xl sm:rounded-2xl shadow-lg shadow-rose-200 flex-shrink-0">
-              <FiXCircle className="w-6 h-6 sm:w-8 sm:h-8" />
+              <FiAlertCircle className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
           <div className="relative z-10 w-full">
-            <h3 className="text-lg sm:text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">Correction Required</h3>
+            <h3 className="text-lg sm:text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">
+                {validationError ? 'Form Incomplete' : 'Correction Required'}
+            </h3>
             <p className="text-rose-700/80 text-[11px] sm:text-sm font-bold mb-4 uppercase tracking-wide">
-              Rejected by <span className="bg-rose-200/50 px-2 py-0.5 rounded text-rose-900">{rejectionDetails?.role?.toUpperCase()}</span>
+              {validationError ? 'Mandatory fields missing' : `Rejected by ${rejectionDetails?.role?.toUpperCase()}`}
             </p>
-            {rejectionDetails?.remarks && (
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-rose-100 text-[11px] sm:text-sm font-bold text-rose-800 shadow-sm italic">
-                "{rejectionDetails.remarks}"
-              </div>
-            )}
+            <div className="bg-white/80 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-rose-100 text-[11px] sm:text-xs font-bold text-rose-800 shadow-sm leading-relaxed">
+              {validationError ? validationError : `"${rejectionDetails.remarks}"`}
+            </div>
           </div>
         </div>
       )}
@@ -269,14 +317,14 @@ const MyApplications = ({
                 <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Academic Details</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-              <InputRow label="Enrollment Number" name="enrollmentNumber" value={formData.enrollmentNumber} onChange={handleChange} editable={!locked.enrollmentNumber} error={formErrors.enrollmentNumber} />
-              <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={formErrors.rollNumber} />
-              <InputRow label="Admission Year" name="admissionYear" type="number" value={formData.admissionYear} onChange={handleChange} editable={!locked.admissionYear} error={formErrors.admissionYear} />
+              <InputRow label="Enrollment Number" name="enrollmentNumber" value={formData.enrollmentNumber} onChange={handleChange} editable={!locked.enrollmentNumber} error={combinedErrors.enrollmentNumber} />
+              <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={combinedErrors.rollNumber} />
+              <InputRow label="Admission Year" name="admissionYear" type="number" value={formData.admissionYear} onChange={handleChange} editable={!locked.admissionYear} error={combinedErrors.admissionYear} />
               <div className="grid grid-cols-2 gap-4">
-                <InputRow label="Batch" name="batch" value={formData.batch} onChange={handleChange} editable={!locked.batch} error={formErrors.batch} />
-                <InputRow label="Section" name="section" value={formData.section} onChange={handleChange} editable={!locked.section} error={formErrors.section} />
+                <InputRow label="Batch" name="batch" value={formData.batch} onChange={handleChange} editable={!locked.batch} error={combinedErrors.batch} />
+                <InputRow label="Section" name="section" value={formData.section} onChange={handleChange} editable={!locked.section} error={combinedErrors.section} />
               </div>
-              <SelectRow label="Admission Type" name="admissionType" value={formData.admissionType} onChange={handleChange} editable={!locked.admissionType} error={formErrors.admissionType} options={[{ v: 'Regular', l: 'Regular' }, { v: 'Lateral Entry', l: 'Lateral Entry' }, { v: 'Transfer', l: 'Transfer' }]} />
+              <SelectRow label="Admission Type" name="admissionType" value={formData.admissionType} onChange={handleChange} editable={!locked.admissionType} error={combinedErrors.admissionType} options={[{ v: 'Regular', l: 'Regular' }, { v: 'Lateral Entry', l: 'Lateral Entry' }, { v: 'Transfer', l: 'Transfer' }]} />
             </div>
           </section>
 
@@ -287,18 +335,18 @@ const MyApplications = ({
                 <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Personal Information</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-              <ReadOnlyField label="Full Name" value={formData.fullName || user?.full_name} error={formErrors.fullName} />
-              <ReadOnlyField label="Email Address" value={formData.email || user?.email} error={formErrors.email} />
-              <ReadOnlyField label="Mobile Number" value={formData.mobile || user?.mobile_number} error={formErrors.mobile} />
-              <InputRow label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} editable={!locked.dob} error={formErrors.dob} />
-              <InputRow label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} editable={!locked.fatherName} error={formErrors.fatherName} />
-              <InputRow label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} editable={!locked.motherName} error={formErrors.motherName} />
+              <ReadOnlyField label="Full Name" value={formData.fullName || user?.full_name} error={combinedErrors.fullName} />
+              <ReadOnlyField label="Email Address" value={formData.email || user?.email} error={combinedErrors.email} />
+              <ReadOnlyField label="Mobile Number" value={formData.mobile || user?.mobile_number} error={combinedErrors.mobile} />
+              <InputRow label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} editable={!locked.dob} error={combinedErrors.dob} />
+              <InputRow label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} editable={!locked.fatherName} error={combinedErrors.fatherName} />
+              <InputRow label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} editable={!locked.motherName} error={combinedErrors.motherName} />
               <div className="grid grid-cols-2 gap-4">
-                <SelectRow label="Gender" name="gender" value={formData.gender} onChange={handleChange} editable={!locked.gender} error={formErrors.gender} options={[{ v: 'Male', l: 'Male' }, { v: 'Female', l: 'Female' }, { v: 'Other', l: 'Other' }]} />
-                <SelectRow label="Category" name="category" value={formData.category} onChange={handleChange} editable={!locked.category} error={formErrors.category} options={['GEN', 'OBC', 'SC', 'ST'].map(c => ({ v: c, l: c }))} />
+                <SelectRow label="Gender" name="gender" value={formData.gender} onChange={handleChange} editable={!locked.gender} error={combinedErrors.gender} options={[{ v: 'Male', l: 'Male' }, { v: 'Female', l: 'Female' }, { v: 'Other', l: 'Other' }]} />
+                <SelectRow label="Category" name="category" value={formData.category} onChange={handleChange} editable={!locked.category} error={combinedErrors.category} options={['GEN', 'OBC', 'SC', 'ST'].map(c => ({ v: c, l: c }))} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Permanent Address</label>
+                <Label required>Permanent Address</Label>
                 <textarea 
                   name="permanentAddress" 
                   value={formData.permanentAddress ?? ''} 
@@ -308,9 +356,14 @@ const MyApplications = ({
                   className={cn(
                     "w-full rounded-xl px-4 py-3 text-sm font-bold border outline-none transition-all resize-none",
                     !locked.permanentAddress ? "bg-white border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" : "bg-slate-50 text-slate-400 border-slate-100",
-                    formErrors.permanentAddress ? "border-rose-300" : ""
+                    combinedErrors.permanentAddress ? "border-rose-400 bg-rose-50/50" : ""
                   )} 
                 />
+                {combinedErrors.permanentAddress && (
+                   <span className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                      <FiAlertCircle size={12}/> {combinedErrors.permanentAddress}
+                   </span>
+                )}
               </div>
             </div>
           </section>
@@ -322,16 +375,20 @@ const MyApplications = ({
                 <h3 className="text-[11px] sm:text-sm font-black uppercase tracking-[0.2em] text-slate-800">Additional Details</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-              <SelectRow label="Are you a Hosteller?" name="isHosteller" value={formData.isHosteller} onChange={handleChange} editable={!locked.isHosteller} error={formErrors.isHosteller} options={[{ v: 'Yes', l: 'Yes' }, { v: 'No', l: 'No' }]} />
+              <SelectRow label="Are you a Hosteller?" name="isHosteller" value={formData.isHosteller} onChange={handleChange} editable={!locked.isHosteller} error={combinedErrors.isHosteller} options={[{ v: 'Yes', l: 'Yes' }, { v: 'No', l: 'No' }]} />
+              
               {formData.isHosteller === 'Yes' && (
-                <div className="md:contents grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-                  <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} editable={!locked.hostelName} error={formErrors.hostelName} />
-                  <InputRow label="Hostel Room" name="hostelRoom" value={formData.hostelRoom} onChange={handleChange} editable={!locked.hostelRoom} error={formErrors.hostelRoom} />
+                <div className="md:contents grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 animate-in slide-in-from-top-2">
+                  <InputRow label="Hostel Name" name="hostelName" value={formData.hostelName} onChange={handleChange} editable={!locked.hostelName} error={combinedErrors.hostelName} />
+                  <InputRow label="Hostel Room" name="hostelRoom" value={formData.hostelRoom} onChange={handleChange} editable={!locked.hostelRoom} error={combinedErrors.hostelRoom} />
                 </div>
               )}
               
-              <div className="md:col-span-2 bg-blue-50/30 p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-blue-100/50">
-                <label className="block text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Verification Document (PDF)</label>
+              <div className={cn(
+                "md:col-span-2 p-5 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all",
+                combinedErrors.proof_document_url ? "bg-rose-50/30 border-rose-200" : "bg-blue-50/30 border-blue-100/50"
+              )}>
+                <label className="block text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Verification Document (PDF) <span className="text-rose-500">*</span></label>
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div className="relative group cursor-pointer w-full sm:w-auto">
                     <input 
@@ -357,9 +414,9 @@ const MyApplications = ({
                   )}
                 </div>
                 
-                {(localFileError || formErrors.proof_document_url) && (
-                  <div className="text-[10px] font-bold text-rose-500 mt-3 flex items-center gap-1">
-                    <FiAlertCircle size={12}/> {localFileError || formErrors.proof_document_url}
+                {(localFileError || combinedErrors.proof_document_url) && (
+                  <div className="text-[10px] font-bold text-rose-500 mt-3 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                    <FiAlertCircle size={12}/> {localFileError || combinedErrors.proof_document_url}
                   </div>
                 )}
               </div>
@@ -386,7 +443,7 @@ const MyApplications = ({
             
             <Button 
               variant={isRejected ? "danger" : "primary"} 
-              onClick={handleSave} 
+              onClick={validateAndSave} 
               className="w-full sm:w-auto px-10 sm:px-12 py-3.5 sm:py-4 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl"
               disabled={submitting || uploading || !!localFileError}
             >

@@ -7,7 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useStudentAuth } from '../../contexts/StudentAuthContext';
-import ForgotPasswordModal from './ForgotPasswordModal'; // ✅ Import the new modal
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 // --- INTEGRATED UI COMPONENTS ---
 
@@ -50,7 +50,7 @@ const StudentLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false); // ✅ Modal State
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaImage, setCaptchaImage] = useState(null); 
@@ -115,8 +115,11 @@ const StudentLogin = () => {
       });
       navigate('/student/dashboard');
     } catch (err) {
-      let errorMsg = err.response?.data?.detail || 'Invalid verification code.';
+      // ✅ FIX: Capture exact error detail from API response if available
+      const errorMsg = err.response?.data?.detail || err.message || 'Invalid Credentials or Verification Code.';
       setError(String(errorMsg));
+      
+      // Auto-refresh captcha on failure for security
       fetchCaptcha(true); 
       setCaptchaInput(''); 
     } finally {
@@ -205,7 +208,6 @@ const StudentLogin = () => {
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className={labelStyle}>Password</label>
-                  {/* ✅ Link to open Modal */}
                   <button 
                     type="button" 
                     onClick={() => setIsForgotModalOpen(true)}
@@ -236,7 +238,6 @@ const StudentLogin = () => {
                 </div>
               </div>
 
-              {/* Captcha Section */}
               <div className="pt-2 border-t border-slate-50">
                 <div className="flex justify-between items-center mb-2">
                   <label className={labelStyle}>Security Verification</label>
@@ -290,7 +291,6 @@ const StudentLogin = () => {
         </div>
       </div>
 
-      {/* ✅ Forgot Password Modal Component */}
       <ForgotPasswordModal 
         isOpen={isForgotModalOpen} 
         onClose={() => setIsForgotModalOpen(false)} 

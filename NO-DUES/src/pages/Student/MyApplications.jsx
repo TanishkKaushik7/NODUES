@@ -52,7 +52,7 @@ const ReadOnlyField = ({ label, value, error }) => (
   </div>
 );
 
-const InputRow = ({ label, name, value, onChange, type = 'text', editable = true, error, required = true }) => (
+const InputRow = ({ label, name, value, onChange, type = 'text', editable = true, error, required = true, placeholder = "" }) => (
   <div className="group">
     <Label required={required}>{label}</Label>
     <input 
@@ -60,6 +60,7 @@ const InputRow = ({ label, name, value, onChange, type = 'text', editable = true
       value={value ?? ''} 
       onChange={onChange} 
       type={type}
+      placeholder={placeholder}
       disabled={!editable}
       className={cn(
         "w-full rounded-xl px-4 py-3 text-sm font-bold border outline-none transition-all",
@@ -125,6 +126,17 @@ const MyApplications = ({
   const combinedErrors = { ...externalErrors, ...localFieldErrors };
   const isFullyCleared = isCompleted || (stepStatuses?.length > 0 && stepStatuses?.every(s => s.status === 'completed'));
 
+  const handleBatchChange = (e) => {
+    // Filter to keep only alphabetic characters and convert to uppercase
+    const value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    handleChange({
+      target: {
+        name: 'batch',
+        value: value
+      }
+    });
+  };
+
   const validateAndSave = (e) => {
     setValidationError('');
     setLocalFieldErrors({});
@@ -168,7 +180,7 @@ const MyApplications = ({
       hostel_name: formData.isHosteller === 'Yes' ? formData.hostelName : null,
       hostel_room: formData.isHosteller === 'Yes' ? formData.hostelRoom : null,
       section: formData.section,
-      batch: formData.batch,
+      batch: formData.batch, // Sent as String (Uppercase Alpha Only)
       admission_year: parseInt(formData.admissionYear),
       admission_type: formData.admissionType
     };
@@ -321,8 +333,31 @@ const MyApplications = ({
               <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={combinedErrors.rollNumber} />
               <InputRow label="Admission Year" name="admissionYear" type="number" value={formData.admissionYear} onChange={handleChange} editable={!locked.admissionYear} error={combinedErrors.admissionYear} />
               <div className="grid grid-cols-2 gap-4">
-                <InputRow label="Batch" name="batch" value={formData.batch} onChange={handleChange} editable={!locked.batch} error={combinedErrors.batch} />
-                <InputRow label="Section" name="section" value={formData.section} onChange={handleChange} editable={!locked.section} error={combinedErrors.section} />
+                {/* ✅ Batch as Characters Only & Uppercase */}
+                <InputRow 
+                  label="Batch" 
+                  name="batch" 
+                  placeholder="CSE"
+                  value={formData.batch} 
+                  onChange={handleBatchChange} 
+                  editable={!locked.batch} 
+                  error={combinedErrors.batch} 
+                />
+                {/* ✅ Section as Dropdown A-D */}
+                <SelectRow 
+                    label="Section" 
+                    name="section" 
+                    value={formData.section} 
+                    onChange={handleChange} 
+                    editable={!locked.section} 
+                    error={combinedErrors.section}
+                    options={[
+                        { v: 'A', l: 'Section A' },
+                        { v: 'B', l: 'Section B' },
+                        { v: 'C', l: 'Section C' },
+                        { v: 'D', l: 'Section D' }
+                    ]}
+                />
               </div>
               <SelectRow label="Admission Type" name="admissionType" value={formData.admissionType} onChange={handleChange} editable={!locked.admissionType} error={combinedErrors.admissionType} options={[{ v: 'Regular', l: 'Regular' }, { v: 'Lateral Entry', l: 'Lateral Entry' }, { v: 'Transfer', l: 'Transfer' }]} />
             </div>

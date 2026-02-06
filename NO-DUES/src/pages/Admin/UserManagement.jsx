@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, UserPlus, Filter, MoreVertical, Edit2, 
-  Trash2, Shield, Mail, Loader2, RefreshCw, Users // ✅ Added Users Icon
+  Trash2, Shield, Mail, Loader2, RefreshCw, Users 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RegisterUserModal from './RegisterUserModal';
@@ -10,7 +10,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 const UserManagement = () => {
   const { authFetch } = useAuth();
   const [users, setUsers] = useState([]);
-  const [totalUsers, setTotalUsers] = useState(0); // ✅ New State for Total Count
+  const [totalUsers, setTotalUsers] = useState(0); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -21,22 +21,28 @@ const UserManagement = () => {
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [activeActionId, setActiveActionId] = useState(null);
 
-  // Mapping for Schools
+  // ✅ UPDATED: Complete Mapping for Schools (Matches DB)
   const getSchoolCode = (id) => {
     const schools = { 
-      1: "SOICT", 2: "SOM", 3: "SOE", 
-      4: "SOBT", 5: "SOVSAS", 6: "SOHSS" 
+      1: "SOICT", 2: "SOE", 3: "SOM", 
+      4: "SOBT", 5: "SOVSAS", 6: "SOLJ", 
+      7: "SOHSS", 8: "SOAP"
     };
-    return schools[id] || null;
+    return schools[id] || `School #${id}`;
   };
 
-  // Mapping for Departments
+  // ✅ UPDATED: Complete Mapping for Departments (Academic + Admin)
   const getDeptName = (id) => {
     const departments = {
-      1: "Library", 2: "Hostel", 3: "Sports",
-      4: "Laboratories", 5: "CRC", 6: "Accounts"
+      // Academic (Phase 1)
+      1: "CSE", 2: "IT", 3: "ECE", 4: "ME", 5: "CE",
+      6: "EE", 7: "BT", 8: "MGMT", 9: "LAW", 10: "HSS",
+      11: "AP", 12: "MATH", 13: "PHY",
+      // Admin (Phase 2/3)
+      14: "Library", 15: "Hostel", 16: "Sports",
+      17: "Laboratories", 18: "CRC", 19: "Accounts"
     };
-    return departments[id] || null;
+    return departments[id] || `Dept #${id}`;
   };
 
   const fetchUsers = useCallback(async () => {
@@ -48,12 +54,10 @@ const UserManagement = () => {
       if (response.ok) {
         const data = await response.json();
         
-        // ✅ FIX: Handle the { total, users } structure correctly
         if (data.users && Array.isArray(data.users)) {
             setUsers(data.users);
-            setTotalUsers(data.total || data.users.length); // Set total from API or length
+            setTotalUsers(data.total || data.users.length);
         } else if (Array.isArray(data)) {
-            // Fallback in case API just returns an array
             setUsers(data);
             setTotalUsers(data.length);
         } else {
@@ -87,7 +91,7 @@ const UserManagement = () => {
       });
       if (response.ok) {
         setUsers(prev => prev.filter(u => u.id !== deletingUser.id));
-        setTotalUsers(prev => prev - 1); // ✅ Decrease count on delete
+        setTotalUsers(prev => prev - 1);
         setDeletingUser(null);
         setActiveActionId(null);
       }
@@ -109,13 +113,10 @@ const UserManagement = () => {
       admin: 'bg-purple-100 text-purple-700 border-purple-200',
       student: 'bg-blue-100 text-blue-700 border-blue-200',
       dean: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-      library: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      hostel: 'bg-orange-100 text-orange-700 border-orange-200',
-      lab: 'bg-pink-100 text-pink-700 border-pink-200',
-      account: 'bg-red-100 text-red-700 border-red-200',
-      sports: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-      crc: 'bg-yellow-100 text-yellow-700 border-yellow-200'
+      hod: 'bg-teal-100 text-teal-700 border-teal-200', // ✅ Added HOD
+      staff: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     };
+    // Fallback for specific legacy roles if they still exist in DB
     return styles[role] || 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
@@ -130,7 +131,6 @@ const UserManagement = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-           {/* ✅ NEW: Total Users Display */}
            <div className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl mr-2">
               <Users className="h-4 w-4" />
               <span className="text-xs font-black uppercase tracking-widest">
@@ -172,14 +172,10 @@ const UserManagement = () => {
                 <option value="admin">Admin</option>
                 <option value="student">Student</option>
             </optgroup>
-            <optgroup label="Departmental Authorities">
-                <option value="dean">Dean</option>
-                <option value="library">Library</option>
-                <option value="hostel">Hostel</option>
-                <option value="account">Account</option>
-                <option value="lab">Lab</option>
-                <option value="sports">Sports</option>
-                <option value="crc">CRC</option>
+            <optgroup label="Authorities">
+                <option value="dean">School Dean</option>
+                <option value="hod">HOD</option>
+                <option value="staff">Staff</option>
             </optgroup>
           </select>
         </div>
@@ -187,7 +183,6 @@ const UserManagement = () => {
 
       {/* Users Table */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
-        {/* ✅ Mobile View for Total Count (Optional, visible on small screens) */}
         <div className="md:hidden px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Registered</span>
            <span className="text-sm font-black text-slate-800">{totalUsers}</span>
@@ -208,7 +203,7 @@ const UserManagement = () => {
                 <tr>
                   <td colSpan="4" className="px-6 py-24 text-center">
                     <Loader2 className="h-10 w-10 animate-spin text-slate-300 mx-auto" />
-                    <p className="text-slate-400 mt-4 font-bold uppercase text-[10px] tracking-widest">Building Table Structure...</p>
+                    <p className="text-slate-400 mt-4 font-bold uppercase text-[10px] tracking-widest">Loading Users...</p>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
@@ -240,10 +235,16 @@ const UserManagement = () => {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                         <span className="font-bold text-slate-700 tracking-tight">
-                          {user.school_id ? getSchoolCode(user.school_id) : (getDeptName(user.department_id) || user.department_name || 'System Level')}
+                          {/* ✅ Logic: Show School Code for Dean/Office, Dept Code for HOD/Staff */}
+                          {user.school_id 
+                            ? getSchoolCode(user.school_id) 
+                            : (user.department_id ? getDeptName(user.department_id) : 'Global Access')}
                         </span>
                         <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">
-                          {user.school_id ? 'Academic School' : (user.department_id ? 'Central Authority' : 'Global')}
+                          {/* ✅ Logic: Label based on ID presence */}
+                          {user.school_id 
+                            ? (user.role === 'dean' ? 'School Dean' : 'School Office') 
+                            : (user.department_id ? (user.role === 'hod' ? 'Academic Dept' : 'Department') : 'System Level')}
                         </span>
                      </div>
                   </td>

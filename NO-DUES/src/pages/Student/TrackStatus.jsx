@@ -215,7 +215,7 @@ const VerticalFlow = ({ status }) => {
 const Node = ({ status, label, id, meta }) => {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.LOCKED;
   const { icon: Icon, label: statusLabel, classes } = config;
-  
+   
   const [isHovered, setIsHovered] = useState(false);
   const displayMeta = meta || { date: null, comments: "" };
 
@@ -293,8 +293,14 @@ const TrackStatus = () => {
   const [lastActionDate, setLastActionDate] = useState(null);
 
   const [statuses, setStatuses] = useState({
-    school: STATUS.LOCKED, lib: STATUS.LOCKED, hostel: STATUS.LOCKED,
-    sports: STATUS.LOCKED, labs: STATUS.LOCKED, crc: STATUS.LOCKED,
+    dean: STATUS.LOCKED,
+    hod: STATUS.LOCKED,
+    office: STATUS.LOCKED,
+    lib: STATUS.LOCKED, 
+    hostel: STATUS.LOCKED,
+    sports: STATUS.LOCKED, 
+    labs: STATUS.LOCKED, 
+    crc: STATUS.LOCKED,
     accounts: STATUS.LOCKED
   });
 
@@ -322,8 +328,14 @@ const TrackStatus = () => {
       if (data.application && data.application.updated_at) setLastActionDate(data.application.updated_at);
 
       const newStatuses = {
-        school: STATUS.LOCKED, lib: STATUS.LOCKED, hostel: STATUS.LOCKED,
-        sports: STATUS.LOCKED, labs: STATUS.LOCKED, crc: STATUS.LOCKED,
+        dean: STATUS.LOCKED,
+        hod: STATUS.LOCKED,
+        office: STATUS.LOCKED,
+        lib: STATUS.LOCKED, 
+        hostel: STATUS.LOCKED,
+        sports: STATUS.LOCKED, 
+        labs: STATUS.LOCKED, 
+        crc: STATUS.LOCKED,
         accounts: STATUS.LOCKED
       };
       const newMeta = {};
@@ -337,26 +349,31 @@ const TrackStatus = () => {
         return STATUS.LOCKED;
       };
 
-      // ✅ FIX: Track if Hostel stage was found in API response
       let hostelStageFound = false;
 
-      // 1. Map all stages directly from backend
+      // ✅ Updated Logic to map stages based on Sequence Number (Diagram B)
       if (data.stages && Array.isArray(data.stages)) {
         data.stages.forEach(stage => {
           let key = null;
-          switch(stage.verifier_role) {
-            case 'dean': key = 'school'; break;
-            case 'library': key = 'lib'; break;
-            case 'hostel': 
-                key = 'hostel'; 
-                hostelStageFound = true; // Mark as found
-                break;
-            case 'sports': key = 'sports'; break;
-            case 'lab': key = 'labs'; break;
-            case 'crc': key = 'crc'; break;
-            case 'account': key = 'accounts'; break;
-            default: break;
+          
+          // --- STRICT SEQUENTIAL MAPPING ---
+          if (stage.sequence_order === 1) key = 'dean';
+          else if (stage.sequence_order === 2) key = 'hod';
+          else if (stage.sequence_order === 3) key = 'office';
+          else if (stage.sequence_order === 5) key = 'accounts';
+          
+          // --- PARALLEL MAPPING (Sequence 4) ---
+          else if (stage.sequence_order === 4) {
+             const name = (stage.display_name || '').toLowerCase();
+             
+             // Try to fuzzy match the display name (e.g., "University Library" -> "lib")
+             if (name.includes('library')) key = 'lib';
+             else if (name.includes('hostel')) { key = 'hostel'; hostelStageFound = true; }
+             else if (name.includes('sports')) key = 'sports';
+             else if (name.includes('lab')) key = 'labs';
+             else if (name.includes('crc') || name.includes('relation')) key = 'crc';
           }
+
           if (key) {
             newStatuses[key] = mapStatus(stage.status);
             newMeta[key] = { 
@@ -368,9 +385,6 @@ const TrackStatus = () => {
         });
       }
 
-      // ✅ FIX: Only skip hostel if the backend did NOT return a hostel stage
-      // This implies the student is a Day Scholar and the backend logic skipped it.
-      // If the backend sent a Hostel stage (even pending), we show it.
       if (!hostelStageFound) {
         newStatuses.hostel = STATUS.SKIPPED;
         newMeta.hostel = {
@@ -440,10 +454,23 @@ const TrackStatus = () => {
 
         {/* WORKFLOW CONTAINER */}
         <div className="flex flex-col items-center relative z-10 w-full transform scale-[0.85] sm:scale-90 md:scale-100 origin-top">
-          <Node id="school" label="School Dean" status={statuses.school} meta={metaData.school} />
-          <div className="h-6 md:h-12 w-full"><VerticalFlow status={statuses.school} /></div>
-          <SplitterFlow sourceStatus={statuses.school} />
           
+          {/* SEQ 1: DEAN */}
+          <Node id="dean" label="School Dean" status={statuses.dean} meta={metaData.dean} />
+          <div className="h-6 md:h-12 w-full"><VerticalFlow status={statuses.dean} /></div>
+
+          {/* SEQ 2: HOD */}
+          <Node id="hod" label="Head of Dept" status={statuses.hod} meta={metaData.hod} />
+          <div className="h-6 md:h-12 w-full"><VerticalFlow status={statuses.hod} /></div>
+
+          {/* SEQ 3: OFFICE */}
+          <Node id="office" label="School Office" status={statuses.office} meta={metaData.office} />
+          <div className="h-6 md:h-12 w-full"><VerticalFlow status={statuses.office} /></div>
+
+          {/* SPLIT TO SEQ 4 */}
+          <SplitterFlow sourceStatus={statuses.office} />
+          
+          {/* SEQ 4: PARALLEL ADMIN */}
           <div className="flex w-full items-start -mt-1 justify-between gap-1 sm:gap-4">
             {parallelStages.map((stage) => (
               <div key={stage} className="flex-1 flex flex-col items-center">
@@ -453,7 +480,10 @@ const TrackStatus = () => {
             ))}
           </div>
 
+          {/* MERGE TO SEQ 5 */}
           <div className="-mt-1 w-full"><MergerFlow statuses={statuses} parallelStages={parallelStages} /></div>
+          
+          {/* SEQ 5: ACCOUNTS */}
           <div className="-mt-1"><Node id="accounts" label="Accounts" status={statuses.accounts} meta={metaData.accounts} /></div>
         </div>
       </div>

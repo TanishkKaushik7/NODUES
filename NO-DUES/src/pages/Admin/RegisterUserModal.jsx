@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, UserPlus, Mail, Lock, Shield, 
   Building2, Loader2, CheckCircle2, AlertCircle, 
-  Landmark, Edit3 
+  Landmark, Edit3, GraduationCap 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -14,22 +14,43 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
 
   const isEditMode = !!initialData;
 
+  // --- 1. DATA CONSTANTS ---
   const schools = [
     { id: 1, name: "School of ICT", code: "SOICT" },
     { id: 2, name: "School of Management", code: "SOM" },
     { id: 3, name: "School of Engineering", code: "SOE" },
     { id: 4, name: "School of Biotechnology", code: "SOBT" },
     { id: 5, name: "School of VSAS", code: "SOVSAS" },
-    { id: 6, name: "School of SOHSS", code: "SOHSS" }
+    { id: 6, name: "School of SOHSS", code: "SOHSS" },
+    { id: 7, name: "School of Law", code: "SOLJ" },
+    { id: 8, name: "School of Architecture", code: "SOAP" }
   ];
 
-  const departments = [
-    { id: 1, name: "library" },
-    { id: 2, name: "hostel" },
-    { id: 3, name: "sports" },
-    { id: 4, name: "lab" },
-    { id: 5, name: "crc" },
-    { id: 6, name: "account" }
+  // For Admin Staff (Library, Sports, etc.)
+  const adminDepartments = [
+    { id: 14, name: "Library", code: "LIB" },
+    { id: 15, name: "Hostel", code: "HST" },
+    { id: 16, name: "Sports", code: "SPT" },
+    { id: 17, name: "Laboratories", code: "LAB" },
+    { id: 18, name: "CRC", code: "CRC" },
+    { id: 19, name: "Accounts", code: "ACC" }
+  ];
+
+  // For HODs (Academic Departments)
+  const academicDepartments = [
+    { id: 1, name: "Computer Science (CSE)", code: "CSE" },
+    { id: 2, name: "Information Tech (IT)", code: "IT" },
+    { id: 3, name: "Electronics (ECE)", code: "ECE" },
+    { id: 4, name: "Mechanical (ME)", code: "ME" },
+    { id: 5, name: "Civil (CE)", code: "CE" },
+    { id: 6, name: "Electrical (EE)", code: "EE" },
+    { id: 7, name: "Biotechnology (BT)", code: "BT" },
+    { id: 8, name: "Management (MGMT)", code: "MGMT" },
+    { id: 9, name: "Law & Justice", code: "LAW" },
+    { id: 10, name: "Humanities", code: "HSS" },
+    { id: 11, name: "Architecture", code: "AP" },
+    { id: 12, name: "Applied Math", code: "MATH" },
+    { id: 13, name: "Applied Physics", code: "PHY" }
   ];
 
   const [formData, setFormData] = useState({
@@ -66,16 +87,32 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
     setError(null);
 
     try {
-      const normalizedRole = formData.role.toLowerCase();
+      const uiRole = formData.role; 
       
-      // Determine final role string for department selection
-      const selectedDeptObj = departments.find(d => d.id === parseInt(formData.department_id));
-      let roleToSubmit = normalizedRole;
-      if (normalizedRole === 'department' && selectedDeptObj) {
-        roleToSubmit = selectedDeptObj.name;
+      // ✅ LOGIC: Map UI Role to Backend Payload
+      let payloadRole = 'staff'; 
+      let payloadDeptId = null;
+      let payloadSchoolId = null;
+
+      if (uiRole === 'admin') {
+          payloadRole = 'admin';
+      } else if (uiRole === 'dean') {
+          payloadRole = 'dean';
+          payloadSchoolId = parseInt(formData.school_id);
+      } else if (uiRole === 'hod') {
+          payloadRole = 'hod';
+          payloadDeptId = parseInt(formData.department_id);
+      } else if (uiRole === 'school_office') {
+          // School Office is technically "Staff" assigned to a "School"
+          payloadRole = 'staff';
+          payloadSchoolId = parseInt(formData.school_id);
+      } else if (uiRole === 'staff') {
+          // Admin Dept Staff
+          payloadRole = 'staff';
+          payloadDeptId = parseInt(formData.department_id);
       }
 
-      // ✅ DYNAMIC ENDPOINT SELECTION
+      // Dynamic Endpoint
       let url = '';
       let method = 'POST';
 
@@ -83,19 +120,18 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
         url = `/api/admin/users/${initialData.id}`;
         method = 'PUT';
       } else {
-        url = normalizedRole === 'admin' 
-            ? '/api/admin/register-admin' // Specific endpoint from your backend snippet
+        url = payloadRole === 'admin' 
+            ? '/api/admin/register-admin' 
             : '/api/admin/register-user'; 
       }
 
-      // ✅ PAYLOAD CLEANING: Admin specifically needs nulls for these fields
       const payload = {
         name: formData.fullName,
         email: formData.email,
         password: formData.password,
-        role: normalizedRole === 'department' ? roleToSubmit : normalizedRole, 
-        department_id: normalizedRole === 'staff' ? parseInt(formData.department_id) : null,
-        school_id: normalizedRole === 'dean' ? parseInt(formData.school_id) : null,
+        role: payloadRole, 
+        department_id: payloadDeptId,
+        school_id: payloadSchoolId,
       };
 
       if (isEditMode && !formData.password) delete payload.password;
@@ -178,10 +214,11 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                     value={formData.role} 
                     onChange={(e) => setFormData({...formData, role: e.target.value, department_id: '', school_id: ''})}
                   >
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
+                    <option value="staff">Departments</option>
+                    <option value="hod">HOD</option>
+                    <option value="school_office">School Office</option>
                     <option value="dean">Dean</option>
-                    <option value="department">Dept Authority (Permanent)</option>
+                    <option value="admin">Super Admin</option>
                   </select>
                 </div>
                 <input 
@@ -193,7 +230,12 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 />
               </div>
 
-              {formData.role === 'dean' && (
+              {/* ---------------------------------------------------- */}
+              {/* CONDITIONAL DROPDOWNS BASED ON ROLE */}
+              {/* ---------------------------------------------------- */}
+
+              {/* 1. DEAN or SCHOOL OFFICE -> Select School */}
+              {(formData.role === 'dean' || formData.role === 'school_office') && (
                 <div className="relative animate-in slide-in-from-top-2">
                   <Landmark className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
                   <select 
@@ -206,8 +248,8 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 </div>
               )}
 
-              {/* ✅ Staff or Department logic */}
-              {(formData.role === 'staff' || formData.role === 'department') && (
+              {/* 2. ADMIN STAFF -> Select Administrative Dept */}
+              {formData.role === 'staff' && (
                 <div className="relative animate-in slide-in-from-top-2">
                   <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
                   <select 
@@ -215,10 +257,25 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                     value={formData.department_id} onChange={(e) => setFormData({...formData, department_id: e.target.value})}
                   >
                     <option value="">Assign Dept</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name.toUpperCase()}</option>)}
+                    {adminDepartments.map(d => <option key={d.id} value={d.id}>{d.name.toUpperCase()}</option>)}
                   </select>
                 </div>
               )}
+
+              {/* 3. HOD -> Select Academic Dept */}
+              {formData.role === 'hod' && (
+                <div className="relative animate-in slide-in-from-top-2">
+                  <GraduationCap className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+                  <select 
+                    required className="w-full pl-12 pr-5 py-4 bg-emerald-50/30 border border-emerald-100 rounded-2xl text-xs font-black uppercase tracking-tight outline-none"
+                    value={formData.department_id} onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  >
+                    <option value="">Assign Academic Dept</option>
+                    {academicDepartments.map(d => <option key={d.id} value={d.id}>{d.name.toUpperCase()}</option>)}
+                  </select>
+                </div>
+              )}
+
             </div>
 
             <div className="flex gap-4 pt-6">

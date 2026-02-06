@@ -66,6 +66,9 @@ const AccountsDashboard = () => {
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
+                // ✅ Capture Overdue Flags
+                is_overdue: app.is_overdue || false,
+                days_pending: app.days_pending || 0,
             };
           })
         : [];
@@ -163,11 +166,15 @@ const AccountsDashboard = () => {
   const filteredApplications = applications.filter(a => a.match !== false);
   const getStatusCount = (s) => applications.filter(a => a.status.toLowerCase() === s).length;
   
+  // ✅ CALCULATE OVERDUE COUNT
+  const overdueCount = applications.filter(a => a.is_overdue).length;
+
   const stats = { 
     total: applications.length, 
     pending: getStatusCount('pending'), 
     approved: getStatusCount('approved'), 
-    rejected: getStatusCount('rejected') 
+    rejected: getStatusCount('rejected'),
+    overdue: overdueCount // ✅ Pass to Stats
   };
 
   return (
@@ -185,16 +192,20 @@ const AccountsDashboard = () => {
               <p className="text-gray-600 mb-6">Review financial dues and process student fee clearance.</p>
             </motion.div>
 
-            <DashboardStats stats={stats} />
+            <motion.div variants={itemVariants}>
+                <DashboardStats stats={stats} />
+            </motion.div>
 
-            <ApplicationsTable 
-              applications={filteredApplications} 
-              isLoading={isLoading} 
-              isViewLoading={isViewLoading} 
-              onView={handleViewApplication} 
-              onSearch={handleSearch} 
-              onRefresh={fetchApplications}
-            />
+            <motion.div variants={itemVariants} className="w-full">
+                <ApplicationsTable 
+                  applications={filteredApplications} 
+                  isLoading={isLoading} 
+                  isViewLoading={isViewLoading} 
+                  onView={handleViewApplication} 
+                  onSearch={handleSearch} 
+                  onRefresh={fetchApplications}
+                />
+            </motion.div>
 
           </motion.div>
         </main>

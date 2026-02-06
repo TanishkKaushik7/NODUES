@@ -1,14 +1,17 @@
+// src/pages/school/SchoolDashboard.js
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
-// ✅ IMPORT THE CUSTOM API INSTANCE
 import api from '../../api/axios'; 
 
 // Child Components
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
+
+// ❌ REMOVED: OverdueAlertModal import
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -38,20 +41,14 @@ const SchoolDashboard = () => {
     setIsLoading(true);
     try {
       const authToken = localStorage.getItem('token');
-      
-      // ✅ SWITCHED TO API INSTANCE
       const res = await api.get('/api/approvals/pending', {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
 
       const data = res.data;
       
-      // DEBUG: Verify raw response in console if list is unexpectedly empty
-      console.log("School Dashboard Raw Data:", data);
-
       const mappedApplications = Array.isArray(data)
         ? data.map(app => {
-            // Greedy mapping: treat anything actionable as "Pending"
             const rawStatus = (app.status || '').toLowerCase();
             const isFinalized = ['approved', 'rejected', 'completed'].includes(rawStatus);
 
@@ -66,11 +63,15 @@ const SchoolDashboard = () => {
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
+                // ✅ Capture Overdue Flags
+                is_overdue: app.is_overdue || false,
+                days_pending: app.days_pending || 0,
             };
           })
         : [];
 
       setApplications(mappedApplications);
+      // ❌ REMOVED: Popup Logic
     } catch (err) {
       console.error('Failed to fetch school applications:', err);
     } finally {
@@ -82,14 +83,13 @@ const SchoolDashboard = () => {
     fetchApplications(); 
   }, [fetchApplications]);
 
-  // --- 2. Fetch Enriched Details (View Action) ---
+  // --- 2. View Application ---
   const handleViewApplication = async (listApp) => {
     if (!listApp?.id) return;
     setIsViewLoading(true);
     setActionError(''); 
 
     try {
-      // ✅ SWITCHED TO API INSTANCE
       const res = await api.get(`/api/approvals/enriched/${listApp.id}`);
       const details = res.data;
 
@@ -108,7 +108,7 @@ const SchoolDashboard = () => {
 
       setSelectedApplication(enrichedApp);
     } catch (err) {
-      console.error('Failed to fetch school enriched details:', err);
+      console.error('Failed to fetch details:', err);
       setSelectedApplication(listApp);
     } finally {
       setIsViewLoading(false);
@@ -133,15 +133,12 @@ const SchoolDashboard = () => {
     
     setActionLoading(true);
     try {
-      // ✅ SWITCHED TO API INSTANCE
       await api.post(`/api/approvals/${stageId}/${verb}`, { 
         department_id: schoolId || null, 
         remarks: remarksIn || null 
       });
   
-      // ✅ Remove from dashboard list immediately after processing
       setApplications(prev => prev.filter(app => app.id !== application.id));
-      
       setSelectedApplication(null); 
     } catch (err) {
       const msg = err.response?.data?.detail || 'Error processing action';
@@ -162,16 +159,18 @@ const SchoolDashboard = () => {
   const filteredApplications = applications.filter(a => a.match !== false);
   const getStatusCount = (s) => applications.filter(a => a.status.toLowerCase() === s).length;
   
+  // ✅ CALCULATE OVERDUE COUNT
+  const overdueCount = applications.filter(a => a.is_overdue).length;
+
   const stats = { 
     total: applications.length, 
     pending: getStatusCount('pending'), 
     approved: getStatusCount('approved'), 
-    rejected: getStatusCount('rejected') 
+    rejected: getStatusCount('rejected'),
+    overdue: overdueCount // ✅ Pass to Stats Component
   };
 
   return (
-    // ✅ RESPONSIVE FIX: Used 'fixed inset-0' + 'h-[100dvh]'
-    // This locks the entire app to the viewport, forcing the browser to respect the bottom boundary.
     <div className="fixed inset-0 flex bg-gray-100 font-sans overflow-hidden">
       <Sidebar user={user} logout={logout} />
       
@@ -186,7 +185,7 @@ const SchoolDashboard = () => {
             
             <motion.div variants={itemVariants}>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
-                {user?.school_name || 'School'} Dashboard
+                {user?.school_name || 'School'} 
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2 mb-2 sm:mb-4">
                 Review and process pending No-Dues requests for your school.
@@ -194,6 +193,7 @@ const SchoolDashboard = () => {
             </motion.div>
 
             <motion.div variants={itemVariants}>
+                {/* ✅ Pass updated stats with overdue count */}
                 <DashboardStats stats={stats} />
             </motion.div>
 
@@ -222,6 +222,8 @@ const SchoolDashboard = () => {
           userSchoolName={user?.school_name || 'School'}
         />
       )}
+      
+      {/* ❌ REMOVED: OverdueAlertModal Component */}
     </div>
   );
 };

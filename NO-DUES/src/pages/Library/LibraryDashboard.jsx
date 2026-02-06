@@ -6,8 +6,8 @@ import Sidebar from '../../components/common/Sidebar';
 import api from '../../api/axios'; 
 
 // Standardized components across departments
-import DashboardStats from './DashboardStats';
-import ApplicationsTable from './ApplicationsTable';
+import DashboardStats from './DashboardStats'; // Ensure this points to the shared component
+import ApplicationsTable from './ApplicationsTable'; // Ensure this points to the shared/updated table
 import ApplicationActionModal from './ApplicationActionModal';
 
 const containerVariants = {
@@ -66,6 +66,9 @@ const LibraryDashboard = () => {
                 current_location: app.current_location || '',
                 active_stage: app.active_stage || null, 
                 match: true, 
+                // ✅ Capture Overdue Flags
+                is_overdue: app.is_overdue || false,
+                days_pending: app.days_pending || 0,
             };
           })
         : [];
@@ -163,11 +166,15 @@ const LibraryDashboard = () => {
   const filteredApplications = applications.filter(a => a.match !== false);
   const getStatusCount = (s) => applications.filter(a => a.status.toLowerCase() === s).length;
   
+  // ✅ CALCULATE OVERDUE COUNT
+  const overdueCount = applications.filter(a => a.is_overdue).length;
+
   const stats = { 
     total: applications.length, 
     pending: getStatusCount('pending'), 
     approved: getStatusCount('approved'), 
-    rejected: getStatusCount('rejected') 
+    rejected: getStatusCount('rejected'),
+    overdue: overdueCount // ✅ Pass to Stats
   };
 
   return (
@@ -200,12 +207,12 @@ const LibraryDashboard = () => {
 
             <motion.div variants={itemVariants} className="w-full">
                 <ApplicationsTable 
-                applications={filteredApplications} 
-                isLoading={isLoading} 
-                isViewLoading={isViewLoading} 
-                onView={handleViewApplication} 
-                onSearch={handleSearch} 
-                onRefresh={fetchApplications}
+                  applications={filteredApplications} 
+                  isLoading={isLoading} 
+                  isViewLoading={isViewLoading} 
+                  onView={handleViewApplication} 
+                  onSearch={handleSearch} 
+                  onRefresh={fetchApplications}
                 />
             </motion.div>
 

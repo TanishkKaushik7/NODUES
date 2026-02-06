@@ -37,9 +37,11 @@ const StudentDashboard = () => {
     enrollmentNumber: '', rollNumber: '', fullName: '', fatherName: '',
     motherName: '', gender: '', category: '', dob: '', mobile: '',
     email: '', domicile: '', permanentAddress: '', hostelName: '',
-    hostelRoom: '', admissionYear: '', section: '', batch: '',
+    hostelRoom: '', admissionYear: '', section: '', 
+    departmentCode: '', // ✅ ADDED
     admissionType: '', proof_document_url: '', remarks: '', 
     schoolName: '' 
+    // ❌ REMOVED: batch
   });
 
   const [stepStatuses, setStepStatuses] = useState(() =>
@@ -65,7 +67,7 @@ const StudentDashboard = () => {
   const [statusLoading, setStatusLoading] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  /* ---------- 1. DATA MAPPING LOGIC (FIXED) ---------- */
+  /* ---------- 1. DATA MAPPING LOGIC ---------- */
   useEffect(() => {
     if (!user) return;
     const s = user.student ? user.student : user;
@@ -98,10 +100,9 @@ const StudentDashboard = () => {
       hostelRoom: get(s, 'hostel_room', 'hostelRoom'),
       admissionYear: get(s, 'admission_year', 'admissionYear'),
       section: get(s, 'section'),
-      batch: get(s, 'batch'),
+      departmentCode: get(s, 'department_code', 'departmentCode'), // ✅ Mapped
       admissionType: get(s, 'admission_type', 'admissionType'),
       proof_document_url: get(s, 'proof_document_url') || '',
-      // ✅ FIX 1: Robust extraction. Checks flat 'school_name' AND nested 'school.name'
       schoolName: get(s, 'school_name', 'schoolName') || s?.school?.name || '',
       remarks: ''
     };
@@ -125,13 +126,13 @@ const StudentDashboard = () => {
       hostelRoom: get(s, 'hostel_room') !== '',
       admissionYear: get(s, 'admission_year') !== '',
       section: get(s, 'section') !== '',
-      batch: get(s, 'batch') !== '',
+      departmentCode: get(s, 'department_code') !== '',
       admissionType: get(s, 'admission_type') !== '',
       schoolName: (mapped.schoolName !== '') 
     });
   }, [user]);
 
-  /* ---------- 2. FETCH STATUS LOGIC (FIXED) ---------- */
+  /* ---------- 2. FETCH STATUS LOGIC ---------- */
   const fetchApplicationStatus = useCallback(async () => {
     if (!user) return;
     statusMountedRef.current = true;
@@ -142,7 +143,6 @@ const StudentDashboard = () => {
 
       if (!statusMountedRef.current) return;
 
-      // ✅ FIX 2: Update School Name from fresh API data
       if (body?.student) {
         setFormData(prev => ({
             ...prev,
@@ -258,10 +258,13 @@ const StudentDashboard = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
+  // ---------- 4. HANDLE SAVE (FIXED) ----------
+  // Now accepts optional payload from Child Component
+  const handleSave = async (childPayload = null) => {
     setSubmitting(true);
     try {
-      let payload = {
+      // ✅ Use child payload if available, otherwise construct from state (Fallback)
+      let payload = childPayload || {
         proof_document_url: formData.proof_document_url,
         remarks: formData.remarks,
         father_name: formData.fatherName,
@@ -271,8 +274,11 @@ const StudentDashboard = () => {
         dob: formData.dob,
         permanent_address: formData.permanentAddress,
         domicile: formData.domicile || formData.permanentAddress,
+        
         section: formData.section,
-        batch: formData.batch,
+        department_code: formData.departmentCode, // ✅ Correct Key
+        // ❌ No Batch here
+        
         admission_type: formData.admissionType,
         is_hosteller: formData.isHosteller === 'Yes',
         hostel_name: formData.hostelName,
@@ -291,6 +297,7 @@ const StudentDashboard = () => {
       fetchApplicationStatus();
       return true;
     } catch (err) {
+      console.error("Submission Error:", err);
       setSaveMessage(err.response?.data?.detail || err.message);
       return false;
     } finally {
@@ -400,8 +407,6 @@ const StudentDashboard = () => {
               >
                 {active === 'dashboard' && (
                   <Overview 
-                    // ✅ FIX 3: Inject the computed school name into the user object
-                    // This fixes Overview.js if it reads 'user.school_name'
                     user={{ ...user, school_name: formData.schoolName }} 
                     formData={formData} 
                     stepStatuses={stepStatuses} 

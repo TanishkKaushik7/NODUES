@@ -2,22 +2,32 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/common/Sidebar';
-import api from '../../api/axios'; // ✅ Using the centralized API instance
+// ✅ IMPORT THE CUSTOM API INSTANCE
+import api from '../../api/axios'; 
 
+// Standardized components across departments
 import DashboardStats from './DashboardStats';
 import ApplicationsTable from './ApplicationsTable';
 import ApplicationActionModal from './ApplicationActionModal';
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  visible: { opacity: 1, transition: { delayChildren: 0.1, staggerChildren: 0.1 } },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { y: 0, opacity: 1 },
 };
 
 const LabDashboard = () => {
   const { user, logout } = useAuth();
   
+  // State Management
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  
+  // Loading States
   const [isLoading, setIsLoading] = useState(true); 
   const [isViewLoading, setIsViewLoading] = useState(false); 
   const [actionLoading, setActionLoading] = useState(false);
@@ -27,32 +37,42 @@ const LabDashboard = () => {
   const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
-      // ✅ Removed manual headers. Let axios.js handle the token injection.
-      const res = await api.get('/api/approvals/pending');
-
-      // ✅ FIX: FastAPI often returns { applications: [...] } or { data: [...] }
-      const rawData = res.data?.applications || res.data?.data || res.data;
+      const authToken = localStorage.getItem('token');
       
-      if (!Array.isArray(rawData)) {
-        console.warn("API did not return an array. Check backend response structure.");
-        setApplications([]);
-        return;
-      }
+      // ✅ SWITCHED TO API INSTANCE
+      const res = await api.get('/api/approvals/pending', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
 
-      const mappedApplications = rawData.map(app => ({
-        // Ensure 'id' is present for the table key and selection
-        id: app.application_id || app.id, 
-        displayId: app.display_id || '—',
-        rollNo: app.roll_number || '',
-        enrollment: app.enrollment_number || '',
-        name: app.student_name || '',
-        date: app.created_at || '',
-        // Map status logic
-        status: (app.status || 'Pending').toLowerCase().includes('progress') ? 'Pending' : (app.status || 'Pending'),
-        current_location: app.current_location || 'Registry',
-        active_stage: app.active_stage || null, 
-        match: true, 
-      }));
+      // ✅ Handle potential wrapper object { data: [...] } or direct array
+      const rawData = res.data?.data || res.data || [];
+      
+      // DEBUG: View raw response in console if list is empty
+      console.log("Lab Dashboard Raw Data:", rawData);
+
+      const mappedApplications = Array.isArray(rawData)
+        ? rawData.map(app => {
+            // Greedy mapping: treat anything actionable as "Pending"
+            const rawStatus = (app.status || '').toLowerCase();
+            const isFinalized = ['approved', 'rejected', 'completed'].includes(rawStatus);
+
+            return {
+                id: app.application_id || app.id,
+                displayId: app.display_id || '—',
+                rollNo: app.roll_number || '',
+                enrollment: app.enrollment_number || '',
+                name: app.student_name || '',
+                date: app.created_at || '',
+                status: isFinalized ? (app.status || 'Processed') : 'Pending',
+                current_location: app.current_location || '',
+                active_stage: app.active_stage || null, 
+                match: true, 
+                // ✅ Capture Overdue Flags
+                is_overdue: app.is_overdue || false,
+                days_pending: app.days_pending || 0,
+            };
+          })
+        : [];
 
       setApplications(mappedApplications);
     } catch (err) {
@@ -68,7 +88,6 @@ const LabDashboard = () => {
 
   // --- 2. Fetch Detailed Application Info ---
   const handleViewApplication = async (listApp) => {
-    // Check both id possibilities
     const targetId = listApp.id || listApp.application_id;
     if (!targetId) return;
 
@@ -76,10 +95,10 @@ const LabDashboard = () => {
     setActionError(''); 
 
     try {
+      // ✅ SWITCHED TO API INSTANCE
       const res = await api.get(`/api/approvals/enriched/${targetId}`);
       const details = res.data;
 
-      // Unify the object structure
       const enrichedApp = {
         ...details,
         id: details.application_id || targetId,
@@ -96,7 +115,6 @@ const LabDashboard = () => {
       setSelectedApplication(enrichedApp);
     } catch (err) {
       console.error('Failed to fetch enriched details:', err);
-      // Fallback to list data if enrichment fails
       setSelectedApplication(listApp);
     } finally {
       setIsViewLoading(false);
@@ -126,11 +144,8 @@ const LabDashboard = () => {
         remarks: remarksIn || null 
       });
 
-      // Update local state to show change immediately
-      const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-      setApplications(prev => prev.map(app =>
-        app.id === application.id ? { ...app, status: newStatus } : app
-      ));
+      // ✅ Remove from dashboard list immediately after processing
+      setApplications(prev => prev.filter(app => app.id !== application.id));
       
       setSelectedApplication(null); 
     } catch (err) {
@@ -141,6 +156,7 @@ const LabDashboard = () => {
     }
   };
 
+  // --- Search Logic ---
   const handleSearch = (e) => {
     const q = e.target.value.toLowerCase();
     setApplications(prev => prev.map(a => ({
@@ -151,39 +167,64 @@ const LabDashboard = () => {
 
   const filteredApplications = applications.filter(a => a.match !== false);
   
+  // Helper for Status Counts
+  const getStatusCount = (s) => {
+      if (s === 'pending') return applications.filter(a => a.status.toLowerCase().includes('pending')).length;
+      if (s === 'approved') return applications.filter(a => a.status.toLowerCase().includes('approved') || a.status.toLowerCase().includes('cleared')).length;
+      if (s === 'rejected') return applications.filter(a => a.status.toLowerCase().includes('reject')).length;
+      return 0;
+  };
+
+  // ✅ CALCULATE OVERDUE COUNT
+  const overdueCount = applications.filter(a => a.is_overdue).length;
+
   const stats = { 
     total: applications.length, 
-    pending: applications.filter(a => a.status.toLowerCase().includes('pending')).length, 
-    approved: applications.filter(a => a.status.toLowerCase().includes('approve')).length, 
-    rejected: applications.filter(a => a.status.toLowerCase().includes('reject')).length 
+    pending: getStatusCount('pending'), 
+    approved: getStatusCount('approved'), 
+    rejected: getStatusCount('rejected'),
+    overdue: overdueCount // ✅ Pass to Stats
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans">
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar user={user} logout={logout} />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6">
-          <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            <div className="mb-8">
-              <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* ✅ RESPONSIVE FIX: Added pt-16 on mobile for hamburger clearance, overflow-x-hidden */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-16 sm:p-6 lg:p-8">
+          <motion.div 
+            initial="hidden" 
+            animate="visible" 
+            variants={containerVariants}
+            className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-6"
+          >
+            
+            <motion.div variants={itemVariants}>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
                 {user?.department_name || 'Laboratory Registry'} 
               </h1>
-              <p className="text-slate-500 font-medium uppercase tracking-widest text-[11px] mt-1">
+              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2 mb-2 sm:mb-4">
                 Registry Management & Clearance Processing
               </p>
-            </div>
+            </motion.div>
 
-            <DashboardStats stats={stats} />
+            <motion.div variants={itemVariants}>
+                <DashboardStats stats={stats} />
+            </motion.div>
 
-            <ApplicationsTable 
-              applications={filteredApplications} 
-              isLoading={isLoading} 
-              isViewLoading={isViewLoading} 
-              onView={handleViewApplication} 
-              onSearch={handleSearch} 
-              onRefresh={fetchApplications}
-            />
+            <motion.div variants={itemVariants} className="w-full">
+                <ApplicationsTable 
+                  applications={filteredApplications} 
+                  isLoading={isLoading} 
+                  isViewLoading={isViewLoading} 
+                  onView={handleViewApplication} 
+                  onSearch={handleSearch} 
+                  onRefresh={fetchApplications}
+                />
+            </motion.div>
+
           </motion.div>
         </main>
       </div>

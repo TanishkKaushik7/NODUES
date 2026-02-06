@@ -2,16 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, 
-  FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin 
+  FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin,
+  FiMessageSquare, FiAlertCircle 
 } from 'react-icons/fi';
 
 const renderStatusBadge = (status) => {
   const s = (status || 'Pending').toString();
   const key = s.toLowerCase().replace(/[\s-]/g, '');
-  
+   
   const styles = {
     cleared: "bg-green-100 text-green-800",
     approved: "bg-green-100 text-green-800",
+    completed: "bg-green-100 text-green-800",
     pending: "bg-yellow-100 text-yellow-800",
     inprogress: "bg-yellow-100 text-yellow-800",
     in_progress: "bg-yellow-100 text-yellow-800",
@@ -55,12 +57,33 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const name = application.student_name || application.name;
   const rollNo = application.roll_number || application.rollNo;
   const enrollment = application.enrollment_number || application.enrollment;
+  
+  // ✅ LOGIC: Determine Department Name
+  // Priority: 1. Dept Name from DB (CSE), 2. School Name (SOICT)
+  let departmentDisplay = '—';
+  if (application.department_name) {
+      departmentDisplay = application.department_name;
+      if (application.department_code) {
+          departmentDisplay += ` (${application.department_code})`;
+      }
+  } else if (application.school_name) {
+      departmentDisplay = application.school_name;
+  } else if (userSchoolName) {
+      departmentDisplay = userSchoolName;
+  }
 
   const statusKey = (application.status || '').toLowerCase().replace(/[\s-]/g, '');
-  const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && application.active_stage?.stage_id;
+  
+  const hasActiveStage = application.active_stage?.id || application.active_stage?.stage_id;
+  const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && hasActiveStage;
+
+  const activeComments = application.active_stage?.comments || "";
+  const resubmissionPrefix = "Resubmission:";
+  const studentNote = activeComments.includes(resubmissionPrefix) 
+    ? activeComments.split(resubmissionPrefix)[1].trim() 
+    : null;
 
   return (
-    // ✅ RESPONSIVE FIX: Added p-4 to container to ensure modal doesn't touch screen edges on mobile
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
         ref={popupRef}
@@ -70,7 +93,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* Modal Header */}
-        {/* ✅ RESPONSIVE FIX: Adjusted padding (p-4 sm:p-6) */}
         <div className="flex items-start justify-between p-4 sm:p-6 border-b bg-gray-50 sticky top-0 z-10">
           <div className="flex flex-col gap-1 pr-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
@@ -89,7 +111,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
         </div>
 
         {/* Content Body */}
-        {/* ✅ RESPONSIVE FIX: Adjusted padding (p-4 sm:p-6 md:p-8) for better mobile fit */}
         <div className="p-4 sm:p-6 md:p-8 overflow-y-auto space-y-6 sm:space-y-10">
           
           {/* Section 1: Personal Info */}
@@ -97,7 +118,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b pb-2">
               <FiUser /> Personal Information
             </h3>
-            {/* ✅ RESPONSIVE FIX: Stacks on mobile, 2 cols on tablet, 3 on desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               <div><label className="text-xs text-gray-400 block mb-1 uppercase">Full Name</label><p className="font-semibold text-gray-800">{name}</p></div>
               <div><label className="text-xs text-gray-400 block mb-1 uppercase">Email Address</label><p className="font-medium text-gray-700 break-all">{email || '—'}</p></div>
@@ -118,13 +138,17 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b pb-2">
                 <FiBook /> Academic Profile
               </h3>
-              {/* ✅ RESPONSIVE FIX: grid-cols-1 on mobile to prevent squashed text */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Roll Number</label><p className="font-bold text-gray-800">{rollNo}</p></div>
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Enrollment</label><p className="font-medium text-gray-700">{enrollment}</p></div>
-                <div className="sm:col-span-2"><label className="text-xs text-gray-400 block mb-1 uppercase">Department</label><p className="font-medium text-gray-700">{application.school_name || userSchoolName}</p></div>
+                
+                {/* ✅ DEPARTMENT FIELD */}
+                <div className="sm:col-span-2">
+                    <label className="text-xs text-gray-400 block mb-1 uppercase">Department</label>
+                    <p className="font-medium text-gray-800">{departmentDisplay}</p>
+                </div>
+
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Admission Year</label><p className="font-medium text-gray-700">{application.admission_year || '—'}</p></div>
-                <div><label className="text-xs text-gray-400 block mb-1 uppercase">Batch</label><p className="font-medium text-gray-700">{application.batch || '—'}</p></div>
               </div>
             </section>
 
@@ -148,7 +172,26 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             </section>
           </div>
 
-          {/* Section 3: Action Area */}
+          {/* Student Note */}
+          {studentNote && (
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+                <div className="flex items-start gap-3">
+                    <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
+                        <FiMessageSquare size={18} />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1">
+                            Student Correction Note
+                        </h4>
+                        <p className="text-sm text-amber-800 font-medium leading-relaxed italic">
+                            "{studentNote}"
+                        </p>
+                    </div>
+                </div>
+            </div>
+          )}
+
+          {/* Action Area */}
           {isActionable ? (
             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -168,7 +211,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
                   {actionError && <p className="text-red-500 text-xs mt-2 font-medium flex items-center gap-1"><FiXCircle /> {actionError}</p>}
                 </div>
 
-                {/* ✅ RESPONSIVE FIX: Stack buttons vertically on mobile */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button
                     disabled={actionLoading}
@@ -197,7 +239,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
         </div>
 
         {/* Modal Footer */}
-        {/* ✅ RESPONSIVE FIX: Reverse column layout on mobile to stack buttons (Close at bottom) */}
         <div className="p-4 sm:p-6 border-t bg-gray-50 flex flex-col-reverse sm:flex-row justify-between items-center gap-3 sm:gap-0 sticky bottom-0 z-10">
           <button onClick={onClose} className="text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors uppercase w-full sm:w-auto text-center py-2 sm:py-0">
             Close Panel

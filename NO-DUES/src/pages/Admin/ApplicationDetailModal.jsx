@@ -116,7 +116,20 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
                   <div className="absolute left-[27px] top-0 bottom-0 w-0.5 bg-slate-100" />
                   <div className="space-y-8">
                     {stages.map((stage) => {
-                      const isAccounts = ['accounts', 'account'].includes(stage.department_name?.toLowerCase());
+                      
+                      // ✅ LOGIC: Smart Labeling for Stages
+                      let displayRole = stage.role;
+                      let displayDept = stage.department_name;
+
+                      // Fix naming for School Office (Sequence 3) if generic
+                      if (stage.sequence === 3 && stage.role === 'staff') {
+                          displayRole = "School Office";
+                          if (displayDept === 'Staff') displayDept = "Dean's Office";
+                      }
+                      if (stage.role === 'hod') displayRole = "Head of Department";
+
+                      // ✅ Detect Accounts (Sequence 5 or Name Match)
+                      const isAccounts = stage.sequence === 5 || ['accounts', 'account', 'finance'].includes(displayDept?.toLowerCase());
 
                       return (
                         <div key={stage.stage_id} className="relative pl-16 group">
@@ -132,33 +145,42 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                               <div>
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
-                                  Stage {stage.sequence} • {stage.department_name}
+                                  Stage {stage.sequence} • {displayDept}
                                 </div>
-                                <h4 className="font-black text-slate-800 text-lg tracking-tight uppercase">{stage.role}</h4>
+                                <h4 className="font-black text-slate-800 text-lg tracking-tight uppercase">{displayRole}</h4>
                               </div>
 
                               <div className="flex gap-2 shrink-0">
-                                {/* ✅ LOGIC UPDATE: Disable if isAccounts OR if the entire application is already complete */}
-                                {(!isAccounts && !isApplicationComplete) ? (
-                                  <>
-                                    <button 
-                                      disabled={isSystemLocked || stage.status === 'approved'}
-                                      onClick={() => handleAdminOverride(stage.stage_id, 'approve')}
-                                      className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 disabled:opacity-20 transition-all"
-                                    >
-                                      {processingId === stage.stage_id ? <Loader2 className="animate-spin" size={14} /> : 'Approve'}
-                                    </button>
-                                    <button 
-                                      disabled={isSystemLocked || stage.status === 'rejected'}
-                                      onClick={() => setStageToReject(stage)}
-                                      className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 disabled:opacity-20 transition-all"
-                                    >
-                                      Reject
-                                    </button>
-                                  </>
+                                {/* Action Buttons Area */}
+                                {!isApplicationComplete ? (
+                                  isAccounts ? (
+                                    /* ⛔ RESTRICTED FOR ACCOUNTS */
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[9px] font-black uppercase border border-amber-100 cursor-not-allowed" title="Admin cannot override Accounts stage">
+                                      <Lock size={12} /> Finance Locked
+                                    </div>
+                                  ) : (
+                                    /* ✅ STANDARD ADMIN OVERRIDE BUTTONS */
+                                    <>
+                                      <button 
+                                        disabled={isSystemLocked || stage.status === 'approved'}
+                                        onClick={() => handleAdminOverride(stage.stage_id, 'approve')}
+                                        className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 disabled:opacity-20 transition-all flex items-center gap-2"
+                                      >
+                                        {processingId === stage.stage_id ? <Loader2 className="animate-spin" size={14} /> : 'Approve'}
+                                      </button>
+                                      <button 
+                                        disabled={isSystemLocked || stage.status === 'rejected'}
+                                        onClick={() => setStageToReject({...stage, department_name: displayDept})}
+                                        className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 disabled:opacity-20 transition-all"
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  )
                                 ) : (
+                                  /* 🔒 ARCHIVED BADGE */
                                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase border border-slate-100">
-                                    <Lock size={12} /> {isApplicationComplete ? 'Clearance Locked' : 'Override Locked'}
+                                    <Lock size={12} /> Archived
                                   </div>
                                 )}
                               </div>
@@ -187,9 +209,9 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
       )}
 
       <RejectionModal 
-        isOpen={!!stageToReject}
-        onClose={() => setStageToReject(null)}
-        studentName={`${stageToReject?.department_name} Stage`}
+        isOpen={!!stageToReject} 
+        onClose={() => setStageToReject(null)} 
+        studentName={`${stageToReject?.department_name} Stage`} 
         isLoading={isSystemLocked}
         onConfirm={(remarks) => handleAdminOverride(stageToReject.stage_id, 'reject', remarks)}
       />

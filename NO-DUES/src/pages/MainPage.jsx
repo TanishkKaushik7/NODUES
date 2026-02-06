@@ -142,7 +142,7 @@ export default function MainPage() {
             <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 w-fit mb-6">
               <User className="w-8 h-8 text-cyan-400" />
             </div>
-            <h3 className="text-4xl font-black text-white mb-2">Student Portal</h3>
+            <h3 className="text-4xl font-black text-white mb-2">Student Panel</h3>
             <div className="flex flex-wrap gap-2 mb-8">
               <FeatureBadge icon={Zap} text="Instant Upload" />
               <FeatureBadge icon={Shield} text="Secure" />
@@ -166,7 +166,7 @@ export default function MainPage() {
             <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 w-fit mb-6">
               <Building className="w-8 h-8 text-purple-400" />
             </div>
-            <h3 className="text-4xl font-black text-white mb-2">Authority Portal</h3>
+            <h3 className="text-4xl font-black text-white mb-2">Admin Panel</h3>
             <div className="flex flex-wrap gap-2 mb-8">
               <FeatureBadge icon={Shield} text="Encrypted" />
               <FeatureBadge icon={Users} text="Multi-Role" />

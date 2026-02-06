@@ -10,7 +10,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // --- INTEGRATED UI COMPONENTS ---
-
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
@@ -18,7 +17,6 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
     <input
       type={type}
       className={cn(
-        // Responsive text size: text-base on mobile (prevents iOS zoom), text-sm on desktop
         "flex h-10 w-full rounded-md border border-gray-200 bg-background px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
@@ -55,7 +53,6 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
 Button.displayName = "Button";
 
 // --- MAIN LOGIN SCREEN ---
-
 const LoginScreen = ({ 
   universityName = "Gautam Buddha University",
   systemName = "NoDues Management System"
@@ -63,12 +60,9 @@ const LoginScreen = ({
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaHash, setCaptchaHash] = useState(''); 
-  
   const [showPassword, setShowPassword] = useState(false);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
   const [captchaImage, setCaptchaImage] = useState(null);
   const [captchaLoading, setCaptchaLoading] = useState(true);
 
@@ -100,6 +94,7 @@ const LoginScreen = ({
     setCredentials(prev => ({ ...prev, [name]: value }));
   };
 
+  // --- UPDATED HANDLESUBMIT WITH DEPARTMENT ROUTING ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -116,27 +111,56 @@ const LoginScreen = ({
 
       if (user) {
         const rawRole = (user.role || "").toLowerCase().trim();
+        const deptId = user.department_id ? parseInt(user.department_id) : null;
+        const userName = (user.name || "").toLowerCase();
         
-       const roleMap = {
+        // 1. Primary Role Mapping
+        const roleMap = {
           'admin': '/admin/dashboard',
           'super_admin': '/admin/dashboard',
-          'library': '/library/dashboard',
-          'sports': '/sports/dashboard',
-          'hostel': '/hostels/dashboard',
-          'hostels': '/hostels/dashboard',
-          'dean': '/school/dashboard',
-          'school': '/school/dashboard',
-          'accounts': '/accounts/dashboard',
-          'account': '/accounts/dashboard',
-          'laboratories': '/laboratories/dashboard',
-          'laboratory': '/laboratories/dashboard',
-          'lab': '/laboratories/dashboard',
-          'crc': '/crc/dashboard'
+          'hod': '/hod/dashboard',
+          'dean': '/school/dashboard', 
+          'student': '/student/dashboard'
         };
 
-        const targetPath = roleMap[rawRole] || `/${rawRole}/dashboard`;
+        let targetPath = roleMap[rawRole];
+
+        // 2. Specialized Logic for "staff" role based on Department ID
+        if (rawRole === 'staff') {
+          switch (deptId) {
+            case 14: // University Library
+              targetPath = '/library/dashboard';
+              break;
+            case 15: // Hostel Administration
+              targetPath = '/hostels/dashboard';
+              break;
+            case 16: // Sports Department
+              targetPath = '/sports/dashboard';
+              break;
+            case 17: // Laboratories
+              targetPath = '/laboratories/dashboard';
+              break;
+            case 18: // Corporate Relations Cell (CRC)
+              targetPath = '/crc/dashboard';
+              break;
+            case 19: // Finance & Accounts
+              targetPath = '/accounts/dashboard';
+              break;
+            default:
+              // Fallback: If it's a School Office (like SOICT Office)
+              if (userName.includes('office')) {
+                targetPath = '/office/dashboard';
+              } else {
+                // Default fallback for any other staff to School Dashboard
+                targetPath = '/school/dashboard';
+              }
+          }
+        }
+
+        // 3. Final Fallback
+        const finalPath = targetPath || `/${rawRole}/dashboard`;
         
-        setTimeout(() => navigate(targetPath, { replace: true }), 100);
+        setTimeout(() => navigate(finalPath, { replace: true }), 100);
       }
     } catch (err) {
       setError(err.message || 'Access Denied.');
@@ -150,33 +174,29 @@ const LoginScreen = ({
   const labelStyle = "text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-1 block";
 
   return (
-    // ✅ RESPONSIVE FIX: Changed h-screen to min-h-screen to allow scrolling on mobile
-    // ✅ RESPONSIVE FIX: Added padding (p-4 sm:p-6)
     <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-4 sm:p-6 font-sans relative">
-      {/* Background Decor */}
+      {/* Background Blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-blue-50/50 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-indigo-50/50 rounded-full blur-[120px]" />
       </div>
 
+      {/* Back Button */}
       <button 
         onClick={() => navigate('/', { replace: true })} 
-        // ✅ RESPONSIVE FIX: Adjusted positioning for mobile
         className="absolute top-4 left-4 sm:top-8 sm:left-8 p-3 bg-white rounded-2xl shadow-xl hover:bg-slate-50 transition-all active:scale-95 z-50 border border-slate-100"
       >
         <FiArrowLeft className="text-slate-700" size={20} />
       </button>
 
-      {/* ✅ RESPONSIVE FIX: Changed to grid-cols-1 on mobile, 10 on large screens */}
-      {/* ✅ RESPONSIVE FIX: Added my-8 on mobile to prevent touching edges */}
+      {/* Login Card */}
       <div className="w-full max-w-[400px] lg:max-w-4xl grid grid-cols-1 lg:grid-cols-10 bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl shadow-blue-900/10 border border-slate-100 overflow-hidden relative z-10 my-12 lg:my-0">
         
-        {/* Left Side: Institutional Branding - ✅ RESPONSIVE FIX: Stacks on mobile */}
+        {/* Sidebar branding */}
         <div className="lg:col-span-4 bg-slate-900 p-8 sm:p-10 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
-          
           <div className="relative z-10">
             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 shadow-xl shadow-blue-500/20">
               <FiShield size={24} className="sm:w-7 sm:h-7" />
@@ -189,7 +209,7 @@ const LoginScreen = ({
           </div>
         </div>
 
-        {/* Right Side: Form Content */}
+        {/* Form Content */}
         <div className="lg:col-span-6 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-white">
           <div className="w-full">
             <div className="mb-6 sm:mb-8">
@@ -216,7 +236,6 @@ const LoginScreen = ({
                     value={credentials.email}
                     onChange={handleChange}
                     placeholder="Enter Your Email"
-                    // ✅ RESPONSIVE FIX: text-base on mobile
                     className="pl-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-base md:text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
@@ -233,11 +252,9 @@ const LoginScreen = ({
                     value={credentials.password}
                     onChange={handleChange}
                     placeholder="Enter Your Password"
-                    // ✅ RESPONSIVE FIX: text-base on mobile
                     className="pl-12 pr-12 h-12 bg-slate-50 border-slate-200 rounded-xl text-base md:text-sm font-bold focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 transition-all w-full"
                     required
                   />
-                  
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -248,6 +265,7 @@ const LoginScreen = ({
                 </div>
               </div>
 
+              {/* Security Check */}
               <div className="space-y-1 pt-2 border-t border-slate-50">
                 <div className="flex justify-between items-center mb-2">
                   <label className={labelStyle}>Security Check</label>

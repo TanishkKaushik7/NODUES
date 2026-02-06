@@ -9,13 +9,13 @@ import ApplicationDetailModal from './ApplicationDetailModal';
 
 const ApplicationManagement = () => {
   const { authFetch } = useAuth();
-  const [applications, setApplications] = useState([]);
+  const [applications, setApplications] = useState([]); // Initialize as empty array
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
-  const [stageFilter, setStageFilter] = useState('all'); // New Stage Filter
+  const [stageFilter, setStageFilter] = useState('all');
 
   // Selection & Bulk Actions
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -27,13 +27,29 @@ const ApplicationManagement = () => {
     try {
       if (!isSilent) setLoading(true);
       const res = await authFetch('/api/approvals/all'); 
+      
       if (res.ok) {
         const data = await res.json();
-        setApplications(data);
+        
+        // --- FIX: Validation to ensure data is an array ---
+        if (Array.isArray(data)) {
+            setApplications(data);
+        } else if (data && Array.isArray(data.data)) {
+            // Handle case where API returns { data: [...] }
+            setApplications(data.data);
+        } else {
+            console.error("API returned non-array format:", data);
+            setApplications([]); // Fallback to empty array to prevent crash
+        }
+        
         setSelectedIds(new Set()); // Reset selection on refresh
+      } else {
+        console.error("API Response not OK");
+        setApplications([]);
       }
     } catch (error) {
       console.error("Fetch error:", error);
+      setApplications([]);
     } finally {
       setLoading(false);
     }
@@ -44,15 +60,18 @@ const ApplicationManagement = () => {
   }, [authFetch]);
 
   // --- FILTERING LOGIC ---
-  const filteredApps = applications.filter(app => {
+  // --- FIX: Added specific check (applications || []) to prevent .filter crash
+  const filteredApps = (applications || []).filter(app => {
+    if (!app) return false; // Safety check for individual items
+
     const matchesSearch = 
-      app.display_id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      app.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.roll_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      (app.display_id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (app.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (app.roll_number || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Stage Filtering based on Sequence Order (Diagram B Logic)
+    // Stage Filtering based on Sequence Order
     let matchesStage = true;
     if (stageFilter !== 'all') {
         const seq = app.active_stage?.sequence_order;
@@ -88,7 +107,9 @@ const ApplicationManagement = () => {
     if (!window.confirm(`Are you sure you want to ${action.toUpperCase()} ${selectedIds.size} applications?`)) return;
 
     setBulkProcessing(true);
-    const selectedAppsList = applications.filter(app => selectedIds.has(app.application_id));
+    // Safety check here as well
+    const safeApps = Array.isArray(applications) ? applications : [];
+    const selectedAppsList = safeApps.filter(app => selectedIds.has(app.application_id));
     
     // Process sequentially to avoid backend race conditions
     for (const app of selectedAppsList) {
@@ -261,7 +282,7 @@ const ApplicationManagement = () => {
                     <td className="px-6 py-7">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center font-black text-white text-lg group-hover:bg-blue-600 transition-all duration-300">
-                          {app.student_name?.[0]}
+                          {app.student_name?.[0] || '?'}
                         </div>
                         <div>
                           <div className="font-bold text-slate-800 tracking-tight text-base">{app.student_name}</div>
@@ -281,7 +302,7 @@ const ApplicationManagement = () => {
                         app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
                         'bg-blue-50 text-blue-700 border-blue-100'
                       }`}>
-                        {app.status.replace('_', ' ')}
+                        {(app.status || 'unknown').replace('_', ' ')}
                       </span>
                     </td>
                     <td className="px-6 py-7 text-right">

@@ -68,8 +68,6 @@ const StudentRegister = () => {
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState({});
 
-  // ⚠️ WARNING: Ensure these IDs match your Database 'schools' table exactly.
-  // Ideally, fetch this list from the backend: GET /api/utils/schools
   const schoolOptions = [
     { id: 1, name: 'School of ICT', code: 'SOICT' },
     { id: 2, name: 'School of Engineering', code: 'SOE' },
@@ -81,7 +79,6 @@ const StudentRegister = () => {
     { id: 8, name: 'School of Architecture', code: 'SOAP' },
   ];
 
-  // Fetch Captcha on Mount
   const fetchCaptcha = async () => {
     setCaptchaLoading(true);
     try {
@@ -105,12 +102,10 @@ const StudentRegister = () => {
     fetchCaptcha();
   }, []);
 
-  // Handle Input Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     let val = value;
 
-    // Filter numbers only for specific fields
     if (name === 'enrollmentNumber' || name === 'mobileNumber') {
       val = value.replace(/\D/g, '').slice(0, name === 'mobileNumber' ? 10 : 15);
     }
@@ -119,7 +114,6 @@ const StudentRegister = () => {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Validation Logic
   const validate = () => {
     const err = {};
     if (!form.enrollmentNumber) err.enrollmentNumber = 'Required';
@@ -134,7 +128,6 @@ const StudentRegister = () => {
     return err;
   };
 
-  // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
@@ -163,7 +156,6 @@ const StudentRegister = () => {
 
     } catch (err) {
       console.error("Registration Error:", err);
-      // Ensure we extract the error string safely
       const errorMsg = err.response?.data?.detail || err.message || 'Registration failed.';
       setMessage(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
       
@@ -196,17 +188,28 @@ const StudentRegister = () => {
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-[2rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden relative z-10 my-8 lg:my-0">
         
         {/* Left Side (Branding) */}
-        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] lg:min-h-auto">
+        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden min-h-[300px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
           <div className="relative z-10">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
-              <FiShield size={24} />
+            {/* Added Circular Logo from Public Folder */}
+            <div className="mb-8">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 shadow-2xl shadow-blue-500/20">
+                <img 
+                  src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
+                  alt="GBU Logo" 
+                  className="w-full h-full object-contain rounded-full"
+                />
+              </div>
             </div>
-            <h1 className="text-2xl font-black leading-tight tracking-tight uppercase">Gautam Buddha <br /> University</h1>
+            
+            <h1 className="text-2xl font-black leading-tight tracking-tight uppercase">
+              Gautam Buddha <br /> University
+            </h1>
             <p className="text-slate-400 text-xs mt-4 font-medium uppercase tracking-[0.2em]">Student Registry</p>
           </div>
+          
         </div>
 
         {/* Right Side (Form) */}
@@ -396,7 +399,6 @@ const StudentRegister = () => {
         </div>
       </div>
       
-      {/* ✅ Fixed: Standard Style Tag */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

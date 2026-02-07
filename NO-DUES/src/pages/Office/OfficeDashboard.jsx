@@ -33,7 +33,7 @@ const OfficeDashboard = () => {
 
   // Determine the Display Title (e.g., SOICT Office)
   const officeTitle = user?.school_name 
-    ? `${user.school_name} Office` 
+    ? `${user.school_name}` 
     : (user?.name || 'Registrar Office');
 
   // --- 1. Fetch Office-Specific Pending Applications ---

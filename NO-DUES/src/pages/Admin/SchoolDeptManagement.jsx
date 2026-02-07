@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import CreateSchoolModal from './CreateSchoolModal';
 import CreateDepartmentModal from './CreateDepartmentModal';
-import DeleteStructureModal from './DeleteStructureModal'; // ✅ Import the new modal
+import DeleteStructureModal from './DeleteStructureModal';
 
 const SchoolDeptManagement = () => {
   const { authFetch } = useAuth();
@@ -25,7 +25,7 @@ const SchoolDeptManagement = () => {
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
   
-  // ✅ New Deletion State
+  // Deletion State
   const [deleteConfig, setDeleteConfig] = useState({ 
     isOpen: false, 
     id: null, 
@@ -34,7 +34,7 @@ const SchoolDeptManagement = () => {
   });
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
-  // ✅ Fetch University Structure
+  // Fetch University Structure
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -69,12 +69,10 @@ const SchoolDeptManagement = () => {
     setExpandedSchool(expandedSchool === id ? null : id);
   };
 
-  // ✅ Initiate Deletion Flow
   const initiateDelete = (id, name, type) => {
     setDeleteConfig({ isOpen: true, id, name, type });
   };
 
-  // ✅ Handle Confirmed Deletion
   const handleConfirmedDelete = async () => {
     setIsDeleteLoading(true);
     try {
@@ -166,7 +164,7 @@ const SchoolDeptManagement = () => {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-8 items-start">
         {/* Left Column: Academic Schools (2/3 width) */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-100">
@@ -204,7 +202,7 @@ const SchoolDeptManagement = () => {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                        <button 
-                         onClick={(e) => { e.stopPropagation(); /* Logic to edit */ }}
+                         onClick={(e) => { e.stopPropagation(); }}
                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                        >
                          <Edit2 className="h-4 w-4" />
@@ -228,8 +226,8 @@ const SchoolDeptManagement = () => {
         </div>
 
         {/* Right Column: Central Authorities (1/3 width) */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-100">
+        <div className="space-y-4 flex flex-col h-full">
+          <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-100 shrink-0">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-emerald-600" />
               <h2 className="font-bold text-slate-800 uppercase text-xs tracking-widest">Central Departments</h2>
@@ -237,35 +235,43 @@ const SchoolDeptManagement = () => {
             <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filteredCentralDepts.length}</span>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-50">
-            {filteredCentralDepts.map((dept) => (
-              <div key={dept.id} className="p-4 flex items-center justify-between group hover:bg-slate-50 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs border border-emerald-100 shadow-sm">
-                    {dept.id}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800 leading-none">{dept.name}</h4>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-[8px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                        Phase {dept.phase_number}
-                      </span>
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[600px]">
+            <div className="overflow-y-auto custom-scrollbar divide-y divide-slate-50">
+              {filteredCentralDepts.length > 0 ? (
+                filteredCentralDepts.map((dept) => (
+                  <div key={dept.id} className="p-4 flex items-center justify-between group hover:bg-slate-50 transition-all">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs border border-emerald-100 shadow-sm shrink-0">
+                        {dept.id}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-slate-800 leading-none truncate">{dept.name}</h4>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="text-[8px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0">
+                            Phase {dept.phase_number}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center shrink-0">
+                      <button 
+                        onClick={() => initiateDelete(dept.id, dept.name, 'dept')}
+                        className="p-2 text-slate-300 hover:text-red-600 transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button className="p-2 text-slate-300 hover:text-slate-900 transition-all">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-10 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">
+                  No Departments Found
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                  <button 
-                    onClick={() => initiateDelete(dept.id, dept.name, 'dept')}
-                    className="p-2 text-slate-300 hover:text-red-600 transition-all"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <button className="p-2 text-slate-300 hover:text-slate-900 transition-all">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -282,7 +288,6 @@ const SchoolDeptManagement = () => {
         onSuccess={fetchData} 
       />
       
-      {/* ✅ New Delete Structure Modal */}
       <DeleteStructureModal 
         isOpen={deleteConfig.isOpen}
         onClose={() => setDeleteConfig({ ...deleteConfig, isOpen: false })}

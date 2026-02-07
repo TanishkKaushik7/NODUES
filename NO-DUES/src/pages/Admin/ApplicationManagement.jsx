@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, RefreshCw, Loader2, FileText, MapPin, 
-  Settings2, Filter, ArrowRight, CheckSquare, Square,
-  CheckCircle2, XCircle, Shield
+  Search, RefreshCw, Loader2, MapPin, 
+  Settings2, Filter
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import ApplicationDetailModal from './ApplicationDetailModal';
+import ApplicationDetailModal from './ApplicationsDetailModal';
 
 const ApplicationManagement = () => {
   const { authFetch } = useAuth();
-  const [applications, setApplications] = useState([]); // Initialize as empty array
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
-
-  // Selection & Bulk Actions
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const [selectedApp, setSelectedApp] = useState(null);
 
@@ -31,20 +26,14 @@ const ApplicationManagement = () => {
       if (res.ok) {
         const data = await res.json();
         
-        // --- FIX: Validation to ensure data is an array ---
         if (Array.isArray(data)) {
             setApplications(data);
         } else if (data && Array.isArray(data.data)) {
-            // Handle case where API returns { data: [...] }
             setApplications(data.data);
         } else {
-            console.error("API returned non-array format:", data);
-            setApplications([]); // Fallback to empty array to prevent crash
+            setApplications([]); 
         }
-        
-        setSelectedIds(new Set()); // Reset selection on refresh
       } else {
-        console.error("API Response not OK");
         setApplications([]);
       }
     } catch (error) {
@@ -59,10 +48,9 @@ const ApplicationManagement = () => {
     fetchApplications();
   }, [authFetch]);
 
-  // --- FILTERING LOGIC ---
-  // --- FIX: Added specific check (applications || []) to prevent .filter crash
+  // Filtering Logic
   const filteredApps = (applications || []).filter(app => {
-    if (!app) return false; // Safety check for individual items
+    if (!app) return false;
 
     const matchesSearch = 
       (app.display_id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -71,7 +59,6 @@ const ApplicationManagement = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Stage Filtering based on Sequence Order
     let matchesStage = true;
     if (stageFilter !== 'all') {
         const seq = app.active_stage?.sequence_order;
@@ -85,59 +72,8 @@ const ApplicationManagement = () => {
     return matchesSearch && matchesStatus && matchesStage;
   });
 
-  // --- BULK SELECTION HANDLERS ---
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredApps.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredApps.map(app => app.application_id)));
-    }
-  };
-
-  const toggleSelect = (id) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
-  };
-
-  // --- BULK ACTION HANDLER ---
-  const handleBulkAction = async (action) => {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`Are you sure you want to ${action.toUpperCase()} ${selectedIds.size} applications?`)) return;
-
-    setBulkProcessing(true);
-    // Safety check here as well
-    const safeApps = Array.isArray(applications) ? applications : [];
-    const selectedAppsList = safeApps.filter(app => selectedIds.has(app.application_id));
-    
-    // Process sequentially to avoid backend race conditions
-    for (const app of selectedAppsList) {
-        if (!app.active_stage?.stage_id) continue;
-        
-        try {
-            await authFetch('/api/approvals/admin/override-stage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    stage_id: app.active_stage.stage_id,
-                    action: action,
-                    remarks: `Bulk ${action} by Admin`
-                })
-            });
-        } catch (err) {
-            console.error(`Failed to ${action} app ${app.display_id}`, err);
-        }
-    }
-
-    setBulkProcessing(false);
-    fetchApplications(true);
-  };
-
-  // --- Skeleton Row Component for Loading State ---
   const SkeletonRow = () => (
     <tr className="animate-pulse">
-      <td className="px-6 py-7"><div className="h-6 w-6 bg-slate-200 rounded" /></td>
       <td className="px-6 py-7">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-slate-200" />
@@ -182,7 +118,6 @@ const ApplicationManagement = () => {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-            {/* Status Filter */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 flex-1 md:flex-none">
             <Filter size={16} className="text-slate-400" />
             <select 
@@ -198,7 +133,6 @@ const ApplicationManagement = () => {
             </select>
             </div>
 
-            {/* Stage Filter */}
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 flex-1 md:flex-none">
             <Settings2 size={16} className="text-blue-500" />
             <select 
@@ -210,40 +144,12 @@ const ApplicationManagement = () => {
                 <option value="dean">Pending: Dean</option>
                 <option value="hod">Pending: HOD</option>
                 <option value="office">Pending: Office</option>
-                <option value="admin">Pending: Admin Depts</option>
+                <option value="admin">Pending: Department</option>
                 <option value="accounts">Pending: Accounts</option>
             </select>
             </div>
         </div>
       </div>
-
-      {/* Bulk Action Bar (Floating) */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-4 border border-slate-700">
-            <div className="flex items-center gap-3 border-r border-slate-700 pr-6">
-                <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-lg">{selectedIds.size}</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-300">Selected</span>
-            </div>
-            <div className="flex items-center gap-3">
-                <button 
-                    onClick={() => handleBulkAction('approve')}
-                    disabled={bulkProcessing}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
-                >
-                    {bulkProcessing ? <Loader2 className="h-4 w-4 animate-spin"/> : <CheckCircle2 className="h-4 w-4" />}
-                    Approve All
-                </button>
-                <button 
-                    onClick={() => handleBulkAction('reject')}
-                    disabled={bulkProcessing}
-                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-900/20 disabled:opacity-50"
-                >
-                    {bulkProcessing ? <Loader2 className="h-4 w-4 animate-spin"/> : <XCircle className="h-4 w-4" />}
-                    Reject All
-                </button>
-            </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
@@ -251,15 +157,10 @@ const ApplicationManagement = () => {
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em]">
               <tr>
-                <th className="px-6 py-6 w-16 text-center">
-                    <button onClick={toggleSelectAll} className="hover:text-blue-600 transition-colors">
-                        {selectedIds.size > 0 && selectedIds.size === filteredApps.length ? <CheckSquare size={18} /> : <Square size={18} />}
-                    </button>
-                </th>
-                <th className="px-6 py-6">Identity</th>
+                <th className="px-8 py-6">Identity</th>
                 <th className="px-6 py-6">Current Progress</th>
                 <th className="px-6 py-6">Global Status</th>
-                <th className="px-6 py-6 text-right">Operation</th>
+                <th className="px-8 py-6 text-right">Operation</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm font-medium">
@@ -273,13 +174,8 @@ const ApplicationManagement = () => {
                 </>
               ) : filteredApps.length > 0 ? (
                 filteredApps.map((app) => (
-                  <tr key={app.application_id} className={`group transition-colors ${selectedIds.has(app.application_id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/20'}`}>
-                    <td className="px-6 py-7 text-center">
-                        <button onClick={() => toggleSelect(app.application_id)} className={`transition-colors ${selectedIds.has(app.application_id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
-                            {selectedIds.has(app.application_id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                        </button>
-                    </td>
-                    <td className="px-6 py-7">
+                  <tr key={app.application_id} className="group hover:bg-blue-50/20 transition-colors">
+                    <td className="px-8 py-7">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center font-black text-white text-lg group-hover:bg-blue-600 transition-all duration-300">
                           {app.student_name?.[0] || '?'}
@@ -305,7 +201,7 @@ const ApplicationManagement = () => {
                         {(app.status || 'unknown').replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-7 text-right">
+                    <td className="px-8 py-7 text-right">
                       <button 
                         onClick={() => setSelectedApp(app)}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95"
@@ -317,7 +213,7 @@ const ApplicationManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-10 py-20 text-center text-slate-400 font-bold">
+                  <td colSpan="4" className="px-10 py-20 text-center text-slate-400 font-bold">
                     No matching applications found.
                   </td>
                 </tr>

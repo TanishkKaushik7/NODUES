@@ -218,7 +218,7 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                     <option value="hod">HOD</option>
                     <option value="school_office">School Office</option>
                     <option value="dean">Dean</option>
-                    <option value="admin">Super Admin</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
                 <input 

@@ -215,9 +215,28 @@ const VerticalFlow = ({ status }) => {
 const Node = ({ status, label, id, meta }) => {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.LOCKED;
   const { icon: Icon, label: statusLabel, classes } = config;
-   
+    
   const [isHovered, setIsHovered] = useState(false);
   const displayMeta = meta || { date: null, comments: "" };
+
+  // ✅ FIX: Format tooltip date to IST correctly
+  const formatTooltipDate = (dateString) => {
+    if (!dateString) return null;
+    
+    // Force UTC interpretation
+    const utcString = dateString.endsWith('Z') ? dateString : `${dateString}Z`;
+    const date = new Date(utcString);
+
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(date);
+  };
 
   return (
     <div 
@@ -239,7 +258,7 @@ const Node = ({ status, label, id, meta }) => {
               <Calendar size={10} /> 
               <span className="truncate">
                 {displayMeta.date 
-                  ? new Date(displayMeta.date).toLocaleDateString() 
+                  ? formatTooltipDate(displayMeta.date) 
                   : (status === STATUS.APPROVED ? 'Approved' 
                       : status === STATUS.REJECTED ? 'Rejected' 
                       : status === STATUS.SKIPPED ? 'N/A'
@@ -351,22 +370,17 @@ const TrackStatus = () => {
 
       let hostelStageFound = false;
 
-      // ✅ Updated Logic to map stages based on Sequence Number (Diagram B)
+      // ✅ Logic to map stages based on Sequence Number
       if (data.stages && Array.isArray(data.stages)) {
         data.stages.forEach(stage => {
           let key = null;
           
-          // --- STRICT SEQUENTIAL MAPPING ---
           if (stage.sequence_order === 1) key = 'dean';
           else if (stage.sequence_order === 2) key = 'hod';
           else if (stage.sequence_order === 3) key = 'office';
           else if (stage.sequence_order === 5) key = 'accounts';
-          
-          // --- PARALLEL MAPPING (Sequence 4) ---
           else if (stage.sequence_order === 4) {
              const name = (stage.display_name || '').toLowerCase();
-             
-             // Try to fuzzy match the display name (e.g., "University Library" -> "lib")
              if (name.includes('library')) key = 'lib';
              else if (name.includes('hostel')) { key = 'hostel'; hostelStageFound = true; }
              else if (name.includes('sports')) key = 'sports';
@@ -377,8 +391,8 @@ const TrackStatus = () => {
           if (key) {
             newStatuses[key] = mapStatus(stage.status);
             newMeta[key] = { 
-              date: stage.updated_at, 
-              comments: stage.comments || stage.remarks, 
+              date: stage.verified_at || stage.updated_at, 
+              comments: stage.comments || stage.remarks,
               officer: stage.display_name 
             };
           }
@@ -409,11 +423,21 @@ const TrackStatus = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // ✅ Updated to show Indian Standard Time (Asia/Kolkata) with UTC fix
   const formatLastAction = (dateString) => {
     if (!dateString) return "No recent activity";
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    
+    // Force UTC interpretation by appending 'Z' if missing
+    const utcString = dateString.endsWith('Z') ? dateString : `${dateString}Z`;
+    const date = new Date(utcString);
+
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true
     }).format(date);
   };
 

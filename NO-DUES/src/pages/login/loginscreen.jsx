@@ -198,9 +198,13 @@ const LoginScreen = ({
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
           <div className="relative z-10">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 shadow-xl shadow-blue-500/20">
-              <FiShield size={24} className="sm:w-7 sm:h-7" />
-            </div>
+           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
+  <img 
+    src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
+    alt="GBU Logo" 
+    className="w-full h-full object-contain"
+  />
+</div>
             <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight uppercase">
               {universityName}
             </h1>

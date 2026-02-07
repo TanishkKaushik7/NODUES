@@ -17,6 +17,9 @@ import MainPage from './pages/MainPage';
 /* LAZY IMPORTS (Code Splitting)                                              */
 /* -------------------------------------------------------------------------- */
 
+// Public Verification
+const CertificateVerify = lazy(() => import('./pages/Verification/CertificateVerify'));
+
 // Student Flow
 const StudentEntry = lazy(() => import('./pages/Student/StudentEntry'));
 const StudentLogin = lazy(() => import('./pages/Student/Login'));
@@ -33,7 +36,7 @@ const HostelsDashboard = lazy(() => import('./pages/Hostels/HostelsDashboard'));
 const LabDashboard = lazy(() => import('./pages/Laboratories/LabDashboard'));
 const SchoolDashboard = lazy(() => import('./pages/Schools/SchoolDashboard'));
 const HODDashboard = lazy(() => import('./pages/HOD/HODDashboard'));
-const OfficeDashboard = lazy(() => import('./pages/Office/OfficeDashboard')); // ✅ Added Office
+const OfficeDashboard = lazy(() => import('./pages/Office/OfficeDashboard')); 
 
 // History Pages
 const SportsHistory = lazy(() => import('./pages/Sports/HistoryPage'));
@@ -45,6 +48,7 @@ const LaboratoriesHistory = lazy(() => import('./pages/Laboratories/HistoryPage'
 const SchoolHistory = lazy(() => import('./pages/Schools/HistoryPage'));
 const HODHistory = lazy(() => import('./pages/HOD/HistoryPage'));
 const OfficeHistory = lazy(() => import('./pages/Office/HistoryPage')); 
+
 /* -------------------------------------------------------------------------- */
 /* UI UTILITIES                                                               */
 /* -------------------------------------------------------------------------- */
@@ -150,9 +154,10 @@ function App() {
           <SessionManager>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                {/* PUBLIC ENTRY */}
+                {/* PUBLIC ENTRY & UTILITIES */}
                 <Route path="/" element={<MainPage />} />
                 <Route path="/login" element={<LoginScreen />} />
+                <Route path="/verify/:certificateId" element={<CertificateVerify />} />
                 
                 {/* STUDENT FLOW */}
                 <Route path="/student" element={<StudentEntry />} />

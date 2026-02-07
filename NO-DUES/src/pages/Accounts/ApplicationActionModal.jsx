@@ -3,13 +3,13 @@ import { motion } from 'framer-motion';
 import { 
   FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, 
   FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin,
-  FiMessageSquare, FiAlertCircle 
+  FiMessageSquare, FiAlertCircle, FiLock, FiExternalLink 
 } from 'react-icons/fi';
 
 const renderStatusBadge = (status) => {
   const s = (status || 'Pending').toString();
   const key = s.toLowerCase().replace(/[\s-]/g, '');
-   
+  
   const styles = {
     cleared: "bg-green-100 text-green-800",
     approved: "bg-green-100 text-green-800",
@@ -40,6 +40,9 @@ const formatDate = (dateString) => {
 const ApplicationActionModal = ({ application, onClose, onAction, actionLoading, actionError, userSchoolName }) => {
   const popupRef = useRef(null);
   const [remark, setRemark] = useState('');
+  
+  // ✅ STATE: Track if verification document has been opened
+  const [documentViewed, setDocumentViewed] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -57,9 +60,16 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const name = application.student_name || application.name;
   const rollNo = application.roll_number || application.rollNo;
   const enrollment = application.enrollment_number || application.enrollment;
+  const proofUrl = application.proof_document_url || application.proof_url;
   
-  // ✅ LOGIC: Determine Department Name
-  // Priority: 1. Dept Name from DB (CSE), 2. School Name (SOICT)
+  // ✅ HANDLER: Open document and unlock actions
+  const handleOpenDocument = () => {
+    if (proofUrl) {
+      window.open(proofUrl, '_blank');
+      setDocumentViewed(true);
+    }
+  };
+
   let departmentDisplay = '—';
   if (application.department_name) {
       departmentDisplay = application.department_name;
@@ -73,7 +83,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   }
 
   const statusKey = (application.status || '').toLowerCase().replace(/[\s-]/g, '');
-  
   const hasActiveStage = application.active_stage?.id || application.active_stage?.stage_id;
   const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && hasActiveStage;
 
@@ -141,13 +150,10 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Roll Number</label><p className="font-bold text-gray-800">{rollNo}</p></div>
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Enrollment</label><p className="font-medium text-gray-700">{enrollment}</p></div>
-                
-                {/* ✅ DEPARTMENT FIELD */}
                 <div className="sm:col-span-2">
                     <label className="text-xs text-gray-400 block mb-1 uppercase">Department</label>
                     <p className="font-medium text-gray-800">{departmentDisplay}</p>
                 </div>
-
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Admission Year</label><p className="font-medium text-gray-700">{application.admission_year || '—'}</p></div>
               </div>
             </section>
@@ -194,9 +200,16 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
           {/* Action Area */}
           {isActionable ? (
             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
-              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <FiFileText className="text-indigo-600" /> Department Review Action
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <FiFileText className="text-indigo-600" /> Department Review Action
+                </h3>
+                {!documentViewed && (
+                   <span className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-md font-bold flex items-center gap-1 animate-pulse border border-red-100">
+                     <FiAlertCircle /> REVIEW DOCUMENT FIRST
+                   </span>
+                )}
+              </div>
               
               <div className="space-y-4">
                 <div>
@@ -213,18 +226,18 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button
-                    disabled={actionLoading}
+                    disabled={actionLoading || !documentViewed}
                     onClick={() => onAction(application, 'approve', remark)}
-                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
                   >
-                    {actionLoading ? <FiClock className="animate-spin" /> : <FiCheck />} Approve
+                    {actionLoading ? <FiClock className="animate-spin" /> : !documentViewed ? <FiLock /> : <FiCheck />} Approve
                   </button>
                   <button
-                    disabled={actionLoading}
+                    disabled={actionLoading || !documentViewed}
                     onClick={() => onAction(application, 'reject', remark)}
-                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
                   >
-                    <FiX /> Reject
+                    {!documentViewed ? <FiLock /> : <FiX />} Reject
                   </button>
                 </div>
               </div>
@@ -244,12 +257,16 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             Close Panel
           </button>
           
-          {(application.proof_document_url || application.proof_url) && (
+          {proofUrl && (
             <button 
-              onClick={() => window.open(application.proof_document_url || application.proof_url, '_blank')}
-              className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center justify-center gap-2 text-sm"
+              onClick={handleOpenDocument}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm ${
+                documentViewed 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200"
+              }`}
             >
-              <FiDownload /> Download Student Proof
+              <FiExternalLink /> {documentViewed ? "Review Proof Again" : "Verify Student Proof (Required)"}
             </button>
           )}
         </div>

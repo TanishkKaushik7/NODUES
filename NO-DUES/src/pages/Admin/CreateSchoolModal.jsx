@@ -21,9 +21,10 @@ const CreateSchoolModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       const response = await authFetch('/api/admin/schools', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          code: formData.code.toUpperCase() // Ensure codes are uppercase
+          code: formData.code.toUpperCase() // Enforce uppercase standard
         })
       });
 
@@ -36,7 +37,8 @@ const CreateSchoolModal = ({ isOpen, onClose, onSuccess }) => {
       setTimeout(() => {
         onSuccess?.();
         onClose();
-        setFormData({ name: '', code: '' }); // Reset form
+        setFormData({ name: '', code: '' });
+        setShowSuccess(false); 
       }, 1500);
 
     } catch (err) {
@@ -49,74 +51,85 @@ const CreateSchoolModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
         
         {/* Header */}
-        <div className="relative px-6 py-8 text-center bg-slate-50/50 border-b border-slate-100">
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all">
+        <div className="relative px-8 py-8 text-center bg-slate-50/50 border-b border-slate-100">
+          <button 
+            onClick={onClose} 
+            className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-all"
+          >
             <X className="h-5 w-5" />
           </button>
-          <div className="inline-flex p-3 bg-indigo-100 rounded-2xl mb-4 shadow-inner">
-            <Landmark className="h-6 w-6 text-indigo-600" />
+          <div className="inline-flex p-4 bg-blue-50 rounded-2xl mb-4 shadow-sm border border-blue-100">
+            <Landmark className="h-8 w-8 text-blue-600" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 tracking-tight">Add Academic School</h3>
-          <p className="text-xs text-slate-500 mt-1">Register a new school entity into the university database.</p>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Add Academic School</h3>
+          <p className="text-xs text-slate-500 font-bold mt-2 uppercase tracking-wide">Register a new school entity</p>
         </div>
 
         {showSuccess ? (
           <div className="p-12 text-center animate-in fade-in scale-in">
-            <div className="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
-               <CheckCircle2 className="h-8 w-8" />
+            <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500 border border-emerald-100 shadow-sm">
+               <CheckCircle2 className="h-10 w-10" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 tracking-tight">School Created Successfully</h3>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">School Created</h3>
+            <p className="text-xs text-slate-400 font-bold mt-2 uppercase tracking-widest">Database Updated Successfully</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {error && (
-              <div className="p-3 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-2 border border-red-100 font-bold uppercase tracking-wide">
-                <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+              <div className="p-4 bg-rose-50 text-rose-600 text-[11px] rounded-2xl flex items-start gap-3 border border-rose-100 font-bold leading-relaxed">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> 
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Official Name</label>
+            <div className="space-y-5">
+              {/* School Name Input */}
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 group-focus-within:text-blue-600 transition-colors">
+                  Official School Name
+                </label>
                 <input 
                   type="text" 
                   placeholder="e.g. School of Information & Communication Technology" 
                   required 
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:font-medium placeholder:text-slate-400"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">School Code</label>
+              {/* School Code Input */}
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 group-focus-within:text-blue-600 transition-colors">
+                  School Code (Abbreviation)
+                </label>
                 <input 
                   type="text" 
                   placeholder="e.g. SOICT" 
                   required 
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono"
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:font-medium placeholder:text-slate-400 uppercase tracking-wider font-mono"
                   value={formData.code}
-                  onChange={(e) => setFormData({...formData, code: e.target.value})}
+                  onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-4 pt-4">
               <button 
                 type="button" 
                 onClick={onClose} 
-                className="flex-1 px-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-xs text-slate-500 hover:bg-slate-50 transition-all uppercase tracking-wider"
+                className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-black text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all uppercase tracking-widest"
               >
                 Cancel
               </button>
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="flex-[1.5] px-4 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-indigo-100"
+                className="flex-[1.5] px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3 uppercase tracking-widest shadow-xl shadow-blue-200 hover:shadow-2xl hover:shadow-blue-300 active:scale-[0.98]"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Register School'}
               </button>

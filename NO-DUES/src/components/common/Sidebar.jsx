@@ -74,15 +74,19 @@ const Sidebar = () => {
           {/* Branding Section */}
           <div className="px-8 py-8 shrink-0">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-600 rounded-2xl shadow-md shadow-blue-200">
-                <FaUniversity className="text-2xl text-white" />
-              </div>
+           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
+  <img 
+    src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
+    alt="GBU Logo" 
+    className="w-full h-full object-contain"
+  />
+</div>
               <div>
                 <h1 className="text-lg font-black text-slate-900 leading-tight tracking-tight uppercase">
                   GBU Portal
                 </h1>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Management Sys
+                  Management System
                 </p>
               </div>
             </div>

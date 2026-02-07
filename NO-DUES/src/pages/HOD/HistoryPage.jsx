@@ -61,14 +61,41 @@ const HistoryPage = () => {
     }
   };
 
+  // ✅ HELPER: Format Date & Time to IST
+  const formatDateTime = (dateString) => {
+    if (!dateString) return { date: '--', time: '--' };
+    
+    // 1. Force UTC interpretation by appending 'Z' if missing
+    const utcString = dateString.endsWith('Z') ? dateString : `${dateString}Z`;
+    const date = new Date(utcString);
+
+    // 2. Format Date (e.g., 07 Feb 2026)
+    const datePart = new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    }).format(date);
+
+    // 3. Format Time (e.g., 04:30 PM)
+    const timePart = new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    }).format(date);
+
+    return { date: datePart, time: timePart };
+  };
+
   const renderActionBadge = (action) => {
-    const isApproved = action?.toLowerCase() === 'approved';
+    const isApproved = action?.toLowerCase().includes('approve');
     return (
       <span className={`flex items-center w-fit px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
         isApproved ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'
       }`}>
         {isApproved ? <FiCheckCircle className="mr-1.5" /> : <FiXCircle className="mr-1.5" />}
-        {action}
+        {action?.replace('STAGE_', '').replace('ADMIN_OVERRIDE_', '')}
       </span>
     );
   };
@@ -120,57 +147,60 @@ const HistoryPage = () => {
                       <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Student Profile</th>
                       <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Final Action</th>
                       <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Remarks / Feedback</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Timestamp</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Timestamp (IST)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     <AnimatePresence mode='popLayout'>
-                      {currentItems.map((item, index) => (
-                        <motion.tr 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2, delay: index * 0.05 }}
-                          key={item.timestamp + index}
-                          className="hover:bg-blue-50/50 transition-colors group"
-                        >
-                          <td className="px-8 py-5">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
-                                {item.student_name}
-                              </span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[9px] font-black font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded tracking-widest border border-blue-100 uppercase">
-                                  {item.display_id}
+                      {currentItems.map((item, index) => {
+                        const { date, time } = formatDateTime(item.timestamp);
+                        return (
+                          <motion.tr 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2, delay: index * 0.05 }}
+                            key={item.timestamp + index}
+                            className="hover:bg-blue-50/50 transition-colors group"
+                          >
+                            <td className="px-8 py-5">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
+                                  {item.student_name}
                                 </span>
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                   # {item.roll_number}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[9px] font-black font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded tracking-widest border border-blue-100 uppercase">
+                                    {item.display_id}
+                                  </span>
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                     # {item.roll_number}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5">
+                              {renderActionBadge(item.action)}
+                            </td>
+                            <td className="px-8 py-5">
+                              <p className="text-xs text-slate-500 italic max-w-xs truncate font-medium" title={item.remarks}>
+                                "{item.remarks || 'Standard approval'}"
+                              </p>
+                            </td>
+                            <td className="px-8 py-5">
+                              <div className="flex flex-col gap-1">
+                                <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                                  <FiCalendar size={12} className="text-slate-400" /> 
+                                  {date}
+                                </span>
+                                <span className="flex items-center gap-2 text-[10px] font-medium text-slate-400">
+                                  <FiClock size={12} className="text-slate-300" /> 
+                                  {time}
                                 </span>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-5">
-                            {renderActionBadge(item.action)}
-                          </td>
-                          <td className="px-8 py-5">
-                            <p className="text-xs text-slate-500 italic max-w-xs truncate font-medium" title={item.remarks}>
-                              "{item.remarks || 'Standard approval'}"
-                            </p>
-                          </td>
-                          <td className="px-8 py-5">
-                            <div className="flex flex-col gap-1">
-                              <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-                                <FiCalendar size={12} className="text-slate-400" /> 
-                                {new Date(item.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                              </span>
-                              <span className="flex items-center gap-2 text-[10px] font-medium text-slate-400">
-                                <FiClock size={12} className="text-slate-300" /> 
-                                {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          </td>
-                        </motion.tr>
-                      ))}
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
                     </AnimatePresence>
                   </tbody>
                 </table>

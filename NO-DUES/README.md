@@ -18,11 +18,10 @@ NO-DUES
 │  ├─ assets
 │  │  └─ react.svg
 │  ├─ components
-│  │  ├─ admin
-│  │  │  └─ ApplicationsList.jsx
 │  │  ├─ common
 │  │  │  ├─ ApprovalControls.jsx
 │  │  │  ├─ HomeButton.jsx
+│  │  │  ├─ OverdueAlertModal.jsx
 │  │  │  ├─ RoleLayout.jsx
 │  │  │  └─ Sidebar.jsx
 │  │  ├─ modals
@@ -95,9 +94,10 @@ NO-DUES
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  └─ HistoryPage.jsx
 │  │  ├─ Admin
+│  │  │  ├─ AdminApplicationModals.jsx
 │  │  │  ├─ AdminDashboard.jsx
-│  │  │  ├─ ApplicationDetailModal.jsx
 │  │  │  ├─ ApplicationManagement.jsx
+│  │  │  ├─ ApplicationsDetailModal.jsx
 │  │  │  ├─ AuditLogs.jsx
 │  │  │  ├─ CreateDepartmentModal.jsx
 │  │  │  ├─ CreateSchoolModal.jsx
@@ -122,6 +122,12 @@ NO-DUES
 │  │  │  ├─ CRCDashboard.jsx
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  └─ HistoryPage.jsx
+│  │  ├─ HOD
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
+│  │  │  ├─ HistoryPage.jsx
+│  │  │  └─ HODDashboard.jsx
 │  │  ├─ Hostels
 │  │  │  ├─ ApplicationActionModal.jsx
 │  │  │  ├─ ApplicationsTable.jsx
@@ -143,6 +149,12 @@ NO-DUES
 │  │  ├─ login
 │  │  │  └─ loginscreen.jsx
 │  │  ├─ MainPage.jsx
+│  │  ├─ Office
+│  │  │  ├─ ApplicationActionModal.jsx
+│  │  │  ├─ ApplicationsTable.jsx
+│  │  │  ├─ DashboardStats.jsx
+│  │  │  ├─ HistoryPage.jsx
+│  │  │  └─ OfficeDashboard.jsx
 │  │  ├─ Schools
 │  │  │  ├─ ApplicationActionModal.jsx
 │  │  │  ├─ ApplicationsTable.jsx
@@ -156,6 +168,7 @@ NO-DUES
 │  │  │  ├─ HistoryPage.jsx
 │  │  │  └─ SportsDashboard.jsx
 │  │  └─ Student
+│  │     ├─ ForgotPasswordModal.jsx
 │  │     ├─ Login.jsx
 │  │     ├─ MyApplications.jsx
 │  │     ├─ Overview.jsx
@@ -167,6 +180,7 @@ NO-DUES
 │     ├─ applicationWorkflow.js
 │     ├─ auth.js
 │     └─ navigation.js
+├─ vercel.json
 └─ vite.config.js
 
 ```

@@ -29,7 +29,7 @@ const HomeButton = () => {
   return (
     <button
       onClick={handleSafeExit}
-      className="fixed right-8 bottom-8 z-[60] bg-slate-900/80 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/10 hover:bg-red-500/10 hover:border-red-500/50 transition-all active:scale-95 group overflow-hidden"
+      className="fixed no-print right-8 bottom-8 z-[60] bg-slate-900/80 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/10 hover:bg-red-500/10 hover:border-red-500/50 transition-all active:scale-95 group overflow-hidden"
     >
       <div className="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
       

@@ -4,7 +4,7 @@ import {
   User, Building, Sparkles, Zap, Shield, Lock, ArrowRight, 
   CheckCircle2, Clock, Users, Award, 
   ChevronRight, Phone, Facebook, Youtube, 
-  Twitter, Instagram, Menu, X 
+  Twitter, Instagram, Menu, X, ShieldCheck 
 } from 'lucide-react';
 
 export default function MainPage() {
@@ -60,14 +60,13 @@ export default function MainPage() {
   return (
     <div className="min-h-screen bg-black text-white relative overflow-x-hidden font-sans">
       
-      {/* BACKGROUND - Breathing/Pulse Removed */}
+      {/* BACKGROUND */}
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-black"></div>
         
         {/* Static Glows */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/3 w-80 h-80 bg-slate-600/10 rounded-full blur-3xl"></div>
         
         {/* Interactive Mouse Highlight */}
         <div 
@@ -80,7 +79,7 @@ export default function MainPage() {
       </div>
 
       {/* HEADER */}
-      <header className={`static top-0 left-0 w-full z-[100] transition-all duration-500 ${scrolled ? 'py-3' : 'py-6'}`}>
+      <header className={`fixed top-0 left-0 w-full z-[100] transition-all duration-500 ${scrolled ? 'py-3' : 'py-6'}`}>
         <div className="max-w-[1400px] mx-auto px-6">
           <div className={`relative flex items-center justify-between px-6 py-3 rounded-2xl border transition-all duration-500 ${
             scrolled 
@@ -88,7 +87,7 @@ export default function MainPage() {
             : 'bg-white/5 backdrop-blur-md border-white/5'
           }`}>
             {/* Logo Area */}
-            <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate('/')}>
               <div className="relative w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
                 <img src="https://www.gbu.ac.in/Content/img/logo_gbu.png" alt="GBU Logo" className="w-8 h-8 object-contain" />
               </div>
@@ -99,12 +98,14 @@ export default function MainPage() {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* UPDATED BUTTON: Verify Certificate */}
               <button 
-                className="hidden md:flex items-center gap-2 px-5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/50 text-[10px] font-black text-cyan-400 uppercase tracking-widest hover:bg-cyan-500 hover:text-white transition-all duration-300"
-                onClick={() => navigate('/student/login')}
+                className="hidden md:flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/50 text-[10px] font-black text-emerald-400 uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all duration-300"
+                onClick={() => navigate('/verify/lookup')}
               >
-                <User className="w-3 h-3" /> Quick Access
+                <ShieldCheck className="w-3 h-3" /> Verify Certificate
               </button>
+              
               <button className="lg:hidden text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 {mobileMenuOpen ? <X /> : <Menu />}
               </button>

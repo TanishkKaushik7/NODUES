@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, Filter, Download, Calendar, 
-  CheckCircle2, XCircle, Loader2, RefreshCcw, User, Hash
+  CheckCircle2, XCircle, Loader2, RefreshCcw, User, Hash, Clock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -41,6 +41,33 @@ const AuditLogs = () => {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // ✅ HELPER: Format Date & Time to IST correctly
+  const formatDateTimeIST = (dateString) => {
+    if (!dateString) return { date: '--', time: '--' };
+    
+    // 1. Force UTC interpretation
+    const utcString = dateString.endsWith('Z') ? dateString : `${dateString}Z`;
+    const date = new Date(utcString);
+
+    // 2. Format Date (e.g., 07 Feb 2026)
+    const datePart = new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    }).format(date);
+
+    // 3. Format Time (e.g., 04:30 PM)
+    const timePart = new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    }).format(date);
+
+    return { date: datePart, time: timePart };
+  };
 
   const getActionBadge = (action) => {
     const isApproved = action?.includes('APPROVED') || action?.includes('OVERRIDE_APPROVE');
@@ -135,7 +162,7 @@ const AuditLogs = () => {
           <table className="w-full text-left">
             <thead className="sticky top-0 z-20 bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Timestamp</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Timestamp (IST)</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actor</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Final Action</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Student Info</th>
@@ -151,51 +178,55 @@ const AuditLogs = () => {
                   </td>
                 </tr>
               ) : filteredLogs.length > 0 ? (
-                filteredLogs.map((log, index) => (
-                  <motion.tr 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.02 }}
-                    key={log.id} 
-                    className="hover:bg-blue-50/50 transition-all group"
-                  >
-                    <td className="px-8 py-5 whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase">
-                          <Calendar size={12} className="text-slate-400" />
-                          {new Date(log.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                        <span className="text-[10px] font-medium text-slate-400 ml-5">
-                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center text-[10px] font-black border border-slate-200 shadow-sm uppercase">
-                          {log.actor_role?.substring(0, 2)}
+                filteredLogs.map((log, index) => {
+                  const { date, time } = formatDateTimeIST(log.timestamp);
+                  return (
+                    <motion.tr 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      key={log.id} 
+                      className="hover:bg-blue-50/50 transition-all group"
+                    >
+                      <td className="px-8 py-5 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase">
+                            <Calendar size={12} className="text-slate-400" />
+                            {date}
+                          </span>
+                          <span className="flex items-center gap-2 text-[10px] font-medium text-slate-400 ml-5">
+                            <Clock size={10} className="text-slate-300" />
+                            {time}
+                          </span>
                         </div>
-                        <div>
-                          <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{log.actor_name || 'System User'}</div>
-                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{log.actor_role} Node</div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center text-[10px] font-black border border-slate-200 shadow-sm uppercase">
+                            {log.actor_role?.substring(0, 2)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{log.actor_name || 'System User'}</div>
+                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{log.actor_role} Node</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      {getActionBadge(log.action)}
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                           {log.details?.student_roll || 'N/A'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 max-w-xs truncate text-xs text-slate-500 italic font-medium">
-                      {log.remarks ? `"${log.remarks}"` : <span className="text-slate-300">No protocol remarks recorded</span>}
-                    </td>
-                  </motion.tr>
-                ))
+                      </td>
+                      <td className="px-8 py-5">
+                        {getActionBadge(log.action)}
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                             {log.details?.student_roll || 'N/A'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 max-w-xs truncate text-xs text-slate-500 italic font-medium">
+                        {log.remarks ? `"${log.remarks}"` : <span className="text-slate-300">No protocol remarks recorded</span>}
+                      </td>
+                    </motion.tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="px-8 py-24 text-center">
@@ -217,4 +248,4 @@ const AuditLogs = () => {
   );
 };
 
-export default AuditLogs;
+export default AuditLogs; 

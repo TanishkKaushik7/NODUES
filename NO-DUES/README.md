@@ -8,6 +8,7 @@ NO-DUES
 ├─ public
 │  ├─ favicon.ico
 │  ├─ GBU.jpg
+│  ├─ gbu_logo.png
 │  └─ vite.svg
 ├─ README.md
 ├─ src
@@ -147,6 +148,7 @@ NO-DUES
 │  │  │  ├─ HistoryPage.jsx
 │  │  │  └─ LibraryDashboard.jsx
 │  │  ├─ login
+│  │  │  ├─ ForgotPasswordModal.jsx
 │  │  │  └─ loginscreen.jsx
 │  │  ├─ MainPage.jsx
 │  │  ├─ Office
@@ -167,15 +169,17 @@ NO-DUES
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ HistoryPage.jsx
 │  │  │  └─ SportsDashboard.jsx
-│  │  └─ Student
-│  │     ├─ ForgotPasswordModal.jsx
-│  │     ├─ Login.jsx
-│  │     ├─ MyApplications.jsx
-│  │     ├─ Overview.jsx
-│  │     ├─ Register.jsx
-│  │     ├─ StudentDashboard.jsx
-│  │     ├─ StudentEntry.jsx
-│  │     └─ TrackStatus.jsx
+│  │  ├─ Student
+│  │  │  ├─ ForgotPasswordModal.jsx
+│  │  │  ├─ Login.jsx
+│  │  │  ├─ MyApplications.jsx
+│  │  │  ├─ Overview.jsx
+│  │  │  ├─ Register.jsx
+│  │  │  ├─ StudentDashboard.jsx
+│  │  │  ├─ StudentEntry.jsx
+│  │  │  └─ TrackStatus.jsx
+│  │  └─ Verification
+│  │     └─ CertificateVerify.jsx
 │  └─ utils
 │     ├─ applicationWorkflow.js
 │     ├─ auth.js

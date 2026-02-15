@@ -3,7 +3,7 @@ import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiShield, FiLogIn, FiArrowLeft, FiUser, FiMail, 
-  FiPhone, FiHash, FiCheckCircle, FiRefreshCw 
+  FiPhone, FiHash, FiCheckCircle, FiRefreshCw, FiBookOpen 
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -52,10 +52,14 @@ const StudentRegister = () => {
     fullName: '',
     email: '',
     mobileNumber: '',
-    schoolId: '',
+    schoolId: '', // Can be ID (1) or Code ("SOICT")
     password: '',
     confirmPassword: '',
   });
+
+  // Dynamic Data State
+  const [schools, setSchools] = useState([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
 
   // Captcha State
   const [captchaInput, setCaptchaInput] = useState('');
@@ -68,21 +72,27 @@ const StudentRegister = () => {
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState({});
 
-  const schoolOptions = [
-    { id: 1, name: 'School of ICT', code: 'SOICT' },
-    { id: 2, name: 'School of Engineering', code: 'SOE' },
-    { id: 3, name: 'School of Management', code: 'SOM' },
-    { id: 4, name: 'School of Biotechnology', code: 'SOBT' },
-    { id: 5, name: 'School of VSAS', code: 'SOVSAS' },
-    { id: 6, name: 'School of Law', code: 'SOLJ' },
-    { id: 7, name: 'School of Humanities', code: 'SOHSS' },
-    { id: 8, name: 'School of Architecture', code: 'SOAP' },
-  ];
+  // 1. FETCH DYNAMIC SCHOOLS
+  const fetchSchools = async () => {
+    try {
+      const rawBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const API_BASE = rawBase.replace(/\/+$/g, '');
+      const response = await axios.get(`${API_BASE}/api/common/schools`);
+      
+      if (Array.isArray(response.data)) {
+        setSchools(response.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch schools:", err);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
 
   const fetchCaptcha = async () => {
     setCaptchaLoading(true);
     try {
-      const rawBase = import.meta.env.VITE_API_BASE || '';
+      const rawBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000';
       const API_BASE = rawBase.replace(/\/+$/g, '');
       const response = await axios.get(`${API_BASE}/api/captcha/generate`);
       
@@ -99,6 +109,7 @@ const StudentRegister = () => {
   };
 
   useEffect(() => {
+    fetchSchools();
     fetchCaptcha();
   }, []);
 
@@ -108,6 +119,11 @@ const StudentRegister = () => {
 
     if (name === 'enrollmentNumber' || name === 'mobileNumber') {
       val = value.replace(/\D/g, '').slice(0, name === 'mobileNumber' ? 10 : 15);
+    }
+
+    // Roll Number: Numbers and Letters only
+    if (name === 'rollNumber') {
+      val = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
 
     setForm(prev => ({ ...prev, [name]: val }));
@@ -128,7 +144,7 @@ const StudentRegister = () => {
     return err;
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length > 0) return setErrors(v);
@@ -137,14 +153,23 @@ const StudentRegister = () => {
     setMessage('');
 
     try {
+      // ✅ LOGIC: Send ONLY school_code
+      // The dropdown value (form.schoolId) is already the code (e.g., "SOICT")
+      // because your API returns codes in the dropdown options.
+      
       const payload = {
         enrollment_number: form.enrollmentNumber,
-        roll_number: form.rollNumber.trim().toUpperCase(),
+        roll_number: form.rollNumber.trim(),
         full_name: form.fullName.trim(),
         mobile_number: form.mobileNumber,
         email: form.email.trim(),
-        school_id: Number(form.schoolId), 
+        
+        // 👉 PURE CODE APPROACH
+        school_code: form.schoolId, // This contains "SOICT"
+        school_id: null,            // Send null so backend ignores it
+
         password: form.password,
+        confirm_password: form.confirmPassword, // Include for validation
         captcha_input: captchaInput,
         captcha_hash: captchaHash
       };
@@ -156,16 +181,21 @@ const StudentRegister = () => {
 
     } catch (err) {
       console.error("Registration Error:", err);
-      const errorMsg = err.response?.data?.detail || err.message || 'Registration failed.';
-      setMessage(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
-      
+      // ... error handling code ...
+      let errorMsg = 'Registration failed.';
+      if (err.response?.data?.detail) {
+          const detail = err.response.data.detail;
+          errorMsg = Array.isArray(detail) ? detail[0].msg : detail;
+      } else if (err.message) {
+          errorMsg = err.message;
+      }
+      setMessage(errorMsg);
       fetchCaptcha();
       setCaptchaInput('');
     } finally {
       setLoading(false);
     }
-  };
-
+  };  
   const labelStyle = "text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1 block";
   const inputContainer = "relative transition-all duration-200 focus-within:transform focus-within:scale-[1.01]";
 
@@ -193,7 +223,6 @@ const StudentRegister = () => {
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
           <div className="relative z-10">
-            {/* Added Circular Logo from Public Folder */}
             <div className="mb-8">
               <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 shadow-2xl shadow-blue-500/20">
                 <img 
@@ -209,7 +238,6 @@ const StudentRegister = () => {
             </h1>
             <p className="text-slate-400 text-xs mt-4 font-medium uppercase tracking-[0.2em]">Student Registry</p>
           </div>
-          
         </div>
 
         {/* Right Side (Form) */}
@@ -261,7 +289,7 @@ const StudentRegister = () => {
                       name="rollNumber" 
                       value={form.rollNumber} 
                       onChange={handleChange} 
-                      placeholder="e.g. 23ICS..." 
+                      placeholder="ROLL NUMBER" 
                       className={`pl-10 h-11 text-base sm:text-xs font-bold uppercase ${errors.rollNumber ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'}`} 
                     />
                   </div>
@@ -282,13 +310,13 @@ const StudentRegister = () => {
 
                 {/* Email */}
                 <div className="space-y-1">
-                  <label className={labelStyle}>Official Email</label>
+                  <label className={labelStyle}>Email</label>
                   <Input 
                     name="email" 
                     type="email"
                     value={form.email} 
                     onChange={handleChange} 
-                    placeholder="name@gbu.ac.in" 
+                    placeholder="Email" 
                     className={`h-11 text-base sm:text-xs font-bold bg-slate-50 ${errors.email ? 'border-red-300' : ''}`} 
                   />
                   {errors.email && <span className="text-[10px] text-red-500 font-bold">{errors.email}</span>}
@@ -306,18 +334,31 @@ const StudentRegister = () => {
                   />
                 </div>
 
-                {/* School Selection */}
+                {/* DYNAMIC SCHOOL SELECTION */}
                 <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Academic School</label>
-                  <select 
-                    name="schoolId" 
-                    value={form.schoolId} 
-                    onChange={handleChange} 
-                    className={`w-full h-11 px-4 rounded-lg text-base sm:text-xs font-bold border bg-slate-50 outline-none transition-all focus:ring-1 focus:ring-blue-500 ${errors.schoolId ? 'border-red-300' : 'border-slate-200'}`}
-                  >
-                    <option value="">Select University School</option>
-                    {schoolOptions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
-                  </select>
+                  <div className="relative">
+                    <select 
+                      name="schoolId" 
+                      value={form.schoolId} 
+                      onChange={handleChange} 
+                      disabled={schoolsLoading}
+                      className={`w-full h-11 px-4 rounded-lg text-base sm:text-xs font-bold border bg-slate-50 outline-none appearance-none transition-all focus:ring-1 focus:ring-blue-500 ${errors.schoolId ? 'border-red-300' : 'border-slate-200'} ${schoolsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="">{schoolsLoading ? 'Loading Schools...' : 'Select University School'}</option>
+                      {schools.map((school, index) => (
+                        // ✅ Supports both ID-based and Code-based API responses
+                        <option key={index} value={school.id || school.code}>
+                          {school.name} ({school.code})
+                        </option>
+                      ))}
+                    </select>
+                    {!schoolsLoading && (
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                        <FiBookOpen size={14} />
+                      </div>
+                    )}
+                  </div>
                   {errors.schoolId && <span className="text-[10px] text-red-500 font-bold">{errors.schoolId}</span>}
                 </div>
 
@@ -379,7 +420,7 @@ const StudentRegister = () => {
               <div className="pt-4 flex flex-col items-center gap-4">
                 <Button 
                   type="submit" 
-                  disabled={loading || captchaLoading} 
+                  disabled={loading || captchaLoading || schoolsLoading} 
                   className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} 

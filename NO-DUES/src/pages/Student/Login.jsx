@@ -196,7 +196,7 @@ const StudentLogin = () => {
 
             <div className="pt-4">
               <Button type="submit" disabled={loading || captchaLoading} className="w-full h-12 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-lg active:scale-95">
-                {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} Authorize Entry
+                {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} Login
               </Button>
             </div>
           </form>

@@ -9,6 +9,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+// Import your Modal here
+import ForgotPasswordModal from './ForgotPasswordModal'; 
+
 // --- INTEGRATED UI COMPONENTS ---
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -66,6 +69,9 @@ const LoginScreen = ({
   const [captchaImage, setCaptchaImage] = useState(null);
   const [captchaLoading, setCaptchaLoading] = useState(true);
 
+  // Modal State
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -94,7 +100,6 @@ const LoginScreen = ({
     setCredentials(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- UPDATED HANDLESUBMIT WITH DEPARTMENT ROUTING ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -114,7 +119,6 @@ const LoginScreen = ({
         const deptId = user.department_id ? parseInt(user.department_id) : null;
         const userName = (user.name || "").toLowerCase();
         
-        // 1. Primary Role Mapping
         const roleMap = {
           'admin': '/admin/dashboard',
           'super_admin': '/admin/dashboard',
@@ -125,41 +129,20 @@ const LoginScreen = ({
 
         let targetPath = roleMap[rawRole];
 
-        // 2. Specialized Logic for "staff" role based on Department ID
         if (rawRole === 'staff') {
           switch (deptId) {
-            case 14: // University Library
-              targetPath = '/library/dashboard';
-              break;
-            case 15: // Hostel Administration
-              targetPath = '/hostels/dashboard';
-              break;
-            case 16: // Sports Department
-              targetPath = '/sports/dashboard';
-              break;
-            case 17: // Laboratories
-              targetPath = '/laboratories/dashboard';
-              break;
-            case 18: // Corporate Relations Cell (CRC)
-              targetPath = '/crc/dashboard';
-              break;
-            case 19: // Finance & Accounts
-              targetPath = '/accounts/dashboard';
-              break;
+            case 14: targetPath = '/library/dashboard'; break;
+            case 15: targetPath = '/hostels/dashboard'; break;
+            case 16: targetPath = '/sports/dashboard'; break;
+            case 17: targetPath = '/laboratories/dashboard'; break;
+            case 18: targetPath = '/crc/dashboard'; break;
+            case 19: targetPath = '/accounts/dashboard'; break;
             default:
-              // Fallback: If it's a School Office (like SOICT Office)
-              if (userName.includes('office')) {
-                targetPath = '/office/dashboard';
-              } else {
-                // Default fallback for any other staff to School Dashboard
-                targetPath = '/school/dashboard';
-              }
+              targetPath = userName.includes('office') ? '/office/dashboard' : '/school/dashboard';
           }
         }
 
-        // 3. Final Fallback
         const finalPath = targetPath || `/${rawRole}/dashboard`;
-        
         setTimeout(() => navigate(finalPath, { replace: true }), 100);
       }
     } catch (err) {
@@ -198,14 +181,14 @@ const LoginScreen = ({
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
           <div className="relative z-10">
-           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
-  <img 
-    src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
-    alt="GBU Logo" 
-    className="w-full h-full object-contain"
-  />
-</div>
-            <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight uppercase">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
+              <img 
+                src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
+                alt="GBU Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight uppercase mt-4">
               {universityName}
             </h1>
             <div className="h-1 w-12 bg-blue-500 mt-4 rounded-full" />
@@ -247,7 +230,17 @@ const LoginScreen = ({
               </div>
 
               <div className="space-y-1">
-                <label className={labelStyle}>Password</label>
+                <div className="flex justify-between items-center pr-1">
+                  <label className={labelStyle}>Password</label>
+                  {/* FORGOT PASSWORD BUTTON */}
+                  <button 
+                    type="button" 
+                    onClick={() => setIsForgotModalOpen(true)}
+                    className="text-[9px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-tighter transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <div className="relative group">
                   <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <Input
@@ -313,6 +306,12 @@ const LoginScreen = ({
           </div>
         </div>
       </div>
+
+      {/* RENDER MODAL */}
+      <ForgotPasswordModal 
+        isOpen={isForgotModalOpen} 
+        onClose={() => setIsForgotModalOpen(false)} 
+      />
     </div>
   );
 };

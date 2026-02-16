@@ -12,74 +12,70 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState(null);
 
+  // --- DYNAMIC OPTIONS STATE ---
+  const [schoolOptions, setSchoolOptions] = useState([]);
+  const [deptOptions, setDeptOptions] = useState([]);
+
   const isEditMode = !!initialData;
-
-  // --- 1. DATA CONSTANTS ---
-  const schools = [
-    { id: 1, name: "School of ICT", code: "SOICT" },
-    { id: 2, name: "School of Management", code: "SOM" },
-    { id: 3, name: "School of Engineering", code: "SOE" },
-    { id: 4, name: "School of Biotechnology", code: "SOBT" },
-    { id: 5, name: "School of VSAS", code: "SOVSAS" },
-    { id: 6, name: "School of SOHSS", code: "SOHSS" },
-    { id: 7, name: "School of Law", code: "SOLJ" },
-    { id: 8, name: "School of Architecture", code: "SOAP" }
-  ];
-
-  // For Admin Staff (Library, Sports, etc.)
-  const adminDepartments = [
-    { id: 14, name: "Library", code: "LIB" },
-    { id: 15, name: "Hostel", code: "HST" },
-    { id: 16, name: "Sports", code: "SPT" },
-    { id: 17, name: "Laboratories", code: "LAB" },
-    { id: 18, name: "CRC", code: "CRC" },
-    { id: 19, name: "Accounts", code: "ACC" }
-  ];
-
-  // For HODs (Academic Departments)
-  const academicDepartments = [
-    { id: 1, name: "Computer Science (CSE)", code: "CSE" },
-    { id: 2, name: "Information Tech (IT)", code: "IT" },
-    { id: 3, name: "Electronics (ECE)", code: "ECE" },
-    { id: 4, name: "Mechanical (ME)", code: "ME" },
-    { id: 5, name: "Civil (CE)", code: "CE" },
-    { id: 6, name: "Electrical (EE)", code: "EE" },
-    { id: 7, name: "Biotechnology (BT)", code: "BT" },
-    { id: 8, name: "Management (MGMT)", code: "MGMT" },
-    { id: 9, name: "Law & Justice", code: "LAW" },
-    { id: 10, name: "Humanities", code: "HSS" },
-    { id: 11, name: "Architecture", code: "AP" },
-    { id: 12, name: "Applied Math", code: "MATH" },
-    { id: 13, name: "Applied Physics", code: "PHY" }
-  ];
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     role: 'staff', 
-    department_id: '',
-    school_id: ''
+    department_code: '', // ✅ Changed from ID to Code
+    school_code: ''      // ✅ Changed from ID to Code
   });
 
-  useEffect(() => {
+  // --- 1. FETCH OPTIONS ON MOUNT ---
+ // Inside useEffect...
+useEffect(() => {
     if (isOpen) {
+      const fetchOptions = async () => {
+        try {
+          // 👇 REVERT TO THIS: Use the Env Variable, OR the Tailscale URL directly
+          const API_BASE = import.meta.env.VITE_API_URL || "https://laptop-f0uunm9o.taild8f6a1.ts.net"; 
+          
+          console.log(`🚀 Fetching from: ${API_BASE}/api/common/schools`);
+
+          // 1. Fetch Schools
+          const schoolsRes = await fetch(`${API_BASE}/api/common/schools`);
+          if (!schoolsRes.ok) throw new Error(`Schools API Error: ${schoolsRes.status}`);
+          setSchoolOptions(await schoolsRes.json());
+
+          // 2. Fetch Departments
+          const deptsRes = await fetch(`${API_BASE}/api/common/departments?type=all`);
+          if (!deptsRes.ok) throw new Error(`Depts API Error: ${deptsRes.status}`);
+          setDeptOptions(await deptsRes.json());
+
+        } catch (err) {
+          console.error("❌ Dropdown Load Failed:", err);
+          setError(`Connection Error: ${err.message}`);
+        }
+      };
+      fetchOptions();
+      // Set Initial Data for Edit Mode
       if (isEditMode) {
         setFormData({
           fullName: initialData.name || '',
           email: initialData.email || '',
           password: '', 
           role: initialData.role?.toLowerCase() || 'staff',
-          department_id: initialData.department_id || '',
-          school_id: initialData.school_id || ''
+          // Assuming initialData comes with codes, otherwise you might need to map ID -> Code here
+          department_code: initialData.department_code || '', 
+          school_code: initialData.school_code || ''
         });
       } else {
-        setFormData({ fullName: '', email: '', password: '', role: 'staff', department_id: '', school_id: '' });
+        setFormData({ fullName: '', email: '', password: '', role: 'staff', department_code: '', school_code: '' });
       }
       setShowSuccess(false);
       setError(null);
     }
   }, [isOpen, initialData, isEditMode]);
+
+  // --- 2. HELPER: FILTER DEPARTMENTS ---
+  const academicDepts = deptOptions.filter(d => d.is_academic);
+  const adminDepts = deptOptions.filter(d => !d.is_academic);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -89,27 +85,27 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
     try {
       const uiRole = formData.role; 
       
-      // ✅ LOGIC: Map UI Role to Backend Payload
+      // ✅ LOGIC: Map UI Role to Backend Payload (Using CODES)
       let payloadRole = 'staff'; 
-      let payloadDeptId = null;
-      let payloadSchoolId = null;
+      let payloadDeptCode = null;
+      let payloadSchoolCode = null;
 
       if (uiRole === 'admin') {
           payloadRole = 'admin';
       } else if (uiRole === 'dean') {
           payloadRole = 'dean';
-          payloadSchoolId = parseInt(formData.school_id);
+          payloadSchoolCode = formData.school_code;
       } else if (uiRole === 'hod') {
           payloadRole = 'hod';
-          payloadDeptId = parseInt(formData.department_id);
+          payloadDeptCode = formData.department_code;
       } else if (uiRole === 'school_office') {
-          // School Office is technically "Staff" assigned to a "School"
+          // School Office = Staff linked to a School
           payloadRole = 'staff';
-          payloadSchoolId = parseInt(formData.school_id);
+          payloadSchoolCode = formData.school_code;
       } else if (uiRole === 'staff') {
-          // Admin Dept Staff
+          // Admin Staff = Staff linked to an Admin Dept (Library, Accounts, etc.)
           payloadRole = 'staff';
-          payloadDeptId = parseInt(formData.department_id);
+          payloadDeptCode = formData.department_code;
       }
 
       // Dynamic Endpoint
@@ -130,8 +126,8 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
         email: formData.email,
         password: formData.password,
         role: payloadRole, 
-        department_id: payloadDeptId,
-        school_id: payloadSchoolId,
+        department_code: payloadDeptCode, // ✅ Sending Code
+        school_code: payloadSchoolCode,   // ✅ Sending Code
       };
 
       if (isEditMode && !formData.password) delete payload.password;
@@ -212,7 +208,8 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                   <select 
                     className="w-full pl-10 pr-2 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-wider outline-none cursor-pointer"
                     value={formData.role} 
-                    onChange={(e) => setFormData({...formData, role: e.target.value, department_id: '', school_id: ''})}
+                    // Clear codes when role changes to avoid invalid combinations
+                    onChange={(e) => setFormData({...formData, role: e.target.value, department_code: '', school_code: ''})}
                   >
                     <option value="staff">Departments</option>
                     <option value="hod">HOD</option>
@@ -231,7 +228,7 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
               </div>
 
               {/* ---------------------------------------------------- */}
-              {/* CONDITIONAL DROPDOWNS BASED ON ROLE */}
+              {/* DYNAMIC DROPDOWNS (Powered by API Data) */}
               {/* ---------------------------------------------------- */}
 
               {/* 1. DEAN or SCHOOL OFFICE -> Select School */}
@@ -240,38 +237,44 @@ const RegisterUserModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                   <Landmark className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
                   <select 
                     required className="w-full pl-12 pr-5 py-4 bg-blue-50/30 border border-blue-100 rounded-2xl text-xs font-black uppercase tracking-tight outline-none"
-                    value={formData.school_id} onChange={(e) => setFormData({...formData, school_id: e.target.value})}
+                    value={formData.school_code} onChange={(e) => setFormData({...formData, school_code: e.target.value})}
                   >
                     <option value="">Select School</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {schoolOptions.map(s => (
+                        <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+                    ))}
                   </select>
                 </div>
               )}
 
-              {/* 2. ADMIN STAFF -> Select Administrative Dept */}
+              {/* 2. ADMIN STAFF -> Select Administrative Dept (Filtered) */}
               {formData.role === 'staff' && (
                 <div className="relative animate-in slide-in-from-top-2">
                   <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
                   <select 
                     required className="w-full pl-12 pr-5 py-4 bg-blue-50/30 border border-blue-100 rounded-2xl text-xs font-black uppercase tracking-tight outline-none"
-                    value={formData.department_id} onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    value={formData.department_code} onChange={(e) => setFormData({...formData, department_code: e.target.value})}
                   >
                     <option value="">Assign Dept</option>
-                    {adminDepartments.map(d => <option key={d.id} value={d.id}>{d.name.toUpperCase()}</option>)}
+                    {adminDepts.map(d => (
+                        <option key={d.code} value={d.code}>{d.name} ({d.code})</option>
+                    ))}
                   </select>
                 </div>
               )}
 
-              {/* 3. HOD -> Select Academic Dept */}
+              {/* 3. HOD -> Select Academic Dept (Filtered) */}
               {formData.role === 'hod' && (
                 <div className="relative animate-in slide-in-from-top-2">
                   <GraduationCap className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
                   <select 
                     required className="w-full pl-12 pr-5 py-4 bg-emerald-50/30 border border-emerald-100 rounded-2xl text-xs font-black uppercase tracking-tight outline-none"
-                    value={formData.department_id} onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    value={formData.department_code} onChange={(e) => setFormData({...formData, department_code: e.target.value})}
                   >
                     <option value="">Assign Academic Dept</option>
-                    {academicDepartments.map(d => <option key={d.id} value={d.id}>{d.name.toUpperCase()}</option>)}
+                    {academicDepts.map(d => (
+                        <option key={d.code} value={d.code}>{d.name} ({d.code})</option>
+                    ))}
                   </select>
                 </div>
               )}

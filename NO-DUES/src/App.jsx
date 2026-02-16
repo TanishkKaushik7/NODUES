@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StudentAuthProvider, useStudentAuth } from './contexts/StudentAuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext'; 
 import SessionTimeoutModal from './components/modals/SessionTimeoutModal';
-import HomeButton from './components/common/HomeButton';
 import './App.css';
 
 /* -------------------------------------------------------------------------- */
@@ -17,7 +16,8 @@ import MainPage from './pages/MainPage';
 /* LAZY IMPORTS (Code Splitting)                                              */
 /* -------------------------------------------------------------------------- */
 
-// Public Verification
+// Public & Utilities
+const Developers = lazy(() => import('./pages/Developers'));
 const CertificateVerify = lazy(() => import('./pages/Verification/CertificateVerify'));
 
 // Student Flow
@@ -54,10 +54,10 @@ const OfficeHistory = lazy(() => import('./pages/Office/HistoryPage'));
 /* -------------------------------------------------------------------------- */
 
 const PageLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+  <div className="flex h-screen w-full items-center justify-center bg-black">
     <div className="flex flex-col items-center gap-4">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-      <p className="text-slate-500 font-bold text-xs uppercase tracking-widest animate-pulse">Loading System...</p>
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
+      <p className="text-cyan-500 font-bold text-xs uppercase tracking-widest animate-pulse">Loading System...</p>
     </div>
   </div>
 );
@@ -158,7 +158,8 @@ function App() {
                 <Route path="/" element={<MainPage />} />
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/verify/:certificateId" element={<CertificateVerify />} />
-                
+                <Route path="/developers" element={<Developers />} />
+
                 {/* STUDENT FLOW */}
                 <Route path="/student" element={<StudentEntry />} />
                 <Route path="/student/login" element={<StudentLogin />} />
@@ -201,7 +202,6 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
-            <HomeButton />
           </SessionManager>
         </ApplicationProvider>
       </StudentAuthProvider>

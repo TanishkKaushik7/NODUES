@@ -361,15 +361,6 @@ const AdminDashboard = () => {
           </div>
 
           <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm mb-4">
-               <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                  <HelpCircle size={20} />
-               </div>
-               <div>
-                  <p className="text-[10px] font-black uppercase text-slate-800">Support Hub</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">View documentation</p>
-               </div>
-            </div>
             <button 
               onClick={() => setModalOpen({ ...modalOpen, logout: true })}
               className="w-full flex items-center h-12 px-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-red-500 bg-red-50 hover:bg-red-100 transition-all group border border-red-100"

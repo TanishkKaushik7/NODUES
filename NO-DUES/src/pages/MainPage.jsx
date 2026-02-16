@@ -50,12 +50,13 @@ export default function MainPage() {
     </div>
   );
 
-  const footerLinks = {
-    students: ['Timetables', 'Examinations', 'Scholarship', 'NSS', 'Student Portal', 'ABC', 'UGC Guidelines'],
-    employee: ['Leave/Medical Forms', 'Online Maintenance', 'Complaint Form'],
-    important: ['Anti Ragging', 'IQAC', 'NAAC', 'NIRF', 'RUSA', 'Shodhganga', 'IRINSGBU'],
-    youtube: ['Electrical Engg.', 'Applied Maths', 'ECE']
-  };
+  // Inside MainPage.jsx, find the footerLinks object:
+const footerLinks = {
+  students: ['Timetables', 'Examinations', 'Scholarship', 'NSS', 'Student Portal', 'ABC', 'UGC Guidelines'],
+  employee: ['Leave/Medical Forms', 'Online Maintenance', 'Complaint Form'],
+  important: ['Anti Ragging', 'IQAC', 'NAAC', 'NIRF', 'RUSA', 'Shodhganga', 'IRINSGBU'],
+  system: ['About Portal', 'Developer Page', 'Privacy Policy'] // Added Developer Page here
+};
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-x-hidden font-sans">
@@ -207,9 +208,26 @@ export default function MainPage() {
               <div key={title}>
                 <h4 className="text-xs font-black text-white uppercase tracking-widest mb-6 border-b border-white/10 pb-2 capitalize">{title}</h4>
                 <ul className="space-y-3">
-                  {links.map((link, idx) => (
-                    <li key={idx}><a href="#" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors">{link}</a></li>
-                  ))}
+                  {links.map((link, idx) => {
+                    if (link === 'Developer Page') {
+                      return (
+                        <li key={idx}>
+                          <button
+                            onClick={() => navigate('/developers')}
+                            className="text-sm text-slate-400 hover:text-cyan-400 transition-colors underline underline-offset-4"
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            {link}
+                          </button>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={idx}>
+                        <a href="#" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors">{link}</a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

@@ -163,14 +163,14 @@ const Overview = ({ user, formData, stepStatuses = [], setActive, applicationId,
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <InfoCard 
           icon={FiUser} 
-          label="Enrollment ID" 
+          label="Enrollment Number" 
           value={formData.enrollmentNumber} 
           iconBg="bg-blue-50" 
           iconColor="text-blue-600"
         />
         <InfoCard 
           icon={FiFileText} 
-          label="Registry Roll" 
+          label="Roll Number" 
           value={formData.rollNumber} 
           iconBg="bg-violet-50" 
           iconColor="text-violet-600"

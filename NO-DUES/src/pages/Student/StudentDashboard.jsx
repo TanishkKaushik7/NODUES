@@ -355,7 +355,7 @@ const StudentDashboard = () => {
     alt="GBU Logo" 
     className="w-full h-full object-contain"
   />
-</div>      <h1 className="text-[12px] xl:text-sm font-black uppercase tracking-[0.25em]">GBU Portal</h1>
+</div>      <h1 className="text-[12px] xl:text-sm font-black uppercase tracking-[0.25em]">Student Portal</h1>
           </div>
 
           <nav className="space-y-2 xl:space-y-3">

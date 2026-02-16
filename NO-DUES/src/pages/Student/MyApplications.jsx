@@ -270,7 +270,7 @@ const MyApplications = ({
               <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={getSafeErrorMsg(combinedErrors.rollNumber)} />
               
               <SelectRow 
-                label="Primary Department" 
+                label="Batch" 
                 name="departmentCode" 
                 value={formData.departmentCode} 
                 onChange={handleChange} 

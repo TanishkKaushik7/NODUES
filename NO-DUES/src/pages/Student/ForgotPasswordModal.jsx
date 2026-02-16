@@ -17,6 +17,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
   const [captchaInput, setCaptchaInput] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
   // Captcha State
   const [captchaImage, setCaptchaImage] = useState(null);
@@ -41,6 +42,9 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
       fetchCaptcha();
       setStep('email');
       setError('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtp('');
     }
   }, [isOpen]);
 
@@ -84,8 +88,15 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
   // Step 3: Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+
+    // Match check only
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
     try {
       await axios.post(`${API_BASE}/api/verification/reset-password`, {
         email,
@@ -109,13 +120,11 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"
       >
-        {/* Close Button */}
         <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors">
           <FiX size={20} />
         </button>
 
         <div className="p-8">
-          {/* Header */}
           <div className="mb-6">
             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               {step === 'success' ? <FiCheckCircle size={24} /> : <FiLock size={24} />}
@@ -129,7 +138,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
               {step === 'email' && 'Enter your registered email to receive OTP'}
               {step === 'otp' && `Enter the code sent to ${email}`}
-              {step === 'reset' && 'Create a strong new password'}
+              {step === 'reset' && 'Create a new password'}
               {step === 'success' && 'Your password has been successfully updated'}
             </p>
           </div>
@@ -140,7 +149,6 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Step 1: Email Form */}
           {step === 'email' && (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div className="space-y-1">
@@ -178,7 +186,6 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
             </form>
           )}
 
-          {/* Step 2: OTP Form */}
           {step === 'otp' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div className="space-y-1">
@@ -198,7 +205,6 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
             </form>
           )}
 
-          {/* Step 3: Reset Password Form */}
           {step === 'reset' && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-1">
@@ -212,13 +218,42 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
                   />
                 </div>
               </div>
-              <button disabled={loading} type="submit" className="w-full h-12 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Confirm Password</label>
+                  {confirmPassword && (
+                    <span className={`text-[9px] font-black uppercase ${newPassword === confirmPassword ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {newPassword === confirmPassword ? 'Match' : 'No Match'}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <FiCheckCircle className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${newPassword === confirmPassword && confirmPassword ? 'text-emerald-500' : 'text-slate-400'}`} size={16} />
+                  <input 
+                    type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full pl-12 pr-4 h-12 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white outline-none transition-all ${
+                      confirmPassword && newPassword !== confirmPassword ? 'border-red-200 ring-4 ring-red-500/5' : 'border-slate-200'
+                    }`}
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button 
+                disabled={loading || !newPassword || newPassword !== confirmPassword} 
+                type="submit" 
+                className={`w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                  newPassword && newPassword === confirmPassword 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
                 {loading ? <FiRefreshCw className="animate-spin" /> : 'Update Password'}
               </button>
             </form>
           )}
 
-          {/* Step 4: Success */}
           {step === 'success' && (
             <div className="space-y-4">
               <p className="text-center text-slate-500 text-sm font-medium">You can now login with your new credentials.</p>

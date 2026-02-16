@@ -299,7 +299,7 @@ const LoginScreen = ({
                   className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
                 >
                   {isLoading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} 
-                  Authorize Entry
+                  Login
                 </Button>
               </div>
             </form>

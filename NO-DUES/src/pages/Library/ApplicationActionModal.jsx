@@ -58,8 +58,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const rollNo = application.roll_number || application.rollNo;
   const enrollment = application.enrollment_number || application.enrollment;
   
-  // ✅ LOGIC: Determine Department Name
-  // Priority: 1. Dept Name from DB (CSE), 2. School Name (SOICT)
   let departmentDisplay = '—';
   if (application.department_name) {
       departmentDisplay = application.department_name;
@@ -73,7 +71,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   }
 
   const statusKey = (application.status || '').toLowerCase().replace(/[\s-]/g, '');
-  
   const hasActiveStage = application.active_stage?.id || application.active_stage?.stage_id;
   const isActionable = ['pending', 'inprogress', 'in_progress'].includes(statusKey) && hasActiveStage;
 
@@ -99,7 +96,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                 Application: <span className="text-indigo-600 font-mono">{application.display_id || application.displayId}</span>
               </h2>
-              {renderStatusBadge(application.status)}
+              {renderStatusBadge(application.status || application.application_status)}
             </div>
             <p className="text-xs text-gray-500 font-medium flex items-center gap-1 uppercase tracking-widest mt-1">
               <FiMapPin className="text-indigo-500 shrink-0" /> {application.current_location || "Processing"}
@@ -141,13 +138,10 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Roll Number</label><p className="font-bold text-gray-800">{rollNo}</p></div>
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Enrollment</label><p className="font-medium text-gray-700">{enrollment}</p></div>
-                
-                {/* ✅ DEPARTMENT FIELD */}
                 <div className="sm:col-span-2">
                     <label className="text-xs text-gray-400 block mb-1 uppercase">Department</label>
                     <p className="font-medium text-gray-800">{departmentDisplay}</p>
                 </div>
-
                 <div><label className="text-xs text-gray-400 block mb-1 uppercase">Admission Year</label><p className="font-medium text-gray-700">{application.admission_year || '—'}</p></div>
               </div>
             </section>
@@ -172,24 +166,46 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             </section>
           </div>
 
-          {/* Student Note */}
-          {studentNote && (
-            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+          {/* Remarks and Notes Section */}
+          <div className="space-y-4">
+            {/* ✅ NEW: Application Remarks Logic */}
+            {application.student_remarks && application.student_remarks.trim() !== "" && (
+              <div className="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-xl shadow-sm">
                 <div className="flex items-start gap-3">
-                    <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
-                        <FiMessageSquare size={18} />
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1">
-                            Student Correction Note
-                        </h4>
-                        <p className="text-sm text-amber-800 font-medium leading-relaxed italic">
-                            "{studentNote}"
-                        </p>
-                    </div>
+                  <div className="bg-indigo-100 p-2 rounded-full text-indigo-600 shrink-0">
+                    <FiAlertCircle size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-1">
+                      Student Remark
+                    </h4>
+                    <p className="text-sm text-indigo-800 font-medium leading-relaxed">
+                      {application.student_remarks}
+                    </p>
+                  </div>
                 </div>
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* Student Note */}
+            {studentNote && (
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+                  <div className="flex items-start gap-3">
+                      <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
+                          <FiMessageSquare size={18} />
+                      </div>
+                      <div>
+                          <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1">
+                              Student Correction Note
+                          </h4>
+                          <p className="text-sm text-amber-800 font-medium leading-relaxed italic">
+                              "{studentNote}"
+                          </p>
+                      </div>
+                  </div>
+              </div>
+            )}
+          </div>
 
           {/* Action Area */}
           {isActionable ? (
@@ -232,7 +248,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
           ) : (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
               <p className="text-sm text-amber-700 font-medium italic">
-                This application is locked (Current Status: {application.status}). No actions can be performed.
+                This application is locked (Current Status: {application.status || application.application_status}). No actions can be performed.
               </p>
             </div>
           )}

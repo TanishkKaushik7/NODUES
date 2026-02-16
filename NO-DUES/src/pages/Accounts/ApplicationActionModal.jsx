@@ -3,13 +3,13 @@ import { motion } from 'framer-motion';
 import { 
   FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, 
   FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin,
-  FiMessageSquare, FiAlertCircle, FiLock, FiExternalLink 
+  FiMessageSquare, FiAlertCircle 
 } from 'react-icons/fi';
 
 const renderStatusBadge = (status) => {
   const s = (status || 'Pending').toString();
   const key = s.toLowerCase().replace(/[\s-]/g, '');
-  
+   
   const styles = {
     cleared: "bg-green-100 text-green-800",
     approved: "bg-green-100 text-green-800",
@@ -40,9 +40,6 @@ const formatDate = (dateString) => {
 const ApplicationActionModal = ({ application, onClose, onAction, actionLoading, actionError, userSchoolName }) => {
   const popupRef = useRef(null);
   const [remark, setRemark] = useState('');
-  
-  // ✅ STATE: Track if verification document has been opened
-  const [documentViewed, setDocumentViewed] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -60,16 +57,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const name = application.student_name || application.name;
   const rollNo = application.roll_number || application.rollNo;
   const enrollment = application.enrollment_number || application.enrollment;
-  const proofUrl = application.proof_document_url || application.proof_url;
   
-  // ✅ HANDLER: Open document and unlock actions
-  const handleOpenDocument = () => {
-    if (proofUrl) {
-      window.open(proofUrl, '_blank');
-      setDocumentViewed(true);
-    }
-  };
-
   let departmentDisplay = '—';
   if (application.department_name) {
       departmentDisplay = application.department_name;
@@ -108,7 +96,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                 Application: <span className="text-indigo-600 font-mono">{application.display_id || application.displayId}</span>
               </h2>
-              {renderStatusBadge(application.status)}
+              {renderStatusBadge(application.status || application.application_status)}
             </div>
             <p className="text-xs text-gray-500 font-medium flex items-center gap-1 uppercase tracking-widest mt-1">
               <FiMapPin className="text-indigo-500 shrink-0" /> {application.current_location || "Processing"}
@@ -178,38 +166,53 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             </section>
           </div>
 
-          {/* Student Note */}
-          {studentNote && (
-            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+          {/* Remarks and Notes Section */}
+          <div className="space-y-4">
+            {/* ✅ NEW: Application Remarks Logic */}
+            {application.student_remarks && application.student_remarks.trim() !== "" && (
+              <div className="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-xl shadow-sm">
                 <div className="flex items-start gap-3">
-                    <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
-                        <FiMessageSquare size={18} />
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1">
-                            Student Correction Note
-                        </h4>
-                        <p className="text-sm text-amber-800 font-medium leading-relaxed italic">
-                            "{studentNote}"
-                        </p>
-                    </div>
+                  <div className="bg-indigo-100 p-2 rounded-full text-indigo-600 shrink-0">
+                    <FiAlertCircle size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-1">
+                      Student Remark
+                    </h4>
+                    <p className="text-sm text-indigo-800 font-medium leading-relaxed">
+                      {application.student_remarks}
+                    </p>
+                  </div>
                 </div>
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* Student Note */}
+            {studentNote && (
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+                  <div className="flex items-start gap-3">
+                      <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
+                          <FiMessageSquare size={18} />
+                      </div>
+                      <div>
+                          <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1">
+                              Student Correction Note
+                          </h4>
+                          <p className="text-sm text-amber-800 font-medium leading-relaxed italic">
+                              "{studentNote}"
+                          </p>
+                      </div>
+                  </div>
+              </div>
+            )}
+          </div>
 
           {/* Action Area */}
           {isActionable ? (
             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                  <FiFileText className="text-indigo-600" /> Department Review Action
-                </h3>
-                {!documentViewed && (
-                   <span className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-md font-bold flex items-center gap-1 animate-pulse border border-red-100">
-                     <FiAlertCircle /> REVIEW DOCUMENT FIRST
-                   </span>
-                )}
-              </div>
+              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <FiFileText className="text-indigo-600" /> Department Review Action
+              </h3>
               
               <div className="space-y-4">
                 <div>
@@ -226,18 +229,18 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button
-                    disabled={actionLoading || !documentViewed}
+                    disabled={actionLoading}
                     onClick={() => onAction(application, 'approve', remark)}
-                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
+                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {actionLoading ? <FiClock className="animate-spin" /> : !documentViewed ? <FiLock /> : <FiCheck />} Approve
+                    {actionLoading ? <FiClock className="animate-spin" /> : <FiCheck />} Approve
                   </button>
                   <button
-                    disabled={actionLoading || !documentViewed}
+                    disabled={actionLoading}
                     onClick={() => onAction(application, 'reject', remark)}
-                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
+                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {!documentViewed ? <FiLock /> : <FiX />} Reject
+                    <FiX /> Reject
                   </button>
                 </div>
               </div>
@@ -245,7 +248,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
           ) : (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
               <p className="text-sm text-amber-700 font-medium italic">
-                This application is locked (Current Status: {application.status}). No actions can be performed.
+                This application is locked (Current Status: {application.status || application.application_status}). No actions can be performed.
               </p>
             </div>
           )}
@@ -257,16 +260,12 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             Close Panel
           </button>
           
-          {proofUrl && (
+          {(application.proof_document_url || application.proof_url) && (
             <button 
-              onClick={handleOpenDocument}
-              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm ${
-                documentViewed 
-                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
-                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200"
-              }`}
+              onClick={() => window.open(application.proof_document_url || application.proof_url, '_blank')}
+              className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center justify-center gap-2 text-sm"
             >
-              <FiExternalLink /> {documentViewed ? "Review Proof Again" : "Verify Student Proof (Required)"}
+              <FiDownload /> Download Student Proof
             </button>
           )}
         </div>

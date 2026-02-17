@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiUser, FiLock, FiLogIn, FiShield, 
-  FiArrowLeft, FiRefreshCw, FiAlertCircle,
-  FiEye, FiEyeOff 
+  FiUser, FiLock, FiLogIn, 
+  FiArrowLeft, FiAlertCircle,
+  FiEye, FiEyeOff, FiCheckCircle
 } from 'react-icons/fi';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 // Import your Modal here
 import ForgotPasswordModal from './ForgotPasswordModal'; 
@@ -31,7 +31,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
 Input.displayName = "Input";
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
+  const baseStyles = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
   
   const variants = {
     default: "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -61,39 +61,17 @@ const LoginScreen = ({
   systemName = "NoDues Management System"
 }) => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
-  const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaHash, setCaptchaHash] = useState(''); 
+  const [turnstileToken, setTurnstileToken] = useState(''); 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [captchaImage, setCaptchaImage] = useState(null);
-  const [captchaLoading, setCaptchaLoading] = useState(true);
 
-  // Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const fetchCaptcha = async () => {
-    setCaptchaLoading(true);
-    try {
-      const rawBase = import.meta.env.VITE_API_BASE || '';
-      const API_BASE = rawBase.replace(/\/+$/g, ''); 
-      const response = await axios.get(`${API_BASE}/api/captcha/generate`);
-      setCaptchaImage(response.data.image);
-      setCaptchaHash(response.data.captcha_hash);
-    } catch (err) {
-      console.error("Captcha load failed", err);
-      setError("Too Many Requests. Please try again later.");
-    } finally {
-      setCaptchaLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCaptcha();
-  }, []);
+  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -102,14 +80,18 @@ const LoginScreen = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
     try {
       const result = await login({ 
         ...credentials, 
-        captcha_input: captchaInput,
-        captcha_hash: captchaHash 
+        turnstile_token: turnstileToken 
       });
       
       const user = result?.user;
@@ -147,8 +129,7 @@ const LoginScreen = ({
       }
     } catch (err) {
       setError(err.message || 'Access Denied.');
-      fetchCaptcha(); 
-      setCaptchaInput('');
+      setTurnstileToken(''); 
     } finally {
       setIsLoading(false);
     }
@@ -158,13 +139,11 @@ const LoginScreen = ({
 
   return (
     <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-4 sm:p-6 font-sans relative">
-      {/* Background Blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-blue-50/50 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-indigo-50/50 rounded-full blur-[120px]" />
       </div>
 
-      {/* Back Button */}
       <button 
         onClick={() => navigate('/', { replace: true })} 
         className="absolute top-4 left-4 sm:top-8 sm:left-8 p-3 bg-white rounded-2xl shadow-xl hover:bg-slate-50 transition-all active:scale-95 z-50 border border-slate-100"
@@ -172,7 +151,6 @@ const LoginScreen = ({
         <FiArrowLeft className="text-slate-700" size={20} />
       </button>
 
-      {/* Login Card */}
       <div className="w-full max-w-[400px] lg:max-w-4xl grid grid-cols-1 lg:grid-cols-10 bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl shadow-blue-900/10 border border-slate-100 overflow-hidden relative z-10 my-12 lg:my-0">
         
         {/* Sidebar branding */}
@@ -199,14 +177,14 @@ const LoginScreen = ({
         {/* Form Content */}
         <div className="lg:col-span-6 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-white">
           <div className="w-full">
-            <div className="mb-6 sm:mb-8">
+            <div className="mb-6 sm:mb-8 text-center lg:text-left">
               <h2 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-tight">Authority Login</h2>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Registry Credentials Required</p>
             </div>
 
             <AnimatePresence mode="wait">
               {error && (
-                <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-50 text-red-600 border border-red-100 rounded-2xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-3">
+                <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-6 p-4 bg-red-50 text-red-600 border border-red-100 rounded-2xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-3">
                   <FiAlertCircle className="shrink-0" size={16} /> {error}
                 </motion.div>
               )}
@@ -232,7 +210,6 @@ const LoginScreen = ({
               <div className="space-y-1">
                 <div className="flex justify-between items-center pr-1">
                   <label className={labelStyle}>Password</label>
-                  {/* FORGOT PASSWORD BUTTON */}
                   <button 
                     type="button" 
                     onClick={() => setIsForgotModalOpen(true)}
@@ -262,44 +239,74 @@ const LoginScreen = ({
                 </div>
               </div>
 
-              {/* Security Check */}
-              <div className="space-y-1 pt-2 border-t border-slate-50">
-                <div className="flex justify-between items-center mb-2">
-                  <label className={labelStyle}>Security Check</label>
-                  <button type="button" onClick={fetchCaptcha} className="text-[9px] font-black text-blue-600 hover:text-blue-800 uppercase flex items-center gap-1 transition-colors">
-                    <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh Code
-                  </button>
+              {/* ✅ COMPACT Security Verification Section */}
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between px-1">
+                  <label className={labelStyle}>Verification</label>
+                  <AnimatePresence>
+                    {turnstileToken && (
+                      <motion.span 
+                        initial={{ opacity: 0, x: 5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[9px] font-bold text-green-600 flex items-center gap-1 uppercase tracking-tighter"
+                      >
+                        <FiCheckCircle size={10} /> Secure
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </div>
                 
-                <div className="grid grid-cols-5 gap-2">
-                  <div className="col-span-2 h-12 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-                    {captchaLoading ? (
-                      <div className="w-full h-full animate-pulse bg-slate-200" />
-                    ) : (
-                      <img src={captchaImage} alt="captcha" className="h-full w-full object-contain p-1" />
-                    )}
-                  </div>
-                  <div className="col-span-3">
-                    <Input
-                      value={captchaInput}
-                      onChange={(e) => setCaptchaInput(e.target.value)}
-                      placeholder="Type Code"
-                      autoComplete="off"
-                      className="h-12 bg-slate-50 border-slate-200 rounded-xl uppercase text-center text-xs font-black placeholder:font-normal tracking-[0.25em] focus:bg-white outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                      required
-                    />
-                  </div>
+                <div className={cn(
+                  "relative h-[48px] w-[300px] m-auto rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden",
+                  turnstileToken 
+                    ? "bg-green-50/20 border-green-200" 
+                    : "bg-slate-50 border-slate-200"
+                )}>
+                  <Turnstile 
+                    siteKey={SITE_KEY}
+                    onSuccess={token => {
+                      setTurnstileToken(token);
+                      setError('');
+                    }}
+                    onError={() => setError("Security check failed.")}
+                    onExpire={() => setTurnstileToken('')}
+                    options={{ 
+                      theme: 'light', 
+                      size: 'normal' // Standard width but shorter than 'flexible'
+                    }}
+                  />
+                  {!turnstileToken && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.02]">
+                       <FiLock size={30} />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-3">
                 <Button 
                   type="submit" 
-                  disabled={isLoading || captchaLoading}
-                  className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+                  disabled={isLoading || !turnstileToken} 
+                  className={cn(
+                    "w-full h-12 rounded-xl font-black text-[11px] uppercase tracking-[0.25em] shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98]",
+                    turnstileToken 
+                      ? "bg-slate-900 hover:bg-slate-800 text-white" 
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                  )}
                 >
-                  {isLoading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} 
-                  Login
+                  {isLoading ? (
+                    <span className="animate-spin text-lg">●</span>
+                  ) : !turnstileToken ? (
+                    <>
+                      <FiLock className="opacity-50" /> 
+                      Verify Above
+                    </>
+                  ) : (
+                    <>
+                      <FiLogIn /> 
+                      Login
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
@@ -307,7 +314,6 @@ const LoginScreen = ({
         </div>
       </div>
 
-      {/* RENDER MODAL */}
       <ForgotPasswordModal 
         isOpen={isForgotModalOpen} 
         onClose={() => setIsForgotModalOpen(false)} 

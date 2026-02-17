@@ -103,11 +103,19 @@ const MyApplications = ({
   const [validationError, setValidationError] = useState('');
   const [localFieldErrors, setLocalFieldErrors] = useState({});
 
-  // Dynamic Department State
+  // --- DYNAMIC DROPDOWN STATES ---
   const [deptOptions, setDeptOptions] = useState([]);
   const [isDeptsLoading, setIsDeptsLoading] = useState(false);
 
-  // ✅ 1. Fetch departments linked strictly to this student's school
+  const [progOptions, setProgOptions] = useState([]);
+  const [isProgsLoading, setIsProgsLoading] = useState(false);
+
+  const [specOptions, setSpecOptions] = useState([]);
+  const [isSpecsLoading, setIsSpecsLoading] = useState(false);
+
+  // ---------------------------------------------------------
+  // 1. Fetch Departments (School Level)
+  // ---------------------------------------------------------
   useEffect(() => {
     const fetchLinkedDepartments = async () => {
       const studentSchoolId = user?.student?.school_id || user?.school_id;
@@ -129,6 +137,75 @@ const MyApplications = ({
     fetchLinkedDepartments();
   }, [user, authFetch]);
 
+  // ---------------------------------------------------------
+  // 2. Fetch Programmes (Department Level)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const fetchProgrammes = async () => {
+      if (!formData.departmentCode) {
+        setProgOptions([]);
+        return;
+      }
+
+      setIsProgsLoading(true);
+      try {
+        const res = await authFetch(`/api/common/programmes?department_code=${formData.departmentCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProgOptions(data.map(p => ({ v: p.code, l: p.name })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch programmes", err);
+      } finally {
+        setIsProgsLoading(false);
+      }
+    };
+    fetchProgrammes();
+  }, [formData.departmentCode, authFetch]);
+
+  // ---------------------------------------------------------
+  // 3. Fetch Specializations (Programme Level)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const fetchSpecializations = async () => {
+      if (!formData.programmeCode) {
+        setSpecOptions([]);
+        return;
+      }
+
+      setIsSpecsLoading(true);
+      try {
+        const res = await authFetch(`/api/common/specializations?programme_code=${formData.programmeCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSpecOptions(data.map(s => ({ v: s.code, l: s.name })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch specializations", err);
+      } finally {
+        setIsSpecsLoading(false);
+      }
+    };
+    fetchSpecializations();
+  }, [formData.programmeCode, authFetch]);
+
+
+  // --- CASCADING HANDLERS ---
+  
+  // When Department changes, clear Programme & Specialization
+  const handleDeptChange = (e) => {
+    handleChange(e); // Update Dept
+    handleChange({ target: { name: 'programmeCode', value: '' } }); // Clear Prog
+    handleChange({ target: { name: 'specializationCode', value: '' } }); // Clear Spec
+  };
+
+  // When Programme changes, clear Specialization
+  const handleProgChange = (e) => {
+    handleChange(e); // Update Prog
+    handleChange({ target: { name: 'specializationCode', value: '' } }); // Clear Spec
+  };
+
+
   const combinedErrors = { ...externalErrors, ...localFieldErrors };
   const isFullyCleared = isCompleted || (stepStatuses?.length > 0 && stepStatuses?.every(s => s.status === 'completed'));
 
@@ -137,14 +214,17 @@ const MyApplications = ({
     return typeof msg === 'object' ? (msg.msg || msg.detail || 'Error') : msg;
   };
 
- const validateAndSave = () => {
+  const validateAndSave = () => {
     setValidationError('');
     setLocalFieldErrors({});
     
+    // ✅ Updated Mandatory Keys with new fields
     const mandatoryKeys = [
-      'enrollmentNumber', 'rollNumber', 'admissionYear', 'section', 
-      'admissionType', 'dob', 'fatherName', 'motherName', 'gender', 
-      'category', 'permanentAddress', 'domicile', 'proof_document_url', 'departmentCode'
+      'enrollmentNumber', 'rollNumber', 
+      'departmentCode', 'programmeCode', 'specializationCode', // New Academic Fields
+      'admissionYear', 'section', 'admissionType', 
+      'dob', 'fatherName', 'motherName', 'gender', 
+      'category', 'permanentAddress', 'domicile', 'proof_document_url'
     ];
 
     if (formData.isHosteller === 'Yes') mandatoryKeys.push('hostelName', 'hostelRoom');
@@ -160,16 +240,17 @@ const MyApplications = ({
     if (Object.keys(newErrors).length > 0) {
       setLocalFieldErrors(newErrors);
       setValidationError('Please complete all required fields.');
-      // ... (keep your scrolling logic here)
       return;
     }
 
-    // ✅ FIXED PAYLOAD: Explicitly map camelCase (UI) to snake_case (Backend)
+    // ✅ FIXED PAYLOAD: Include Programme & Specialization
     const payload = {
       // Academic
       enrollment_number: formData.enrollmentNumber,
       roll_number: formData.rollNumber,
       department_code: formData.departmentCode,
+      programme_code: formData.programmeCode,       // NEW
+      specialization_code: formData.specializationCode, // NEW
       admission_year: parseInt(formData.admissionYear),
       admission_type: formData.admissionType,
       section: formData.section,
@@ -177,7 +258,7 @@ const MyApplications = ({
       // Personal
       full_name: formData.fullName || user?.full_name,
       email: formData.email || user?.email,
-      father_name: formData.fatherName, // Fixed typo: was looking for 'father_naame' in your logs
+      father_name: formData.fatherName,
       mother_name: formData.motherName,
       dob: formData.dob,
       gender: formData.gender,
@@ -198,6 +279,7 @@ const MyApplications = ({
 
     handleSave(payload);
   };
+
   const onFileChange = (e) => {
     const file = e.target.files[0];
     if (file && file.size > 5 * 1024 * 1024) {
@@ -269,11 +351,12 @@ const MyApplications = ({
               <InputRow label="Enrollment Number" name="enrollmentNumber" value={formData.enrollmentNumber} onChange={handleChange} editable={!locked.enrollmentNumber} error={getSafeErrorMsg(combinedErrors.enrollmentNumber)} />
               <InputRow label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} editable={!locked.rollNumber} error={getSafeErrorMsg(combinedErrors.rollNumber)} />
               
+              {/* Department (Level 1) */}
               <SelectRow 
-                label="Batch" 
+                label="Department" 
                 name="departmentCode" 
                 value={formData.departmentCode} 
-                onChange={handleChange} 
+                onChange={handleDeptChange} // Updates Dept & Clears Children
                 editable={!locked.departmentCode} 
                 error={getSafeErrorMsg(combinedErrors.departmentCode)} 
                 options={deptOptions} 
@@ -281,9 +364,35 @@ const MyApplications = ({
                 required 
               />
 
+              {/* Programme (Level 2) - Filtered by Dept */}
+              <SelectRow 
+                label="Programme / Degree" 
+                name="programmeCode" 
+                value={formData.programmeCode} 
+                onChange={handleProgChange} // Updates Prog & Clears Spec
+                editable={!locked.programmeCode && formData.departmentCode} 
+                error={getSafeErrorMsg(combinedErrors.programmeCode)} 
+                options={progOptions} 
+                loading={isProgsLoading}
+                required 
+              />
+
+              {/* Specialization (Level 3) - Filtered by Programme */}
+              <SelectRow 
+                label="Specialization" 
+                name="specializationCode" 
+                value={formData.specializationCode} 
+                onChange={handleChange} 
+                editable={!locked.specializationCode && formData.programmeCode} 
+                error={getSafeErrorMsg(combinedErrors.specializationCode)} 
+                options={specOptions} 
+                loading={isSpecsLoading}
+                required 
+              />
+
               <div className="grid grid-cols-2 gap-4">
                   <InputRow label="Admission Year" name="admissionYear" type="number" value={formData.admissionYear} onChange={handleChange} editable={!locked.admissionYear} error={getSafeErrorMsg(combinedErrors.admissionYear)} />
-                  <SelectRow label="Section" name="section" value={formData.section} onChange={handleChange} editable={!locked.section} error={getSafeErrorMsg(combinedErrors.section)} options={[{v:'A',l:'A'}, {v:'B',l:'B'}, {v:'C',l:'C'}, {v:'D',l:'D'}]} />
+                  <SelectRow label="Section" name="section" value={formData.section} onChange={handleChange} editable={!locked.section} error={getSafeErrorMsg(combinedErrors.section)} options={[{v:'A',l:'A'}, {v:'B',l:'B'}, {v:'C',l:'C'}, {v:'D',l:'D'},{v:'E',l:'E'},{v:'F',l:'F'},{v:'N/A',l:'N/A'}]} />
               </div>
               <SelectRow label="Admission Type" name="admissionType" value={formData.admissionType} onChange={handleChange} editable={!locked.admissionType} error={getSafeErrorMsg(combinedErrors.admissionType)} options={[{v:'Regular',l:'Regular'}, {v:'Lateral Entry',l:'Lateral Entry'}]} />
             </div>
@@ -362,22 +471,22 @@ const MyApplications = ({
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="md:col-span-2">
-                    <Label required={isRejected}>{isRejected ? "Revision Notes" : "Additional Remarks"}</Label>
-                    <textarea 
-                        name="remarks" value={formData.remarks || ''} onChange={handleChange} rows="3" 
-                        className="w-full rounded-2xl px-5 py-4 text-sm font-bold border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all placeholder:font-medium placeholder:text-slate-300"
-                        placeholder={isRejected ? "Explain the changes made for approval..." : "Provide any additional context for the approving officer..."} 
-                    />
-                </div>
+            <div className="md:col-span-2">
+                <Label required={isRejected}>{isRejected ? "Revision Notes" : "Additional Remarks"}</Label>
+                <textarea 
+                    name="remarks" value={formData.remarks || ''} onChange={handleChange} rows="3" 
+                    className="w-full rounded-2xl px-5 py-4 text-sm font-bold border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all placeholder:font-medium placeholder:text-slate-300"
+                    placeholder={isRejected ? "Explain the changes made for approval..." : "Provide any additional context for the approving officer..."} 
+                />
             </div>
           </section>
 
           <div className="pt-8 flex justify-end border-t border-slate-100">
             <button 
               onClick={validateAndSave} 
-              disabled={submitting || uploading || isDeptsLoading} 
+              disabled={submitting || uploading || isDeptsLoading || isProgsLoading || isSpecsLoading} 
               className="px-12 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all disabled:opacity-50 shadow-xl active:scale-95 flex items-center gap-3"
             >
                 {submitting ? <FiRefreshCw className="animate-spin" /> : (isRejected ? 'Resubmit Application' : 'Submit Application')}

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiShield, FiLogIn, FiArrowLeft, FiUser, FiMail, 
-  FiPhone, FiHash, FiCheckCircle, FiRefreshCw, FiBookOpen 
+  FiPhone, FiHash, FiCheckCircle, FiRefreshCw, FiBookOpen, FiLock, FiAlertCircle
 } from 'react-icons/fi';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // --- SHARED UTILS & COMPONENTS ---
-
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
@@ -40,10 +40,12 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
 Button.displayName = "Button";
 
 // --- MAIN COMPONENT ---
-
 const StudentRegister = () => {
   const navigate = useNavigate();
   const { register } = useStudentAuth(); 
+  
+  // Ref for Turnstile to allow manual reset
+  const turnstileRef = useRef(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -52,36 +54,26 @@ const StudentRegister = () => {
     fullName: '',
     email: '',
     mobileNumber: '',
-    schoolId: '', // Can be ID (1) or Code ("SOICT")
+    schoolId: '', 
     password: '',
     confirmPassword: '',
   });
 
-  // Dynamic Data State
   const [schools, setSchools] = useState([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
-  // Captcha State
-  const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaImage, setCaptchaImage] = useState(null);
-  const [captchaHash, setCaptchaHash] = useState('');
-  const [captchaLoading, setCaptchaLoading] = useState(false);
-
-  // Status State
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState({});
 
-  // 1. FETCH DYNAMIC SCHOOLS
   const fetchSchools = async () => {
     try {
       const rawBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000';
       const API_BASE = rawBase.replace(/\/+$/g, '');
       const response = await axios.get(`${API_BASE}/api/common/schools`);
-      
-      if (Array.isArray(response.data)) {
-        setSchools(response.data);
-      }
+      if (Array.isArray(response.data)) setSchools(response.data);
     } catch (err) {
       console.error("Failed to fetch schools:", err);
     } finally {
@@ -89,43 +81,24 @@ const StudentRegister = () => {
     }
   };
 
-  const fetchCaptcha = async () => {
-    setCaptchaLoading(true);
-    try {
-      const rawBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000';
-      const API_BASE = rawBase.replace(/\/+$/g, '');
-      const response = await axios.get(`${API_BASE}/api/captcha/generate`);
-      
-      if (response.data) {
-        setCaptchaImage(response.data.image);
-        setCaptchaHash(response.data.captcha_hash);
-      }
-    } catch (err) {
-      console.error("Captcha failed:", err);
-      setMessage("Failed to load security check.");
-    } finally {
-      setCaptchaLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchSchools();
-    fetchCaptcha();
   }, []);
+
+  const handleRefreshTurnstile = () => {
+    setTurnstileToken('');
+    turnstileRef.current?.reset();
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let val = value;
-
     if (name === 'enrollmentNumber' || name === 'mobileNumber') {
       val = value.replace(/\D/g, '').slice(0, name === 'mobileNumber' ? 10 : 15);
     }
-
-    // Roll Number: Numbers and Letters only
     if (name === 'rollNumber') {
       val = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
-
     setForm(prev => ({ ...prev, [name]: val }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
@@ -140,11 +113,11 @@ const StudentRegister = () => {
     if (!form.schoolId) err.schoolId = 'Select School';
     if (form.password.length < 6) err.password = 'Min 6 chars';
     if (form.password !== form.confirmPassword) err.confirmPassword = 'Passwords mismatch';
-    if (!captchaInput) err.captcha = 'Security code required';
+    if (!turnstileToken) err.turnstile = 'Security check required';
     return err;
   };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length > 0) return setErrors(v);
@@ -153,56 +126,48 @@ const handleSubmit = async (e) => {
     setMessage('');
 
     try {
-      // ✅ LOGIC: Send ONLY school_code
-      // The dropdown value (form.schoolId) is already the code (e.g., "SOICT")
-      // because your API returns codes in the dropdown options.
-      
       const payload = {
         enrollment_number: form.enrollmentNumber,
         roll_number: form.rollNumber.trim(),
         full_name: form.fullName.trim(),
         mobile_number: form.mobileNumber,
         email: form.email.trim(),
-        
-        // 👉 PURE CODE APPROACH
-        school_code: form.schoolId, // This contains "SOICT"
-        school_id: null,            // Send null so backend ignores it
-
+        school_code: form.schoolId, 
+        school_id: null, 
         password: form.password,
-        confirm_password: form.confirmPassword, // Include for validation
-        captcha_input: captchaInput,
-        captcha_hash: captchaHash
+        confirm_password: form.confirmPassword,
+        turnstile_token: turnstileToken
       };
 
       await register(payload);
-
-      setMessage('Success! Account Created. Redirecting...');
+      setMessage('Success: Account Created! Redirecting...');
       setTimeout(() => navigate('/student/login'), 2000);
 
     } catch (err) {
-      console.error("Registration Error:", err);
-      // ... error handling code ...
-      let errorMsg = 'Registration failed.';
-      if (err.response?.data?.detail) {
-          const detail = err.response.data.detail;
-          errorMsg = Array.isArray(detail) ? detail[0].msg : detail;
+      console.error("Full Error Object:", err);
+      let errorMsg = 'Registration failed due to a server error.';
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (data.detail) {
+          errorMsg = Array.isArray(data.detail) ? data.detail[0].msg : data.detail;
+        } 
+        else if (data.message) { errorMsg = data.message; } 
+        else if (data.error) { errorMsg = data.error; }
       } else if (err.message) {
-          errorMsg = err.message;
+        errorMsg = err.message;
       }
       setMessage(errorMsg);
-      fetchCaptcha();
-      setCaptchaInput('');
+      handleRefreshTurnstile(); // Reset token on error automatically
     } finally {
       setLoading(false);
     }
-  };  
+  }; 
+
   const labelStyle = "text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1 block";
   const inputContainer = "relative transition-all duration-200 focus-within:transform focus-within:scale-[1.01]";
 
   return (
     <div className="min-h-screen w-full bg-[#fcfdfe] flex items-center justify-center p-4 py-8 lg:p-0 font-sans relative">
-      
-      {/* Background Decor */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-blue-50/50 rounded-full blur-3xl" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-indigo-50/50 rounded-full blur-3xl" />
@@ -217,8 +182,7 @@ const handleSubmit = async (e) => {
 
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-[2rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden relative z-10 my-8 lg:my-0">
         
-        {/* Left Side (Branding) */}
-        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden min-h-[300px] lg:min-h-auto">
+        <div className="lg:col-span-4 bg-slate-900 p-8 flex flex-col justify-between text-white relative overflow-hidden min-h-[250px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
           </div>
@@ -232,7 +196,6 @@ const handleSubmit = async (e) => {
                 />
               </div>
             </div>
-            
             <h1 className="text-2xl font-black leading-tight tracking-tight uppercase">
               Gautam Buddha <br /> University
             </h1>
@@ -240,7 +203,6 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
-        {/* Right Side (Form) */}
         <div className="lg:col-span-8 p-6 lg:p-10 lg:max-h-[90vh] lg:overflow-y-auto custom-scrollbar">
           <div className="max-w-xl mx-auto">
             <div className="mb-6">
@@ -251,20 +213,26 @@ const handleSubmit = async (e) => {
             <AnimatePresence mode="wait">
               {message && (
                 <motion.div 
-                  initial={{ opacity: 0, height: 0 }} 
-                  animate={{ opacity: 1, height: 'auto' }} 
+                  initial={{ opacity: 0, y: -10 }} 
+                  animate={{ opacity: 1, y: 0 }} 
                   exit={{ opacity: 0, height: 0 }}
-                  className={`mb-4 p-3 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 ${message.toLowerCase().includes('success') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                  className={`mb-4 p-4 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-3 border ${
+                    message.toLowerCase().includes('success') 
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                      : 'bg-red-50 text-red-600 border-red-100'
+                  }`}
                 >
-                  {message.toLowerCase().includes('success') ? <FiCheckCircle size={14} /> : <FiRefreshCw size={14} />} {message}
+                  {message.toLowerCase().includes('success') 
+                    ? <FiCheckCircle size={16} className="shrink-0" /> 
+                    : <FiAlertCircle size={16} className="shrink-0" />
+                  } 
+                  <span className="leading-relaxed">{message}</span>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                {/* Enrollment Number */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Enrollment No</label>
                   <div className={inputContainer}>
@@ -280,7 +248,6 @@ const handleSubmit = async (e) => {
                   {errors.enrollmentNumber && <span className="text-[10px] text-red-500 font-bold">{errors.enrollmentNumber}</span>}
                 </div>
 
-                {/* Roll Number */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Roll Number</label>
                   <div className={inputContainer}>
@@ -296,7 +263,6 @@ const handleSubmit = async (e) => {
                   {errors.rollNumber && <span className="text-[10px] text-red-500 font-bold">{errors.rollNumber}</span>}
                 </div>
 
-                {/* Full Name */}
                 <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Full Name</label>
                   <Input 
@@ -308,7 +274,6 @@ const handleSubmit = async (e) => {
                   />
                 </div>
 
-                {/* Email */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Email</label>
                   <Input 
@@ -322,7 +287,6 @@ const handleSubmit = async (e) => {
                   {errors.email && <span className="text-[10px] text-red-500 font-bold">{errors.email}</span>}
                 </div>
 
-                {/* Mobile */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Mobile</label>
                   <Input 
@@ -334,7 +298,6 @@ const handleSubmit = async (e) => {
                   />
                 </div>
 
-                {/* DYNAMIC SCHOOL SELECTION */}
                 <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Academic School</label>
                   <div className="relative">
@@ -347,7 +310,6 @@ const handleSubmit = async (e) => {
                     >
                       <option value="">{schoolsLoading ? 'Loading Schools...' : 'Select University School'}</option>
                       {schools.map((school, index) => (
-                        // ✅ Supports both ID-based and Code-based API responses
                         <option key={index} value={school.id || school.code}>
                           {school.name} ({school.code})
                         </option>
@@ -362,7 +324,6 @@ const handleSubmit = async (e) => {
                   {errors.schoolId && <span className="text-[10px] text-red-500 font-bold">{errors.schoolId}</span>}
                 </div>
 
-                {/* Password */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Password</label>
                   <Input 
@@ -375,7 +336,6 @@ const handleSubmit = async (e) => {
                   {errors.password && <span className="text-[10px] text-red-500 font-bold">{errors.password}</span>}
                 </div>
 
-                {/* Confirm Password */}
                 <div className="space-y-1">
                   <label className={labelStyle}>Confirm</label>
                   <Input 
@@ -389,42 +349,67 @@ const handleSubmit = async (e) => {
                 </div>
               </div>
 
-              {/* Security Section */}
+              {/* Turnstile Section with Refresh */}
               <div className="pt-2 border-t border-slate-100 mt-2">
-                <div className="flex justify-between items-center mb-2">
-                  <label className={labelStyle}>Security Verification</label>
-                  <button type="button" onClick={fetchCaptcha} className="text-[9px] font-black text-blue-600 cursor-pointer uppercase flex items-center gap-1 transition-colors hover:text-blue-800">
-                    <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh Code
-                  </button>
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  <div className="col-span-2 h-11 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-                    {captchaLoading ? (
-                      <div className="animate-pulse bg-slate-200 w-full h-full" />
-                    ) : (
-                      captchaImage && <img src={captchaImage} alt="Captcha" className="h-full w-full object-cover select-none" draggable="false" />
+                <div className="flex justify-between items-center px-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <label className={labelStyle}>Security Verification</label>
+                 <button
+  type="button"
+  onClick={handleRefreshTurnstile}
+  className="text-blue-400 hover:text-blue-500 transition-colors inline-flex items-center gap-1.5 p-1"
+  title="Refresh Verification"
+><span className="text-[10px] font-bold uppercase tracking-wider">Refresh</span>
+  <FiRefreshCw 
+    size={12} 
+    className={loading ? "animate-spin" : "transition-transform group-hover:rotate-180"} 
+  />
+</button>
+                  </div>
+                  <AnimatePresence>
+                    {turnstileToken && (
+                      <motion.span 
+                        initial={{ opacity: 0, x: 5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[9px] font-black text-green-600 flex items-center gap-1 uppercase tracking-tighter"
+                      >
+                        <FiCheckCircle size={10} /> Secure
+                      </motion.span>
                     )}
-                  </div>
-                  <div className="col-span-3">
-                    <Input 
-                      value={captchaInput} 
-                      onChange={(e) => setCaptchaInput(e.target.value)} 
-                      placeholder="ENTER CODE" 
-                      className={`h-11 bg-slate-50 rounded-xl text-center text-sm sm:text-xs font-black uppercase tracking-[0.2em] focus:bg-white w-full ${errors.captcha ? 'border-red-300' : 'border-slate-200'}`} 
-                    />
-                  </div>
+                  </AnimatePresence>
                 </div>
+                
+                <div className={cn(
+                  "relative h-[48px] w-full max-w-[300px] m-auto rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden bg-slate-50",
+                  turnstileToken ? "border-green-200 bg-green-50/20" : "border-slate-200"
+                )}>
+                  <Turnstile 
+                    ref={turnstileRef}
+                    siteKey={SITE_KEY}
+                    onSuccess={token => {
+                      setTurnstileToken(token);
+                      setErrors(prev => ({ ...prev, turnstile: '' }));
+                    }}
+                    onExpire={() => setTurnstileToken('')}
+                    options={{ theme: 'light', size: 'normal' }}
+                  />
+                </div>
+                {errors.turnstile && <span className="text-[10px] text-red-500 font-bold ml-1 text-center block mt-1">{errors.turnstile}</span>}
               </div>
 
-              {/* Submit Actions */}
               <div className="pt-4 flex flex-col items-center gap-4">
                 <Button 
                   type="submit" 
-                  disabled={loading || captchaLoading || schoolsLoading} 
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
+                  disabled={loading || schoolsLoading || !turnstileToken} 
+                  className={cn(
+                    "w-[300px] h-12 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-2",
+                    turnstileToken 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                  )}
                 >
-                  {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} 
-                  {loading ? 'Creating Account...' : 'Register Account'}
+                  {loading ? <FiRefreshCw className="animate-spin" /> : turnstileToken ? <FiLogIn /> : <FiLock className="opacity-50" />} 
+                  {loading ? 'Creating Account...' : turnstileToken ? 'Register Account' : 'Verify to Register'}
                 </Button>
                 
                 <button 

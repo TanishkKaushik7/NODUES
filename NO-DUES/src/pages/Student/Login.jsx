@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUser, FiLock, FiLogIn, FiShield, FiArrowLeft, 
-  FiRefreshCw, FiAlertCircle, FiEye, FiEyeOff 
+  FiRefreshCw, FiAlertCircle, FiEye, FiEyeOff, FiCheckCircle
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
@@ -39,6 +39,7 @@ const Button = React.forwardRef(({ className, variant = "default", ...props }, r
 const StudentLogin = () => {
   const { login } = useStudentAuth();
   const navigate = useNavigate();
+  const turnstileRef = useRef(null);
   
   const [credentials, setCredentials] = useState({ identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -46,10 +47,9 @@ const StudentLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
-  const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaImage, setCaptchaImage] = useState(null); 
-  const [captchaHash, setCaptchaHash] = useState('');     
-  const [captchaLoading, setCaptchaLoading] = useState(true);
+  // Turnstile State
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     localStorage.removeItem('studentToken');
@@ -57,23 +57,10 @@ const StudentLogin = () => {
     localStorage.removeItem('token');
   }, []);
 
-  const fetchCaptcha = async (preserveError = false) => {
-    setCaptchaLoading(true);
-    if (!preserveError) setError(''); 
-    try {
-      const rawBase = import.meta.env.VITE_API_BASE || '';
-      const API_BASE = rawBase.replace(/\/+$/g, ''); 
-      const response = await axios.get(`${API_BASE}/api/captcha/generate`);
-      setCaptchaImage(response.data.image); 
-      setCaptchaHash(response.data.captcha_hash); 
-    } catch (err) {
-      if (!preserveError) setError("Security service unavailable.");
-    } finally {
-      setCaptchaLoading(false);
-    }
+  const handleRefreshTurnstile = () => {
+    setTurnstileToken('');
+    turnstileRef.current?.reset();
   };
-
-  useEffect(() => { fetchCaptcha(); }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -84,8 +71,13 @@ const StudentLogin = () => {
     e.preventDefault();
     setError('');
 
-    if (!credentials.identifier || !credentials.password || !captchaInput) {
-      setError("Please complete all fields.");
+    if (!credentials.identifier || !credentials.password) {
+      setError("Please enter your credentials.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      setError("Please complete the security check.");
       return;
     }
 
@@ -94,15 +86,12 @@ const StudentLogin = () => {
       await login({ 
         identifier: credentials.identifier, 
         password: credentials.password,
-        captcha_input: captchaInput,
-        captcha_hash: captchaHash,
-        captcha_ts: Date.now() 
+        turnstile_token: turnstileToken // Sent to backend for verification
       });
       navigate('/student/dashboard');
     } catch (err) {
-      setError(err.message || 'Verification failed.');
-      fetchCaptcha(true); 
-      setCaptchaInput(''); 
+      setError(err.message || 'Authentication failed.');
+      handleRefreshTurnstile(); // Reset on failure
     } finally {
       setLoading(false);
     }
@@ -121,7 +110,6 @@ const StudentLogin = () => {
         {/* Left Panel: Branding */}
         <div className="lg:col-span-4 bg-slate-900 p-10 flex flex-col justify-between text-white relative">
           <div className="relative z-10">
-            {/* --- UPDATED LOGO SECTION --- */}
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-white/5 p-2">
               <img 
                 src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
@@ -129,7 +117,6 @@ const StudentLogin = () => {
                 className="w-full h-full object-contain"
               />
             </div>
-            {/* ----------------------------- */}
             <h1 className="text-2xl font-black leading-tight tracking-tight uppercase">
               Gautam Buddha <br /> University
             </h1>
@@ -148,9 +135,9 @@ const StudentLogin = () => {
 
           <AnimatePresence mode="wait">
             {error && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mb-4">
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-4">
                 <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
-                  <FiAlertCircle size={14} /> <span>{error}</span>
+                  <FiAlertCircle size={14} className="shrink-0" /> <span>{error}</span>
                 </div>
               </motion.div>
             )}
@@ -177,28 +164,54 @@ const StudentLogin = () => {
               </div>
             </div>
 
+            {/* Turnstile Security Section */}
             <div className="pt-2">
               <div className="flex justify-between items-center mb-2">
-                <label className={labelStyle}>Security Code</label>
-                <button type="button" onClick={() => fetchCaptcha(false)} className="text-[9px] font-black text-blue-600 uppercase flex items-center gap-1" disabled={captchaLoading}>
-                  <FiRefreshCw className={captchaLoading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  <label className={labelStyle}>Security Verification</label>
+                  <button
+                    type="button"
+                    onClick={handleRefreshTurnstile}
+                    className="text-slate-400 hover:text-blue-500 transition-colors inline-flex items-center gap-1.5 p-1"
+                  ><span className="text-[9px] font-black uppercase tracking-wider">Refresh</span>
+                    <FiRefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                  </button>
+                </div>
+                {turnstileToken && (
+                  <span className="text-[9px] font-black text-green-600 flex items-center gap-1 uppercase tracking-tighter">
+                    <FiCheckCircle size={10} /> Secure
+                  </span>
+                )}
               </div>
-              <div className="grid grid-cols-5 gap-2">
-                <div className="col-span-2 h-11 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-                  {captchaLoading ? <div className="animate-pulse bg-slate-200 w-full h-full" /> : <img src={captchaImage} alt="Captcha" className="h-full w-full object-cover" />}
-                </div>
-                <div className="col-span-3">
-                  <Input value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Type Code" className="h-11 bg-slate-50 text-center font-black uppercase tracking-[0.2em]" required />
-                </div>
+              
+              <div className={cn(
+                "relative h-[48px] w-full max-w-[300px] m-auto rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden bg-slate-50",
+                turnstileToken ? "border-green-200 bg-green-50/20" : "border-slate-200"
+              )}>
+                <Turnstile 
+                  ref={turnstileRef}
+                  siteKey={SITE_KEY}
+                  onSuccess={token => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken('')}
+                  options={{ theme: 'light', size: 'normal', appearance: 'always' }}
+                />
               </div>
             </div>
 
-            <div className="pt-4">
-              <Button type="submit" disabled={loading || captchaLoading} className="w-full h-12 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-lg active:scale-95">
-                {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} Login
-              </Button>
-            </div>
+         <div className="pt-4 flex flex-col items-center"> {/* Added flex flex-col items-center */}
+  <Button 
+    type="submit" 
+    disabled={loading || !turnstileToken} 
+    className={cn(
+      "w-[350px] h-12 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-lg transition-all",
+      turnstileToken 
+        ? "bg-blue-700 hover:bg-blue-800 text-white shadow-blue-900/20 active:scale-95" 
+        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+    )}
+  >
+    {loading ? <FiRefreshCw className="animate-spin" /> : <FiLogIn />} Login
+  </Button>
+</div>
           </form>
         </div>
       </div>

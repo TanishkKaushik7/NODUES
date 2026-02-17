@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Settings, Menu, Loader2, User, 
-  LogOut, ArrowRight, HelpCircle
+  LogOut, ArrowRight, GraduationCap 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAdminNavigation } from '../../utils/navigation';
@@ -19,12 +19,13 @@ import SchoolDeptManagement from './SchoolDeptManagement';
 import AuditLogs from './AuditLogs';
 import Reports from './Reports';
 import ApplicationManagement from './ApplicationManagement';
+import AcademicManagement from './AcademicManagement'; // ✅ Component Imported
 
 // Modals
 import RegisterUserModal from './RegisterUserModal';
 import ProfileModal from './ProfileModal';
 import LogoutConfirmModal from './LogoutConfirmModal';
-import ApplicationInspectionModal from './AdminApplicationModals'; // ✅ NEW IMPORT
+import ApplicationInspectionModal from './AdminApplicationModals';
 
 const AdminDashboard = () => {
   const { user, authFetch } = useAuth();
@@ -33,7 +34,23 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   // Navigation Logic
-  const sidebarItems = getAdminNavigation(user?.role);
+  let sidebarItems = getAdminNavigation(user?.role) || [];
+
+  // Inject Academic Management into Sidebar if not present
+  if (!sidebarItems.find(item => item.id === 'academics')) {
+    const userIndex = sidebarItems.findIndex(item => item.id === 'users');
+    const academicItem = { id: 'academics', label: 'Academic Management', icon: GraduationCap };
+    
+    if (userIndex !== -1) {
+      sidebarItems = [
+        ...sidebarItems.slice(0, userIndex + 1),
+        academicItem,
+        ...sidebarItems.slice(userIndex + 1)
+      ];
+    } else {
+      sidebarItems.push(academicItem);
+    }
+  }
 
   // Search & UI States
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,10 +65,9 @@ const AdminDashboard = () => {
     register: false, 
     profile: false, 
     logout: false,
-    inspection: false // ✅ Updated: 'inspection' instead of 'action'
+    inspection: false
   });
 
-  // ✅ New State for Inspector
   const [selectedInspectId, setSelectedInspectId] = useState(null);
   const [selectedRollNo, setSelectedRollNo] = useState(null);
 
@@ -65,7 +81,7 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Global Search logic with Debounce
+  // Global Search logic
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.trim().length >= 3) {
@@ -99,19 +115,16 @@ const AdminDashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ ACTION: UPDATED SELECTION LOGIC (Bridges Student -> App ID)
   const handleSelectApplication = async (item) => {
-    // 1. If it's already an application object (Direct Click)
     if (item.status) {
       setSelectedInspectId(item.id);
-      setSelectedRollNo(item.roll_number || item.student_roll); // Try to capture roll if available
+      setSelectedRollNo(item.roll_number || item.student_roll);
       setModalOpen(prev => ({ ...prev, inspection: true }));
       setShowSearchResults(false);
       setSearchQuery('');
       return;
     }
 
-    // 2. If it's a student record (Need to find their App ID first)
     setIsSearching(true);
     try {
       const q = item.roll_number || item.rollNo;
@@ -121,7 +134,7 @@ const AdminDashboard = () => {
         const data = await res.json();
         if (data.application) {
           setSelectedInspectId(data.application.id);
-          setSelectedRollNo(q); // We know the roll number used for search
+          setSelectedRollNo(q);
           setModalOpen(prev => ({ ...prev, inspection: true }));
         } else {
           alert("No active No-Dues application found for this student.");
@@ -136,9 +149,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ✅ ACTION: Handle Approval/Rejection (Compatible with new Modal)
   const handleModalAction = async (appObj, action, remark) => {
-    // appObj will be { id: "..." } from the new modal
     setActionLoading(true);
     try {
       const appId = appObj.id || appObj.application_id;
@@ -149,7 +160,6 @@ const AdminDashboard = () => {
       });
       
       if (res.ok) {
-        // Success: Close modal and refresh whatever view is active
         setModalOpen(p => ({ ...p, inspection: false }));
         setSelectedInspectId(null);
         return null; 
@@ -166,6 +176,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // --- CONTENT ROUTING ---
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -214,6 +225,10 @@ const AdminDashboard = () => {
         );
       case 'applications': return <ApplicationManagement />;
       case 'users': return <UserManagement />;
+      
+      // ✅ UPDATED CASE: Now returns AcademicManagement instead of SchoolDeptManagement
+      case 'academics': return <AcademicManagement />;
+      
       case 'schools': return <SchoolDeptManagement />;
       case 'audit': return <AuditLogs />;
       case 'reports': return <Reports />;
@@ -263,8 +278,6 @@ const AdminDashboard = () => {
                 className="absolute top-14 left-0 right-0 bg-white border border-slate-200 shadow-2xl rounded-[2rem] overflow-hidden z-[100] p-4"
               >
                 <div className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar">
-                  
-                  {/* Results: Applications */}
                   {searchResults.applications?.length > 0 && (
                     <div className="mb-4">
                        <p className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Applications</p>
@@ -283,7 +296,6 @@ const AdminDashboard = () => {
                     </div>
                   )}
 
-                  {/* Results: Students */}
                   {searchResults.students?.length > 0 && (
                     <div>
                       <p className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Student Profiles</p>
@@ -342,10 +354,8 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      {/* --- MAIN LAYOUT (SIDEBAR + CONTENT) --- */}
+      {/* --- SIDEBAR + CONTENT --- */}
       <div className="flex flex-1 overflow-hidden">
-        
-        {/* SIDEBAR NAVIGATION */}
         <aside className={`${isSidebarOpen ? 'w-80' : 'w-0 opacity-0 overflow-hidden'} bg-white border-r border-slate-200 transition-all duration-300 flex flex-col z-20`}>
           <div className="flex-1 overflow-y-auto py-10 px-6 space-y-3 custom-scrollbar">
             {sidebarItems.map((item) => (
@@ -371,7 +381,6 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        {/* PAGE CONTENT CONTAINER */}
         <main className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50/50 custom-scrollbar">
           <div className="max-w-7xl mx-auto">
             {renderContent()}
@@ -379,7 +388,7 @@ const AdminDashboard = () => {
         </main>
       </div>
 
-      {/* --- GLOBAL MODALS --- */}
+      {/* --- MODALS --- */}
       <RegisterUserModal 
         isOpen={modalOpen.register} 
         onClose={() => setModalOpen(p => ({ ...p, register: false }))} 
@@ -392,8 +401,6 @@ const AdminDashboard = () => {
         isOpen={modalOpen.logout} 
         onClose={() => setModalOpen(p => ({ ...p, logout: false }))} 
       />
-      
-      {/* ✅ NEW: Application Inspection Modal (Replaces old Action Modal) */}
       <ApplicationInspectionModal
         isOpen={modalOpen.inspection}
         onClose={() => {

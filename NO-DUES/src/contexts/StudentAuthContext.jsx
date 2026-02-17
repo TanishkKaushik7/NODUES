@@ -9,10 +9,9 @@ export const StudentAuthProvider = ({ children }) => {
   const [studentToken, setStudentToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync state with sessionStorage on mount (Tab-specific)
+  // Sync state with sessionStorage on mount
   useEffect(() => {
     const initializeAuth = () => {
-      // ✅ CHANGED: Using sessionStorage instead of localStorage
       const stored = sessionStorage.getItem('studentUser');
       const storedToken = sessionStorage.getItem('studentToken');
       
@@ -38,7 +37,8 @@ export const StudentAuthProvider = ({ children }) => {
     return API_BASE ? `${API_BASE}${path}` : path;
   }, []);
 
-  const login = async ({ identifier, password, captcha_input, captcha_hash, captcha_ts }) => {
+  // ✅ FIXED: Now accepts 'turnstile_token' and removes old captcha fields
+  const login = async ({ identifier, password, turnstile_token }) => {
     const url = getUrl('/api/students/login');
     
     try {
@@ -49,8 +49,11 @@ export const StudentAuthProvider = ({ children }) => {
           'Accept': 'application/json' 
         },
         credentials: 'include', 
+        // ✅ FIXED: Sends the correct payload to backend
         body: JSON.stringify({ 
-          identifier, password, captcha_input, captcha_hash, captcha_ts 
+          identifier, 
+          password, 
+          turnstile_token 
         })
       });
 
@@ -71,7 +74,6 @@ export const StudentAuthProvider = ({ children }) => {
       setStudent(userData);
       setStudentToken(receivedToken);
       
-      // ✅ CHANGED: Save to sessionStorage
       sessionStorage.setItem('studentUser', JSON.stringify(userData));
       if (receivedToken) {
         sessionStorage.setItem('studentToken', receivedToken);
@@ -95,7 +97,7 @@ export const StudentAuthProvider = ({ children }) => {
       if (!res.ok) throw new Error(data.detail || 'Registration failed');
 
       const userData = data.student || data.user;
-      const receivedToken = data.token;
+      const receivedToken = data.token || data.access_token; // Handle standard token response
 
       if (userData) {
         setStudent(userData);
@@ -114,7 +116,6 @@ export const StudentAuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     setStudent(null);
     setStudentToken(null);
-    // ✅ CHANGED: Only removes from the current tab's session
     sessionStorage.removeItem('studentUser');
     sessionStorage.removeItem('studentToken');
   }, []);

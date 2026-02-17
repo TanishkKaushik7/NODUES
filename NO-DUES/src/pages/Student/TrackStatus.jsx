@@ -5,7 +5,7 @@ import {
   Check, Clock, XCircle, Lock, RefreshCw, 
   Building2, ShieldCheck, Library, Home, 
   Trophy, FlaskConical, Briefcase, ChevronDown,
-  History
+  History, FileQuestion
 } from "lucide-react";
 
 /* -------------------- CONFIG -------------------- */
@@ -35,22 +35,14 @@ const getIcon = (name) => {
   return Building2;
 };
 
-/**
- * Robust IST Formatter
- * Fixes the 5h 30m offset by ensuring input is treated as UTC
- */
 const formatDateIST = (dateString) => {
   if (!dateString) return null;
   try {
-    // 1. Normalize the string (Replace spaces with T for ISO compliance)
-    // 2. Append 'Z' if no timezone offset exists to force UTC interpretation
     let normalizedString = dateString.replace(' ', 'T');
     if (!normalizedString.endsWith('Z') && !normalizedString.includes('+')) {
       normalizedString += 'Z';
     }
-
     const date = new Date(normalizedString);
-    
     return new Intl.DateTimeFormat('en-IN', {
       timeZone: 'Asia/Kolkata',
       month: 'short',
@@ -61,7 +53,6 @@ const formatDateIST = (dateString) => {
       hour12: true
     }).format(date);
   } catch (e) {
-    console.error("Date formatting error:", e);
     return dateString;
   }
 };
@@ -137,16 +128,24 @@ const Node = ({ status, label, icon: Icon, isSmall = false, meta, position = 'ri
 const TrackStatus = () => {
   const { token } = useStudentAuth();
   const [loading, setLoading] = useState(true);
+  const [isNoApplication, setIsNoApplication] = useState(false);
   const [workflow, setWorkflow] = useState({ top: [], parallel: [], bottom: [] });
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
+      setIsNoApplication(false);
       const res = await fetch(`${(import.meta.env.VITE_API_BASE || '').replace(/\/+$/g, '')}/api/applications/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const json = await res.json();
+
+      if (!json.application || !json.stages || json.stages.length === 0) {
+        setIsNoApplication(true);
+        setLoading(false);
+        return;
+      }
 
       setLastUpdated(json.application.updated_at);
 
@@ -161,29 +160,77 @@ const TrackStatus = () => {
       const top = [], parallel = [], bottom = [];
 
       stages.forEach(s => {
+        // Handle dynamic naming based on role
+        let finalLabel = s.display_name;
+        if (s.verifier_role === 'staff' && s.display_name === 'Staff') finalLabel = 'School Office';
+        else if (s.verifier_role === 'hod') finalLabel = `${s.display_name} HOD`;
+        else if (s.verifier_role === 'dean') finalLabel = `${s.display_name}`; // Dean is usually part of the name, but added for safety
+
         const stageObj = { 
           id: s.id, 
-          label: s.display_name === 'Staff' ? 'Office' : s.display_name, 
+          label: finalLabel, 
           status: mapStatus(s.status), 
           icon: getIcon(s.display_name),
           meta: { comments: s.comments } 
         };
+        
         if (s.sequence_order < 4) top.push(stageObj);
         else if (s.sequence_order === 4) parallel.push(stageObj);
         else bottom.push(stageObj);
       });
       setWorkflow({ top, parallel, bottom });
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+      setIsNoApplication(true);
+    } finally { 
+      setLoading(false); 
+    }
   }, [token]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw size={40} className="animate-spin text-blue-600/20" strokeWidth={1} />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Synchronizing...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isNoApplication) {
+    return (
+      <div className="bg-[#f8fafc] py-10 px-4 flex items-center justify-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full text-center p-12 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100"
+        >
+          <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
+            <FileQuestion size={32} className="text-slate-300" />
+          </div>
+          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">No Active Application</h2>
+          <p className="text-[11px] font-bold text-slate-400 mt-3 uppercase tracking-widest leading-relaxed px-4">
+            You haven't submitted any clearance requests. Once you submit your application, your live tracking workflow will appear here.
+          </p>
+          <button 
+            onClick={fetchStatus}
+            className="mt-8 px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-900/20 flex items-center gap-3 mx-auto"
+          >
+            <RefreshCw size={14} /> Refresh System
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   const lastTopActive = workflow.top[workflow.top.length - 1]?.status === STATUS.APPROVED;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-10 px-4">
       <div className="max-w-4xl mx-auto">
-        
         <div className="flex justify-between items-center mb-8 px-2">
           <div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Application Status</h1>
@@ -262,7 +309,6 @@ const TrackStatus = () => {
             </div>
           </div>
 
-          {/* PAGE FOOTER - FINAL IST FIX */}
           <div className="bg-slate-50 border-t border-slate-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -273,7 +319,6 @@ const TrackStatus = () => {
                 <p className="text-sm font-bold text-slate-700">{formatDateIST(lastUpdated) || 'Syncing latest data...'}</p>
               </div>
             </div>
-            
             <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

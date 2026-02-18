@@ -114,16 +114,22 @@ const MyApplications = ({
   const [isSpecsLoading, setIsSpecsLoading] = useState(false);
 
   // ---------------------------------------------------------
-  // 1. Fetch Departments (School Level)
+  // 1. Fetch Departments (School Level) - ✅ UPDATED LOGIC
   // ---------------------------------------------------------
-  useEffect(() => {
+// ---------------------------------------------------------
+  // 1. Fetch Departments (School Level) - ✅ PATH FIXED
+  // ---------------------------------------------------------
+ useEffect(() => {
     const fetchLinkedDepartments = async () => {
-      const studentSchoolId = user?.student?.school_id || user?.school_id;
-      if (!studentSchoolId) return;
+      // ✅ Using the stable school_code string
+      const studentSchoolCode = user?.school_code || user?.student?.school_code;
+      
+      if (!studentSchoolCode) return;
 
       setIsDeptsLoading(true);
       try {
-        const res = await authFetch(`/api/common/departments?type=academic&school_id=${studentSchoolId}`);
+        // ✅ API call now uses school_code parameter
+        const res = await authFetch(`/api/common/departments?school_code=${studentSchoolCode}`);
         if (res.ok) {
           const data = await res.json();
           setDeptOptions(data.map(d => ({ v: d.code, l: `${d.name} (${d.code})` })));
@@ -134,10 +140,9 @@ const MyApplications = ({
         setIsDeptsLoading(false);
       }
     };
-    fetchLinkedDepartments();
-  }, [user, authFetch]);
 
-  // ---------------------------------------------------------
+    fetchLinkedDepartments();
+  }, [user?.school_code, user?.student?.school_code, authFetch]); // ---------------------------------------------------------
   // 2. Fetch Programmes (Department Level)
   // ---------------------------------------------------------
   useEffect(() => {
@@ -191,7 +196,7 @@ const MyApplications = ({
 
 
   // --- CASCADING HANDLERS ---
-  
+   
   // When Department changes, clear Programme & Specialization
   const handleDeptChange = (e) => {
     handleChange(e); // Update Dept
@@ -435,42 +440,94 @@ const MyApplications = ({
                         </>
                     )}
                 </div>
+<div className="md:col-span-2 space-y-4">
+    <div className="flex flex-col gap-1">
+        <Label required className="text-slate-700">Clearance Proof (PDF Only)</Label>
+        
+        {/* --- Modern Documents Required Card --- */}
+        <div className="bg-slate-50/80 border border-slate-200 rounded-3xl p-5 mt-1">
+            <div className="flex items-center gap-2 mb-3">
+                <div className="h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center shadow-sm shadow-blue-200">
+                    <span className="text-[10px] text-white font-black italic">!</span>
+                </div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Combine these into a single PDF
+                </p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                    { label: "Identity Proof", sub: "Aadhar / PAN / DL" },
+                    { label: "Cancel Check", sub: "Bank Verification" },
+                    { label: "Final Marksheet", sub: "Academic Record" }
+                ].map((doc, idx) => (
+                    <div key={idx} className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-sm">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-400">
+                            0{idx + 1}
+                        </span>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-700 uppercase leading-none">{doc.label}</p>
+                            <p className="text-[9px] font-bold text-slate-400 mt-0.5">{doc.sub}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
 
-                <div className="md:col-span-2">
-                    <Label required>Clearance Proof (PDF Only)</Label>
-                    <div className={cn(
-                        "mt-2 border-2 border-dashed rounded-3xl transition-all relative overflow-hidden",
-                        uploading ? "border-blue-400 bg-blue-50/30" : 
-                        combinedErrors.proof_document_url || localFileError ? "border-rose-300 bg-rose-50/30" : 
-                        formData.proof_document_url ? "border-emerald-300 bg-emerald-50/30" : "border-slate-300 hover:border-blue-400 hover:bg-blue-50/10"
-                    )}>
-                        {!formData.proof_document_url && !uploading && (
-                            <input type="file" name="proof_document_url" onChange={onFileChange} accept="application/pdf" disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                        )}
-                        <div className="p-10 text-center">
-                            {uploading ? (
-                                <div className="space-y-4">
-                                    <FiUploadCloud className="w-10 h-10 text-blue-600 animate-bounce mx-auto" />
-                                    <p className="text-sm font-black text-blue-900 uppercase">Uploading... {uploadProgress}%</p>
-                                    <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden max-w-xs mx-auto">
-                                        <div className="h-full bg-blue-600 transition-all" style={{ width: `${uploadProgress}%` }} />
-                                    </div>
-                                </div>
-                            ) : formData.proof_document_url ? (
-                                <div className="flex items-center justify-center gap-4">
-                                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600"><FiCheckCircle size={24} /></div>
-                                    <div className="text-left"><p className="text-sm font-black text-emerald-900 uppercase">File Attached</p><p className="text-[10px] text-emerald-600 font-bold">CLEARANCE_PROOF.PDF</p></div>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <FiUploadCloud size={32} className="text-slate-300 mx-auto" />
-                                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Click to upload clearance proof</p>
-                                    <p className="text-[9px] text-slate-400 font-bold italic">Max size: 5MB (PDF format only)</p>
-                                </div>
-                            )}
+    {/* --- Upload Area --- */}
+    <div className={cn(
+        "border-2 border-dashed rounded-[2rem] transition-all relative overflow-hidden group",
+        uploading ? "border-blue-400 bg-blue-50/30" : 
+        combinedErrors.proof_document_url || localFileError ? "border-rose-300 bg-rose-50/30" : 
+        formData.proof_document_url ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200 hover:border-blue-400 hover:bg-blue-50/20"
+    )}>
+        {!formData.proof_document_url && !uploading && (
+            <input 
+                type="file" 
+                name="proof_document_url" 
+                onChange={onFileChange} 
+                accept="application/pdf" 
+                disabled={uploading} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+            />
+        )}
+        
+        <div className="p-8 text-center">
+            {uploading ? (
+                <div className="space-y-4">
+                    <FiUploadCloud className="w-10 h-10 text-blue-600 animate-bounce mx-auto" />
+                    <div className="space-y-2">
+                        <p className="text-sm font-black text-blue-900 uppercase">Processing... {uploadProgress}%</p>
+                        <div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden max-w-[200px] mx-auto">
+                            <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                         </div>
                     </div>
                 </div>
+            ) : formData.proof_document_url ? (
+                <div className="flex flex-col items-center gap-2">
+                    <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                        <FiCheckCircle size={28} />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xs font-black text-emerald-900 uppercase tracking-tighter">Document Secured</p>
+                        <p className="text-[9px] text-emerald-600 font-black tracking-widest mt-1 uppercase">clearance_proof.pdf</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <FiUploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                    </div>
+                    <div>
+                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Click or drag to upload</p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tighter opacity-60">Max size 5MB • PDF Only</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    </div>
+</div>
             </div>
 
             <div className="md:col-span-2">

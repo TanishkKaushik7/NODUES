@@ -139,6 +139,7 @@ const StudentDashboard = () => {
   }, [user]);
 
   /* ---------- 2. FETCH STATUS LOGIC ---------- */
+ /* ---------- 2. FETCH STATUS LOGIC ---------- */
   const fetchApplicationStatus = useCallback(async () => {
     if (!user) return;
     setStatusLoading(true);
@@ -147,60 +148,87 @@ const StudentDashboard = () => {
       const res = await api.get('/api/applications/my');
       const body = res.data;
 
-      // Update Form Data if application exists
+      // ✅ 1. Update Student Profile Data
+      // This maps the 'student' object from your API response so that 
+      // school_code, school_name, etc., are available to the UI.
       if (body?.student) {
         setFormData(prev => ({
-           ...prev,
-           schoolName: body.student.school_name || prev.schoolName
+          ...prev,
+          schoolName: body.student.school_name || prev.schoolName,
+          schoolCode: body.student.school_code || prev.schoolCode,
+          // Map other academic fields if they exist in the profile
+          programmeName: body.student.programme_name || prev.programmeName,
+          specializationName: body.student.specialization_name || prev.specializationName
+        }));
+
+        // We also store the student object inside applicationData to pass to children
+        setApplicationData(prev => ({
+          ...prev,
+          student: body.student
         }));
       }
 
+      // ✅ 2. Update Application State
       if (body?.application) {
           setApplicationId(body.application.id);
-          setApplicationData(body.application);
+          setApplicationData(prev => ({ 
+            ...prev, 
+            ...body.application 
+          }));
       }
 
-      // Handle Rejection
+      // ✅ 3. Handle Rejection Logic
       const rejectedFlag = body?.flags?.is_rejected || (body?.application?.status === 'rejected');
       setIsRejected(rejectedFlag);
       
       if (rejectedFlag) {
-        setRejectionDetails(body?.rejection_details || { role: 'Dept', remarks: body?.application?.remarks || 'Rejected' });
-        // Unlock all fields for editing
+        setRejectionDetails(body?.rejection_details || { 
+          role: 'Authority', 
+          remarks: body?.application?.remarks || 'Rejected' 
+        });
+        
+        // Unlock fields for editing upon rejection
         setLocked(prev => { 
-            let u = {}; 
-            Object.keys(prev).forEach(k => u[k] = false); 
-            return u; 
+            let unlocked = {}; 
+            Object.keys(prev).forEach(k => unlocked[k] = false); 
+            return unlocked; 
         });
       }
 
-      // Handle Completion
+      // ✅ 4. Handle Completion State
       const completedFlag = !!(body?.flags?.is_completed || body?.application?.status?.toLowerCase() === 'completed');
       setIsCompleted(completedFlag);
 
-      // Map Status Steps
+      // ✅ 5. Map Workflow Stages
       const mapStageToStatus = (stage, body) => {
         if (!stage) return { status: 'pending', comment: '' };
         const s = (stage.status || '').toLowerCase();
         
-        if (['completed', 'done', 'approved'].includes(s)) return { status: 'completed', comment: stage.remarks || '' };
-        if (['rejected', 'denied'].includes(s)) return { status: 'failed', comment: stage.remarks || '' };
-        if (body?.application && Number(body.application.current_department_id) === Number(stage.department_id)) return { status: 'in_progress', comment: stage.remarks || '' };
+        if (['completed', 'done', 'approved'].includes(s)) 
+          return { status: 'completed', comment: stage.remarks || '' };
+        if (['rejected', 'denied'].includes(s)) 
+          return { status: 'failed', comment: stage.remarks || '' };
+        
+        // Check if this is the current active stage in the workflow
+        if (body?.application && Number(body.application.current_stage_order) === Number(stage.sequence_order)) {
+          return { status: 'in_progress', comment: stage.remarks || '' };
+        }
         
         return { status: 'pending', comment: stage.remarks || '' };
       };
 
+      // Use dynamic sequence from backend or fallback to default
       let deptSeq = (body.departments || body.department_sequence || DEFAULT_DEPT_SEQUENCE);
       
-      // Determine Status Labels
+      // Update UI Labels for TrackStatus
       const stepLabels = deptSeq.map(d => d.name || d.department_name);
       if (!stepLabels.includes('Completed')) stepLabels.push('Completed');
       setDepartmentSteps(stepLabels);
 
-      // Determine Status State
+      // Map the actual progress of each stage
       const stages = body.stages || [];
       const mappedStatuses = deptSeq.map(d => {
-        const stage = stages.find(s => Number(s.department_id) === Number(d.id));
+        const stage = stages.find(s => s.verifier_role?.toLowerCase() === d.name?.toLowerCase() || s.sequence_order === d.sequence_order);
         return mapStageToStatus(stage, body);
       });
       
@@ -218,7 +246,6 @@ const StudentDashboard = () => {
       setInitialLoading(false);
     }
   }, [user]);
-
   useEffect(() => {
     fetchApplicationStatus(); 
   }, [fetchApplicationStatus]);

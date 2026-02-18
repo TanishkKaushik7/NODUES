@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUser, FiLock, FiLogIn, 
   FiArrowLeft, FiAlertCircle,
-  FiEye, FiEyeOff, FiCheckCircle
+  FiEye, FiEyeOff, FiCheckCircle,
+  FiRefreshCw 
 } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// Import your Modal here
 import ForgotPasswordModal from './ForgotPasswordModal'; 
 
-// --- INTEGRATED UI COMPONENTS ---
+// --- UI HELPERS ---
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
@@ -65,8 +65,10 @@ const LoginScreen = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+
+  // Ref for Cloudflare Turnstile
+  const turnstileRef = useRef(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -76,6 +78,12 @@ const LoginScreen = ({
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRefreshVerification = () => {
+    setTurnstileToken('');
+    setError('');
+    turnstileRef.current?.reset();
   };
 
   const handleSubmit = async (e) => {
@@ -129,7 +137,8 @@ const LoginScreen = ({
       }
     } catch (err) {
       setError(err.message || 'Access Denied.');
-      setTurnstileToken(''); 
+      // Reset turnstile on failure to prevent replay attacks
+      handleRefreshVerification();
     } finally {
       setIsLoading(false);
     }
@@ -239,30 +248,29 @@ const LoginScreen = ({
                 </div>
               </div>
 
-              {/* ✅ COMPACT Security Verification Section */}
-              <div className="space-y-1 pt-1">
+              {/* Security Verification Section */}
+              <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-1">
                   <label className={labelStyle}>Verification</label>
-                  <AnimatePresence>
-                    {turnstileToken && (
-                      <motion.span 
-                        initial={{ opacity: 0, x: 5 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="text-[9px] font-bold text-green-600 flex items-center gap-1 uppercase tracking-tighter"
-                      >
-                        <FiCheckCircle size={10} /> Secure
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  
+                  <button
+                    type="button"
+                    onClick={handleRefreshVerification}
+                    className="flex items-center gap-1.5 text-[9px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-tighter transition-all group active:scale-90"
+                  >
+                    <FiRefreshCw size={10} className="group-hover:rotate-180 transition-transform duration-500" />
+                    Refresh
+                  </button>
                 </div>
                 
                 <div className={cn(
-                  "relative h-[48px] w-[300px] m-auto rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden",
+                  "relative h-[48px] w-[300px] m-auto rounded-2xl border transition-all duration-300 flex items-center justify-center overflow-hidden p-2",
                   turnstileToken 
-                    ? "bg-green-50/20 border-green-200" 
+                    ? "bg-green-50/30 border-green-200" 
                     : "bg-slate-50 border-slate-200"
                 )}>
                   <Turnstile 
+                    ref={turnstileRef}
                     siteKey={SITE_KEY}
                     onSuccess={token => {
                       setTurnstileToken(token);
@@ -272,13 +280,17 @@ const LoginScreen = ({
                     onExpire={() => setTurnstileToken('')}
                     options={{ 
                       theme: 'light', 
-                      size: 'normal' // Standard width but shorter than 'flexible'
+                      size: 'normal' 
                     }}
                   />
-                  {!turnstileToken && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.02]">
-                       <FiLock size={30} />
-                    </div>
+                  {turnstileToken && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute right-4 text-green-500"
+                    >
+                      <FiCheckCircle size={20} />
+                    </motion.div>
                   )}
                 </div>
               </div>

@@ -130,7 +130,7 @@ const StudentLogin = () => {
         <div className="lg:col-span-6 p-8 lg:p-12 flex flex-col justify-center">
           <div className="mb-6">
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Student Sign In</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Multi-Session Protected</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Secure Login</p>
           </div>
 
           <AnimatePresence mode="wait">

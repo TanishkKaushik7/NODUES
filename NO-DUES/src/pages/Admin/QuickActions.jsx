@@ -19,11 +19,12 @@ const QuickActions = ({ onRegisterUser, onNavigate }) => {
       handler: () => onNavigate('schools') 
     },
     {
-      label: "Audit Records",
+      label: "Applications Records",
       icon: GraduationCap,
       color: "text-violet-600",
       bgColor: "bg-violet-50",
-      handler: () => onNavigate('audit') 
+      // Changed from 'audit' to 'application_logs' to match AdminDashboard mapping
+      handler: () => onNavigate('application_logs') 
     },
     {
       label: "System Reports",
@@ -35,7 +36,6 @@ const QuickActions = ({ onRegisterUser, onNavigate }) => {
   ];
 
   return (
-    /* ✅ Outer Box with rounded borders, background, and shadow to match System Health */
     <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm h-full flex flex-col">
       {/* Protocol Header */}
       <div className="mb-6">

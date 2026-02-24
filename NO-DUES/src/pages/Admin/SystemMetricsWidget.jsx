@@ -17,7 +17,7 @@ const SystemMetricsWidget = () => {
       setLoading(true);
       // Fetching both general metrics and redis stats concurrently
       const [metricsRes, redisRes] = await Promise.all([
-        authFetch('/api/metrics'),
+        authFetch('/api/metrics/dashboard-stats'),
         authFetch('/api/utils/redis-stats')
       ]);
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   FiX, FiCheck, FiDownload, FiCheckCircle, FiClock, 
   FiXCircle, FiUser, FiBook, FiHome, FiFileText, FiMapPin,
-  FiMessageSquare, FiAlertCircle 
+  FiMessageSquare, FiAlertCircle, FiLock 
 } from 'react-icons/fi';
 
 const renderStatusBadge = (status) => {
@@ -40,6 +40,8 @@ const formatDate = (dateString) => {
 const ApplicationActionModal = ({ application, onClose, onAction, actionLoading, actionError, userSchoolName }) => {
   const popupRef = useRef(null);
   const [remark, setRemark] = useState('');
+  // ✅ NEW STATE: Track if verification document has been viewed
+  const [hasDownloaded, setHasDownloaded] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -57,6 +59,7 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const name = application.student_name || application.name;
   const rollNo = application.roll_number || application.rollNo;
   const enrollment = application.enrollment_number || application.enrollment;
+  const proofUrl = application.proof_document_url || application.proof_url;
   
   let departmentDisplay = '—';
   if (application.department_name) {
@@ -79,6 +82,9 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
   const studentNote = activeComments.includes(resubmissionPrefix) 
     ? activeComments.split(resubmissionPrefix)[1].trim() 
     : null;
+
+  // ✅ LOGIC: Requirement check for document viewing
+  const isActionBlocked = proofUrl && !hasDownloaded;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -168,7 +174,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
 
           {/* Remarks and Notes Section */}
           <div className="space-y-4">
-            {/* ✅ NEW: Application Remarks Logic */}
             {application.student_remarks && application.student_remarks.trim() !== "" && (
               <div className="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-xl shadow-sm">
                 <div className="flex items-start gap-3">
@@ -187,7 +192,6 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
               </div>
             )}
 
-            {/* Student Note */}
             {studentNote && (
               <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
                   <div className="flex items-start gap-3">
@@ -209,36 +213,55 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
 
           {/* Action Area */}
           {isActionable ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
-              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <FiFileText className="text-indigo-600" /> Department Review Action
-              </h3>
+            <div className={`bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 transition-all ${isActionBlocked ? 'opacity-75' : 'opacity-100'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <FiFileText className="text-indigo-600" /> Department Review Action
+                </h3>
+                {/* ✅ NEW: Lock Indicator */}
+                {isActionBlocked && (
+                  <span className="text-[10px] font-black bg-red-100 text-red-600 px-2 py-1 rounded-md uppercase flex items-center gap-1 animate-pulse">
+                    <FiLock /> Actions Locked
+                  </span>
+                )}
+              </div>
               
               <div className="space-y-4">
+                {/* ✅ NEW: Warning for Account Person */}
+                {isActionBlocked && (
+                  <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-3">
+                    <FiAlertCircle className="text-red-500 shrink-0" size={20} />
+                    <p className="text-xs text-red-700 font-bold leading-tight">
+                      MANDATORY: You must download and verify the Student Proof document (bottom right) before approving or rejecting this application.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-tighter">Review Remarks</label>
                   <textarea
                     value={remark}
+                    disabled={isActionBlocked}
                     onChange={(e) => setRemark(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl p-3 sm:p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full border border-gray-300 rounded-xl p-3 sm:p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
                     rows={3}
-                    placeholder="Enter approval comments or reason for rejection..."
+                    placeholder={isActionBlocked ? "Verify document to unlock..." : "Enter approval comments or reason for rejection..."}
                   />
                   {actionError && <p className="text-red-500 text-xs mt-2 font-medium flex items-center gap-1"><FiXCircle /> {actionError}</p>}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button
-                    disabled={actionLoading}
+                    disabled={actionLoading || isActionBlocked}
                     onClick={() => onAction(application, 'approve', remark)}
-                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                   >
                     {actionLoading ? <FiClock className="animate-spin" /> : <FiCheck />} Approve
                   </button>
                   <button
-                    disabled={actionLoading}
+                    disabled={actionLoading || isActionBlocked}
                     onClick={() => onAction(application, 'reject', remark)}
-                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3 rounded-xl font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                   >
                     <FiX /> Reject
                   </button>
@@ -260,12 +283,21 @@ const ApplicationActionModal = ({ application, onClose, onAction, actionLoading,
             Close Panel
           </button>
           
-          {(application.proof_document_url || application.proof_url) && (
+          {proofUrl && (
             <button 
-              onClick={() => window.open(application.proof_document_url || application.proof_url, '_blank')}
-              className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center justify-center gap-2 text-sm"
+              onClick={() => {
+                window.open(proofUrl, '_blank');
+                // ✅ Flip the state to unlock the action area
+                setHasDownloaded(true);
+              }}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm ${
+                hasDownloaded 
+                ? 'bg-green-100 text-green-700 border border-green-200' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
             >
-              <FiDownload /> Download Student Proof
+              {hasDownloaded ? <FiCheckCircle /> : <FiDownload />} 
+              {hasDownloaded ? "Document Verified" : "Download Student Proof"}
             </button>
           )}
         </div>

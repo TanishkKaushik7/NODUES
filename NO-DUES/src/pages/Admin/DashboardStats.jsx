@@ -5,10 +5,10 @@ import { useAuth } from '../../contexts/AuthContext'; // Path to your AuthContex
 const DashboardStats = () => {
   const { authFetch } = useAuth(); // Use the helper from your context
   const [stats, setStats] = useState({
-    totalApps: "N/A",
-    pendingApps: "N/A",
-    completedApps: "N/A",
-    rejectedApps: "N/A"
+    totalApps: "0",
+    pendingApps: "0",
+    completedApps: "0",
+    rejectedApps: "0"
   });
   const [loading, setLoading] = useState(true);
 
@@ -17,21 +17,20 @@ const DashboardStats = () => {
       try {
         setLoading(true);
         
-        // authFetch automatically handles:
-        // 1. Adding Bearer Token
-        // 2. Adding VITE_API_BASE
-        // 3. Setting Content-Type: application/json
-        const response = await authFetch('/api/admin/dashboard-stats');
+        // ✅ FIXED: Updated endpoint to point to the new metrics router
+        const response = await authFetch('/api/metrics/dashboard-stats');
 
         if (response.ok) {
           const data = await response.json();
           
           if (data.metrics) {
             setStats({
-              totalApps: data.metrics.total_applications?.toLocaleString() || "0",
-              pendingApps: data.metrics.pending?.toLocaleString() || "0",
-              completedApps: data.metrics.completed?.toLocaleString() || "0",
-              rejectedApps: data.metrics.rejected?.toLocaleString() || "0"
+              // ✅ FIXED: Safely convert to Number before using toLocaleString()
+              totalApps: Number(data.metrics.total_applications || 0).toLocaleString(),
+              // Note: You can also add data.metrics.in_progress here if you want to group them
+              pendingApps: Number(data.metrics.pending || 0).toLocaleString(), 
+              completedApps: Number(data.metrics.completed || 0).toLocaleString(),
+              rejectedApps: Number(data.metrics.rejected || 0).toLocaleString()
             });
           }
         } else {
@@ -47,7 +46,6 @@ const DashboardStats = () => {
     fetchDashboardStats();
   }, [authFetch]); // authFetch is a stable dependency
 
-  // ... (statCards array remains the same)
   const statCards = [
     { title: "Total Applications", value: stats.totalApps, icon: Landmark, color: "text-blue-600", bgColor: "bg-blue-100" },
     { title: "Pending Approval", value: stats.pendingApps, icon: Clock, color: "text-orange-600", bgColor: "bg-orange-100" },
@@ -60,7 +58,7 @@ const DashboardStats = () => {
       {statCards.map((card, index) => (
         <div key={index} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm relative overflow-hidden">
           {loading && (
-            <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
             </div>
           )}

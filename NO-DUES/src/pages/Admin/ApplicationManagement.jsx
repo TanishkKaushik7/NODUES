@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, RefreshCw, Loader2, MapPin, 
-  Settings2, Filter
+  Settings2, Filter, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ApplicationDetailModal from './ApplicationsDetailModal';
@@ -12,6 +12,10 @@ const ApplicationManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // Adjust this number as needed
+
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
@@ -25,13 +29,12 @@ const ApplicationManagement = () => {
       
       if (res.ok) {
         const data = await res.json();
-        
         if (Array.isArray(data)) {
-            setApplications(data);
+          setApplications(data);
         } else if (data && Array.isArray(data.data)) {
-            setApplications(data.data);
+          setApplications(data.data);
         } else {
-            setApplications([]); 
+          setApplications([]); 
         }
       } else {
         setApplications([]);
@@ -48,29 +51,43 @@ const ApplicationManagement = () => {
     fetchApplications();
   }, [authFetch]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, stageFilter]);
+
   // Filtering Logic
-  const filteredApps = (applications || []).filter(app => {
-    if (!app) return false;
+  const filteredApps = useMemo(() => {
+    return (applications || []).filter(app => {
+      if (!app) return false;
 
-    const matchesSearch = 
-      (app.display_id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (app.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (app.roll_number || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
-    
-    let matchesStage = true;
-    if (stageFilter !== 'all') {
-        const seq = app.active_stage?.sequence_order;
-        if (stageFilter === 'dean') matchesStage = seq === 1;
-        else if (stageFilter === 'hod') matchesStage = seq === 2;
-        else if (stageFilter === 'office') matchesStage = seq === 3;
-        else if (stageFilter === 'admin') matchesStage = seq === 4;
-        else if (stageFilter === 'accounts') matchesStage = seq === 5;
-    }
+      const matchesSearch = 
+        (app.display_id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (app.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (app.roll_number || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
+      
+      let matchesStage = true;
+      if (stageFilter !== 'all') {
+          const seq = app.active_stage?.sequence_order;
+          if (stageFilter === 'dean') matchesStage = seq === 1;
+          else if (stageFilter === 'hod') matchesStage = seq === 2;
+          else if (stageFilter === 'office') matchesStage = seq === 3;
+          else if (stageFilter === 'admin') matchesStage = seq === 4;
+          else if (stageFilter === 'accounts') matchesStage = seq === 5;
+      }
 
-    return matchesSearch && matchesStatus && matchesStage;
-  });
+      return matchesSearch && matchesStatus && matchesStage;
+    });
+  }, [applications, searchTerm, statusFilter, stageFilter]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
+  const paginatedApps = filteredApps.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const SkeletonRow = () => (
     <tr className="animate-pulse">
@@ -152,8 +169,8 @@ const ApplicationManagement = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em]">
               <tr>
@@ -172,8 +189,8 @@ const ApplicationManagement = () => {
                   <SkeletonRow />
                   <SkeletonRow />
                 </>
-              ) : filteredApps.length > 0 ? (
-                filteredApps.map((app) => (
+              ) : paginatedApps.length > 0 ? (
+                paginatedApps.map((app) => (
                   <tr key={app.application_id} className="group hover:bg-blue-50/20 transition-colors">
                     <td className="px-8 py-7">
                       <div className="flex items-center gap-4">
@@ -221,6 +238,56 @@ const ApplicationManagement = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        {!loading && filteredApps.length > 0 && (
+          <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Showing <span className="text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * itemsPerPage, filteredApps.length)}</span> of <span className="text-slate-900">{filteredApps.length}</span> Applications
+            </p>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90"
+              >
+                <ChevronLeft size={18} className="text-slate-600" />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => {
+                    // Simple logic to show current, next, prev pages if total is large
+                    if (totalPages > 5 && i + 1 !== 1 && i + 1 !== totalPages && Math.abs(currentPage - (i + 1)) > 1) {
+                        if (i + 1 === 2 || i + 1 === totalPages - 1) return <span key={i} className="px-1 text-slate-300">...</span>;
+                        return null;
+                    }
+                    return (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i + 1)}
+                            className={`h-9 w-9 rounded-xl text-[10px] font-black transition-all ${
+                                currentPage === i + 1 
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                                : 'bg-white border border-slate-200 text-slate-500 hover:border-blue-400'
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    )
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90"
+              >
+                <ChevronRight size={18} className="text-slate-600" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedApp && (

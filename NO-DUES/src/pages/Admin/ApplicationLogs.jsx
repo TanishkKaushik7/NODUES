@@ -103,8 +103,8 @@ const AuditLogs = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">System Audit Logs</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Real-time terminal oversight protocol</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Applications Audit Logs</h1>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Real-time Applications oversight protocol</p>
         </div>
 
         <div className="flex items-center gap-3">

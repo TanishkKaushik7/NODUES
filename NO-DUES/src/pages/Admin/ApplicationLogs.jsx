@@ -73,7 +73,7 @@ const AuditLogs = () => {
     const isApproved = action?.includes('APPROVED') || action?.includes('OVERRIDE_APPROVE');
     const isRejected = action?.includes('REJECTED');
     
-    const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm";
+    const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black  tracking-widest border shadow-sm";
     
     if (isApproved) return (
       <span className={`${baseClasses} bg-emerald-50 text-emerald-700 border-emerald-100`}>
@@ -103,8 +103,8 @@ const AuditLogs = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Applications Audit Logs</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Real-time Applications oversight protocol</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight ">Applications Audit Logs</h1>
+          <p className="text-[10px] font-bold text-slate-400  tracking-[0.2em] mt-1">Real-time Applications oversight protocol</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ const AuditLogs = () => {
         
         <div className="flex gap-3">
           <select 
-            className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+            className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black  tracking-widest px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
             value={filters.actor_role}
             onChange={(e) => setFilters({...filters, actor_role: e.target.value})}
           >
@@ -145,7 +145,7 @@ const AuditLogs = () => {
           </select>
 
           <select 
-            className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+            className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black  tracking-widest px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
             value={filters.action}
             onChange={(e) => setFilters({...filters, action: e.target.value})}
           >
@@ -162,11 +162,11 @@ const AuditLogs = () => {
           <table className="w-full text-left">
             <thead className="sticky top-0 z-20 bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Timestamp (IST)</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actor</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Final Action</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Student Info</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Remarks</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400  tracking-[0.2em]">Timestamp (IST)</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400  tracking-[0.2em]">Actor</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400  tracking-[0.2em]">Final Action</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400  tracking-[0.2em]">Student Info</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400  tracking-[0.2em]">Remarks</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -174,7 +174,7 @@ const AuditLogs = () => {
                 <tr>
                   <td colSpan="5" className="px-8 py-24 text-center">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto opacity-50" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-4">Compiling Secure Registry...</p>
+                    <p className="text-[10px] font-black text-slate-400  tracking-[0.3em] mt-4">Compiling Secure Registry...</p>
                   </td>
                 </tr>
               ) : filteredLogs.length > 0 ? (
@@ -190,7 +190,7 @@ const AuditLogs = () => {
                     >
                       <td className="px-8 py-5 whitespace-nowrap">
                         <div className="flex flex-col gap-1">
-                          <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase">
+                          <span className="flex items-center gap-2 text-[11px] font-bold text-slate-600 ">
                             <Calendar size={12} className="text-slate-400" />
                             {date}
                           </span>
@@ -202,12 +202,12 @@ const AuditLogs = () => {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center text-[10px] font-black border border-slate-200 shadow-sm uppercase">
+                          <div className="h-10 w-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center text-[10px] font-black border  border-slate-200 shadow-sm">
                             {log.actor_role?.substring(0, 2)}
                           </div>
                           <div>
-                            <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{log.actor_name || 'System User'}</div>
-                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{log.actor_role} Node</div>
+                            <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors  tracking-tight">{log.actor_name || 'System User'}</div>
+                            <div className="text-[9px] font-black text-slate-400  tracking-widest">{log.actor_role} Node</div>
                           </div>
                         </div>
                       </td>
@@ -216,7 +216,7 @@ const AuditLogs = () => {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex flex-col gap-1">
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-800  tracking-tight flex items-center gap-2">
                              {log.details?.student_roll || 'N/A'}
                           </span>
                         </div>
@@ -230,7 +230,7 @@ const AuditLogs = () => {
               ) : (
                 <tr>
                   <td colSpan="5" className="px-8 py-24 text-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">No registry entries found</p>
+                    <p className="text-[10px] font-black text-slate-400  tracking-[0.3em]">No registry entries found</p>
                   </td>
                 </tr>
               )}
@@ -239,11 +239,7 @@ const AuditLogs = () => {
         </div>
       </div>
       
-      {/* Footer Branding */}
-      <div className="shrink-0 mt-4 px-2 flex justify-between items-center text-[9px] font-black text-slate-300 uppercase tracking-[0.4em]">
-           <span>GBU Protocol v1.4.2</span>
-           <span>Registry Node Status: Secure</span>
-      </div>
+   
     </div>
   );
 };

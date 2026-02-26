@@ -94,12 +94,12 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
             {/* Header */}
             <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-5">
-                <div className={`h-16 w-16 rounded-[1.5rem] flex items-center justify-center text-2xl font-black shadow-xl uppercase ${isApplicationComplete ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-[#1e40af] text-white shadow-blue-100'}`}>
+                <div className={`h-16 w-16 rounded-[1.5rem] flex items-center justify-center text-2xl font-black shadow-xl  ${isApplicationComplete ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-[#1e40af] text-white shadow-blue-100'}`}>
                   {isApplicationComplete ? <Check size={32} strokeWidth={3} /> : application.student_name?.[0]}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{application.student_name}</h3>
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{application.student_name}</h3>
                     {isApplicationComplete && (
                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase rounded-md">
                         Clearance Finalized
@@ -138,50 +138,53 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
                             {stage.status === 'approved' ? <ShieldCheck size={24} /> : stage.status === 'rejected' ? <ShieldAlert size={24} /> : <Clock size={24} />}
                           </div>
 
-                          <div className={`p-6 rounded-[2.5rem] border ${stage.is_current ? 'bg-blue-50/30 border-blue-200' : 'bg-white border-slate-100'}`}>
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                              <div>
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
-                                  Stage {stage.sequence} • {stage.department_name}
-                                </div>
-                                <h4 className="font-black text-slate-800 text-lg tracking-tight uppercase">
-                                    {stage.role === 'hod' ? 'Head of Department' : stage.role}
-                                </h4>
-                              </div>
+<div className={`p-6 rounded-[2.5rem] border ${stage.is_current ? 'bg-blue-50/30 border-blue-200' : 'bg-white border-slate-100'}`}>
+  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      {/* Position 1: Small text shows Role (or OFFICE for Stage 1) */}
+      <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+        Stage {stage.sequence} • {stage.sequence === 1 ? 'OFFICE' : (stage.role === 'hod' ? 'Head of Department' : stage.role)}
+      </div>
+      
+      {/* Position 2: Large text shows Department Name (or OFFICE for Stage 1) */}
+      <h4 className="font-black text-slate-800 text-lg tracking-tight ">
+        {stage.sequence === 1 ? 'School Office' : stage.department_name}
+      </h4>
+    </div>
 
-                              <div className="flex gap-2 shrink-0">
-                                {!isApplicationComplete ? (
-                                  isAccounts ? (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[9px] font-black uppercase border border-amber-100 cursor-not-allowed">
-                                      <Lock size={12} /> Finance Locked
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <button 
-                                        disabled={isSystemLocked || stage.status === 'approved'}
-                                        onClick={() => handleAdminOverride(stage.stage_id, 'approve')}
-                                        className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 disabled:opacity-20 transition-all flex items-center gap-2"
-                                      >
-                                        {processingId === stage.stage_id ? <Loader2 className="animate-spin" size={14} /> : 'Approve'}
-                                      </button>
-                                      <button 
-                                        disabled={isSystemLocked || stage.status === 'rejected'}
-                                        onClick={() => setStageToReject(stage)}
-                                        className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 disabled:opacity-20 transition-all"
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
-                                  )
-                                ) : (
-                                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase border border-slate-100">
-                                    <Lock size={12} /> Archived
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            {stage.remarks && <p className="mt-4 text-[11px] text-slate-500 italic border-l-2 border-slate-200 pl-3">"{stage.remarks}"</p>}
-                          </div>
+    <div className="flex gap-2 shrink-0">
+      {!isApplicationComplete ? (
+        isAccounts ? (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[9px] font-black uppercase border border-amber-100 cursor-not-allowed">
+            <Lock size={12} /> Finance Locked
+          </div>
+        ) : (
+          <>
+            <button 
+              disabled={isSystemLocked || stage.status === 'approved'}
+              onClick={() => handleAdminOverride(stage.stage_id, 'approve')}
+              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 disabled:opacity-20 transition-all flex items-center gap-2"
+            >
+              {processingId === stage.stage_id ? <Loader2 className="animate-spin" size={14} /> : 'Approve'}
+            </button>
+            <button 
+              disabled={isSystemLocked || stage.status === 'rejected'}
+              onClick={() => setStageToReject(stage)}
+              className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 disabled:opacity-20 transition-all"
+            >
+              Reject
+            </button>
+          </>
+        )
+      ) : (
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase border border-slate-100">
+          <Lock size={12} /> Archived
+        </div>
+      )}
+    </div>
+  </div>
+  {stage.remarks && <p className="mt-4 text-[11px] text-slate-500 italic border-l-2 border-slate-200 pl-3">"{stage.remarks}"</p>}
+</div>
                         </div>
                       );
                     })}
@@ -191,7 +194,7 @@ const ApplicationDetailModal = ({ isOpen, onClose, application }) => {
             </div>
 
             {/* Footer */}
-            <div className="p-10 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
                 {isApplicationComplete ? 'ARCHIVED RECORD: MODIFICATIONS DISABLED' : isSystemLocked ? 'SYSTEM BUSY: RE-SYNCING NODES...' : 'STATUS: READY FOR OVERRIDE'}
               </span>

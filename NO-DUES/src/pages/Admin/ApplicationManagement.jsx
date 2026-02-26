@@ -138,7 +138,7 @@ const ApplicationManagement = () => {
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 flex-1 md:flex-none">
             <Filter size={16} className="text-slate-400" />
             <select 
-                className="py-4 bg-transparent text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer w-full md:w-auto"
+                className="py-4 bg-transparent text-[10px] font-black  tracking-widest outline-none cursor-pointer w-full md:w-auto"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -153,7 +153,7 @@ const ApplicationManagement = () => {
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 flex-1 md:flex-none">
             <Settings2 size={16} className="text-blue-500" />
             <select 
-                className="py-4 bg-transparent text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-blue-700 w-full md:w-auto"
+                className="py-4 bg-transparent text-[10px] font-black  tracking-widest outline-none cursor-pointer text-blue-700 w-full md:w-auto"
                 value={stageFilter}
                 onChange={(e) => setStageFilter(e.target.value)}
             >
@@ -172,7 +172,7 @@ const ApplicationManagement = () => {
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em]">
+            <thead className="bg-slate-50 border-b border-slate-100 text-[10px]  font-black text-slate-400 tracking-[0.2em]">
               <tr>
                 <th className="px-8 py-6">Identity</th>
                 <th className="px-6 py-6">Current Progress</th>
@@ -199,7 +199,7 @@ const ApplicationManagement = () => {
                         </div>
                         <div>
                           <div className="font-bold text-slate-800 tracking-tight text-base">{app.student_name}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{app.roll_number}</div>
+                          <div className="text-[10px] text-slate-400 font-bold  tracking-widest">{app.roll_number}</div>
                         </div>
                       </div>
                     </td>
@@ -210,7 +210,7 @@ const ApplicationManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-7">
-                      <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-sm ${
+                      <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black  tracking-widest border shadow-sm ${
                         app.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                         app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
                         'bg-blue-50 text-blue-700 border-blue-100'
@@ -221,7 +221,7 @@ const ApplicationManagement = () => {
                     <td className="px-8 py-7 text-right">
                       <button 
                         onClick={() => setSelectedApp(app)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black  tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95"
                       >
                         <Settings2 size={14} /> Manage
                       </button>
@@ -242,7 +242,7 @@ const ApplicationManagement = () => {
         {/* Pagination Bar */}
         {!loading && filteredApps.length > 0 && (
           <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <p className="text-[10px] font-black  tracking-widest text-slate-400">
               Showing <span className="text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * itemsPerPage, filteredApps.length)}</span> of <span className="text-slate-900">{filteredApps.length}</span> Applications
             </p>
             

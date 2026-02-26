@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api/axios'; 
 import { 
   FiUser, FiLogOut, FiMenu, FiX, FiHome, FiFileText, 
-  FiActivity, FiShield,  
+  FiActivity 
 } from 'react-icons/fi';
 
 // Import Sub-components
 import Overview from './Overview';
 import MyApplications from './MyApplications';
 import TrackStatus from './TrackStatus';
+import StudentProfile from './StudentProfile'; // ✅ IMPORT NEW COMPONENT
 
 // --- Constants ---
 const STATUS_STEPS = ['Process initiation', 'Library', 'Hostel', 'Sports', 'CRC', 'Labs', 'Accounts', 'Completed'];
@@ -34,7 +35,9 @@ const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // --- Form & Data States ---
+  // --- Data States ---
+  const [profileData, setProfileData] = useState(null); // ✅ NEW: Store full profile
+
   const [formData, setFormData] = useState({
     enrollmentNumber: '', rollNumber: '', fullName: '', fatherName: '',
     motherName: '', gender: '', category: '', dob: '', mobile: '',
@@ -55,7 +58,6 @@ const StudentDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   
-  // ✅ Upload States
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
   
@@ -70,76 +72,61 @@ const StudentDashboard = () => {
   const [statusLoading, setStatusLoading] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  /* ---------- 1. DATA MAPPING LOGIC ---------- */
-  useEffect(() => {
-    if (!user) return;
-    const s = user.student ? user.student : user;
-    
-    // Helper to safely get nested properties or camel/snake case
-    const get = (obj, ...keys) => {
-      for (const k of keys) {
-        if (obj == null) continue;
-        if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return obj[k];
-        const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-        if (Object.prototype.hasOwnProperty.call(obj, camel) && obj[camel] != null) return obj[camel];
-      }
-      return '';
-    };
+  // ✅ HELPER: Get Avatar by Gender
+  const getAvatarUrl = (gender) => {
+    const g = gender?.toLowerCase();
+    if (g === 'male') return 'https://avatar.iran.liara.run/public/boy';
+    if (g === 'female') return 'https://avatar.iran.liara.run/public/girl';
+    return 'https://avatar.iran.liara.run/public'; // fallback
+  };
 
-    const mapped = {
-      enrollmentNumber: get(s, 'enrollment_number', 'enrollmentNumber'),
-      rollNumber: get(s, 'roll_number', 'rollNumber'),
-      fullName: get(s, 'full_name', 'fullName', 'name'),
-      fatherName: get(s, 'father_name', 'fatherName'),
-      motherName: get(s, 'mother_name', 'motherName'),
-      gender: get(s, 'gender'),
-      category: get(s, 'category'),
-      dob: get(s, 'dob'),
-      mobile: get(s, 'mobile_number', 'mobile'),
-      email: get(s, 'email'),
-      domicile: get(s, 'domicile', 'permanent_address'),
-      permanentAddress: get(s, 'permanent_address', 'domicile'),
-      isHosteller: get(s, 'is_hosteller') === true || get(s, 'is_hosteller') === 'true' ? 'Yes' : 'No',
-      hostelName: get(s, 'hostel_name', 'hostelName'),
-      hostelRoom: get(s, 'hostel_room', 'hostelRoom'),
-      admissionYear: get(s, 'admission_year', 'admissionYear'),
-      section: get(s, 'section'),
-      departmentCode: get(s, 'department_code', 'departmentCode'),
-      admissionType: get(s, 'admission_type', 'admissionType'),
-      proof_document_url: get(s, 'proof_document_url') || '',
-      schoolName: get(s, 'school_name', 'schoolName') || s?.school?.name || '',
-      remarks: ''
-    };
-    
-    setFormData(mapped);
+  /* ---------- 1. FETCH FULL PROFILE DATA ---------- */
+  const fetchProfile = useCallback(async () => {
+    try {
+      const res = await api.get('/api/students/me');
+      setProfileData(res.data);
+      
+      // Update local form mapping
+      const s = res.data;
+      setFormData({
+        enrollmentNumber: s.enrollment_number || '',
+        rollNumber: s.roll_number || '',
+        fullName: s.full_name || '',
+        fatherName: s.father_name || '',
+        motherName: s.mother_name || '',
+        gender: s.gender || '',
+        category: s.category || '',
+        dob: s.dob || '',
+        mobile: s.mobile_number || '',
+        email: s.email || '',
+        domicile: s.domicile || '',
+        permanentAddress: s.permanent_address || '',
+        isHosteller: s.is_hosteller ? 'Yes' : 'No',
+        hostelName: s.hostel_name || '',
+        hostelRoom: s.hostel_room || '',
+        admissionYear: s.admission_year || '',
+        section: s.section || '',
+        departmentCode: s.department_code || '',
+        admissionType: s.admission_type || '',
+        proof_document_url: formData.proof_document_url, // keep existing if any
+        schoolName: s.school_name || '',
+        remarks: ''
+      });
 
-    // Lock fields if they came from the User Profile (SSO/DB)
-    setLocked({
-      enrollmentNumber: !!get(s, 'enrollment_number'),
-      rollNumber: !!get(s, 'roll_number'),
-      fullName: !!get(s, 'full_name'),
-      fatherName: !!get(s, 'father_name'),
-      motherName: !!get(s, 'mother_name'),
-      gender: !!get(s, 'gender'),
-      category: !!get(s, 'category'),
-      dob: !!get(s, 'dob'),
-      mobile: !!get(s, 'mobile_number', 'mobile'),
-      email: !!get(s, 'email'),
-      domicile: (get(s, 'domicile') !== '') || (get(s, 'permanent_address') !== ''),
-      permanentAddress: !!get(s, 'permanent_address'),
-      isHosteller: false, // Usually editable
-      hostelName: !!get(s, 'hostel_name'),
-      hostelRoom: !!get(s, 'hostel_room'),
-      admissionYear: !!get(s, 'admission_year'),
-      section: !!get(s, 'section'),
-      departmentCode: !!get(s, 'department_code'),
-      admissionType: !!get(s, 'admission_type'),
-      schoolName: (mapped.schoolName !== '') 
-    });
-  }, [user]);
+      setLocked(prev => ({
+        ...prev,
+        enrollmentNumber: !!s.enrollment_number,
+        rollNumber: !!s.roll_number,
+        fullName: !!s.full_name,
+        email: !!s.email
+      }));
+
+    } catch (err) {
+      console.error("Failed to fetch profile data:", err);
+    }
+  }, [formData.proof_document_url]);
 
   /* ---------- 2. FETCH STATUS LOGIC ---------- */
- /* ---------- 2. FETCH STATUS LOGIC ---------- */
   const fetchApplicationStatus = useCallback(async () => {
     if (!user) return;
     setStatusLoading(true);
@@ -148,36 +135,11 @@ const StudentDashboard = () => {
       const res = await api.get('/api/applications/my');
       const body = res.data;
 
-      // ✅ 1. Update Student Profile Data
-      // This maps the 'student' object from your API response so that 
-      // school_code, school_name, etc., are available to the UI.
-      if (body?.student) {
-        setFormData(prev => ({
-          ...prev,
-          schoolName: body.student.school_name || prev.schoolName,
-          schoolCode: body.student.school_code || prev.schoolCode,
-          // Map other academic fields if they exist in the profile
-          programmeName: body.student.programme_name || prev.programmeName,
-          specializationName: body.student.specialization_name || prev.specializationName
-        }));
-
-        // We also store the student object inside applicationData to pass to children
-        setApplicationData(prev => ({
-          ...prev,
-          student: body.student
-        }));
-      }
-
-      // ✅ 2. Update Application State
       if (body?.application) {
           setApplicationId(body.application.id);
-          setApplicationData(prev => ({ 
-            ...prev, 
-            ...body.application 
-          }));
+          setApplicationData(prev => ({ ...prev, ...body.application }));
       }
 
-      // ✅ 3. Handle Rejection Logic
       const rejectedFlag = body?.flags?.is_rejected || (body?.application?.status === 'rejected');
       setIsRejected(rejectedFlag);
       
@@ -186,8 +148,6 @@ const StudentDashboard = () => {
           role: 'Authority', 
           remarks: body?.application?.remarks || 'Rejected' 
         });
-        
-        // Unlock fields for editing upon rejection
         setLocked(prev => { 
             let unlocked = {}; 
             Object.keys(prev).forEach(k => unlocked[k] = false); 
@@ -195,11 +155,9 @@ const StudentDashboard = () => {
         });
       }
 
-      // ✅ 4. Handle Completion State
       const completedFlag = !!(body?.flags?.is_completed || body?.application?.status?.toLowerCase() === 'completed');
       setIsCompleted(completedFlag);
 
-      // ✅ 5. Map Workflow Stages
       const mapStageToStatus = (stage, body) => {
         if (!stage) return { status: 'pending', comment: '' };
         const s = (stage.status || '').toLowerCase();
@@ -209,23 +167,17 @@ const StudentDashboard = () => {
         if (['rejected', 'denied'].includes(s)) 
           return { status: 'failed', comment: stage.remarks || '' };
         
-        // Check if this is the current active stage in the workflow
         if (body?.application && Number(body.application.current_stage_order) === Number(stage.sequence_order)) {
           return { status: 'in_progress', comment: stage.remarks || '' };
         }
-        
         return { status: 'pending', comment: stage.remarks || '' };
       };
 
-      // Use dynamic sequence from backend or fallback to default
       let deptSeq = (body.departments || body.department_sequence || DEFAULT_DEPT_SEQUENCE);
-      
-      // Update UI Labels for TrackStatus
       const stepLabels = deptSeq.map(d => d.name || d.department_name);
       if (!stepLabels.includes('Completed')) stepLabels.push('Completed');
       setDepartmentSteps(stepLabels);
 
-      // Map the actual progress of each stage
       const stages = body.stages || [];
       const mappedStatuses = deptSeq.map(d => {
         const stage = stages.find(s => s.verifier_role?.toLowerCase() === d.name?.toLowerCase() || s.sequence_order === d.sequence_order);
@@ -246,15 +198,16 @@ const StudentDashboard = () => {
       setInitialLoading(false);
     }
   }, [user]);
-  useEffect(() => {
-    fetchApplicationStatus(); 
-  }, [fetchApplicationStatus]);
 
-  /* ---------- 3. HANDLE FILE UPLOAD (With Progress) ---------- */
+  // ✅ INITIAL LOAD
+  useEffect(() => {
+    fetchProfile();
+    fetchApplicationStatus(); 
+  }, [fetchProfile, fetchApplicationStatus]);
+
+  /* ---------- 3. HANDLE FILE UPLOAD ---------- */
   const handleChange = async (e) => {
     const { name, value, type, files } = e.target;
-    
-    // Respect lock unless rejected (allows re-upload)
     if (locked[name] && !isRejected) return; 
 
     if (type === 'file') {
@@ -265,7 +218,7 @@ const StudentDashboard = () => {
       }
       
       setUploading(true);
-      setUploadProgress(0); // Reset progress
+      setUploadProgress(0);
       setFormErrors(prev => ({ ...prev, [name]: '' }));
 
       const data = new FormData();
@@ -279,20 +232,16 @@ const StudentDashboard = () => {
                 setUploadProgress(percentCompleted);
             }
         });
-
         if (res.data.path) {
             setFormData(prev => ({ ...prev, proof_document_url: res.data.path }));
         }
       } catch (err) {
-          console.error("Upload Error:", err);
           setFormErrors(prev => ({ ...prev, [name]: 'Upload failed. Ensure file is PDF < 5MB.' }));
       } finally {
-          // Add small delay so user sees 100% before spinner stops
           setTimeout(() => setUploading(false), 500);
       }
       return; 
     }
-
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -302,7 +251,6 @@ const StudentDashboard = () => {
     setSaveMessage('');
     
     try {
-      // Use child payload if available (from MyApplications), else fallback to local state
       let payload = childPayload || {
         proof_document_url: formData.proof_document_url,
         remarks: formData.remarks,
@@ -333,9 +281,7 @@ const StudentDashboard = () => {
 
       fetchApplicationStatus();
       return true;
-
     } catch (err) {
-      console.error("Submission Error:", err);
       const errorMsg = err.response?.data?.detail || err.message || 'Error saving application';
       setSaveMessage(errorMsg);
       return false;
@@ -346,13 +292,14 @@ const StudentDashboard = () => {
 
   const handleLogout = () => { logout(); navigate('/'); };
 
+  // ✅ ADDED PROFILE TO MENU
   const menuItems = [
     { id: 'dashboard', label: 'Overview', icon: FiHome },
+    { id: 'profile', label: 'My Profile', icon: FiUser },
     { id: 'form', label: 'My Application', icon: FiFileText },
     { id: 'status', label: 'Track Status', icon: FiActivity },
   ];
 
-  // --- Loading Screen ---
   if (initialLoading) {
       return (
         <div className="h-screen w-full flex items-center justify-center bg-[#f8fafc]">
@@ -377,12 +324,9 @@ const StudentDashboard = () => {
         <div>
           <div className="flex items-center gap-4 mb-12 xl:mb-16 px-2">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
-  <img 
-    src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
-    alt="GBU Logo" 
-    className="w-full h-full object-contain"
-  />
-</div>      <h1 className="text-[12px] xl:text-sm font-black uppercase tracking-[0.25em]">Student Portal</h1>
+              <img src="https://www.gbu.ac.in/Content/img/logo_gbu.png" alt="GBU Logo" className="w-full h-full object-contain"/>
+            </div>
+            <h1 className="text-[12px] xl:text-sm font-black uppercase tracking-[0.25em]">Student Portal</h1>
           </div>
 
           <nav className="space-y-2 xl:space-y-3">
@@ -403,27 +347,30 @@ const StudentDashboard = () => {
           </nav>
         </div>
 
-        {/* User Profile Footer */}
-        <div className="pt-8 border-t border-slate-800/50 space-y-4">
+        {/* ✅ Dynamic Avatar User Footer */}
+        <div className="pt-8 border-t border-slate-800/50 space-y-4 cursor-pointer" onClick={() => setActive('profile')}>
           <div className="px-4 py-3 xl:py-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3 xl:gap-4 group hover:bg-white/[0.08] transition-all duration-300">
-            <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-lg xl:rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/20 text-xs xl:text-base">
-              {formData.fullName?.charAt(0) || 'S'}
+            <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-full overflow-hidden bg-slate-800 shadow-lg border-2 border-slate-700 group-hover:border-blue-500 transition-colors">
+              <img 
+                src={getAvatarUrl(profileData?.gender)} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] xl:text-[11px] font-black text-white truncate uppercase tracking-wider leading-none mb-1">
-                {formData.fullName || 'Student'}
+                {profileData?.full_name || 'Student'}
               </p>
               <div className="flex items-center gap-1.5">
                 <div className="w-1 h-1 xl:w-1.5 xl:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-[8px] xl:text-[9px] font-bold text-slate-500 uppercase tracking-widest">Online</p>
+                <p className="text-[8px] xl:text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  {profileData?.roll_number || 'Online'}
+                </p>
               </div>
             </div>
           </div>
 
-          <button 
-            onClick={handleLogout} 
-            className="w-full flex items-center justify-between px-4 xl:px-6 py-3 xl:py-4 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-300"
-          >
+          <button onClick={handleLogout} className="w-full flex items-center justify-between px-4 xl:px-6 py-3 xl:py-4 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-300">
             <div className="flex items-center gap-4">
               <FiLogOut size={16} xl:size={18} />
               <span className="text-[10px] xl:text-[11px] font-black uppercase tracking-[0.2em]">Logout</span>
@@ -434,7 +381,6 @@ const StudentDashboard = () => {
 
       {/* --- Main Content --- */}
       <section className="flex-1 flex flex-col min-w-0 bg-white relative">
-        {/* Header */}
         <header className="min-h-[72px] lg:h-24 border-b border-slate-50 flex items-center justify-between px-6 md:px-10 lg:px-14 bg-white/80 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center gap-3 lg:gap-4">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">
@@ -446,7 +392,6 @@ const StudentDashboard = () => {
           </div>
         </header>
 
-        {/* Content Body */}
         <main className="flex-1 overflow-y-auto bg-[#fcfdfe] overflow-x-hidden scroll-smooth">
           <div className="px-6 py-8 md:px-10 md:py-10 lg:px-14 xl:px-16 lg:py-14 max-w-[1440px] mx-auto w-full h-full">
             <AnimatePresence mode="wait">
@@ -469,12 +414,16 @@ const StudentDashboard = () => {
                     token={token}
                   />
                 )}
+                {/* ✅ ROUTE FOR PROFILE */}
+                {active === 'profile' && (
+                  <StudentProfile profileData={profileData} />
+                )}
                 {active === 'form' && (
                   <MyApplications
                     user={user} formData={formData} locked={locked} formErrors={formErrors}
                     submitting={submitting} 
                     uploading={uploading} 
-                    uploadProgress={uploadProgress} // ✅ Pass progress prop
+                    uploadProgress={uploadProgress} 
                     saveMessage={saveMessage}
                     handleChange={handleChange} handleSave={handleSave}
                     hasSubmittedApplication={!!applicationId} isRejected={isRejected} rejectionDetails={rejectionDetails}
@@ -503,29 +452,22 @@ const StudentDashboard = () => {
         {sidebarOpen && (
           <>
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] lg:hidden"
             />
             <motion.div 
-              initial={{ x: '-100%' }} 
-              animate={{ x: 0 }} 
-              exit={{ x: '-100%' }} 
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} 
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-slate-900 z-[100] p-8 lg:hidden shadow-2xl flex flex-col justify-between"
             >
-<div>
+              <div>
                 <div className="flex justify-between items-center mb-10">
                   <div className="flex items-center gap-3">
-                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
-  <img 
-    src="https://www.gbu.ac.in/Content/img/logo_gbu.png" 
-    alt="GBU Logo" 
-    className="w-full h-full object-contain"
-  />
-</div> <span className="text-white text-xs font-black uppercase tracking-widest">GBU Portal</span>
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 p-1.5 border border-slate-100">
+                      <img src="https://www.gbu.ac.in/Content/img/logo_gbu.png" alt="GBU Logo" className="w-full h-full object-contain" />
+                    </div> 
+                    <span className="text-white text-xs font-black uppercase tracking-widest">GBU Portal</span>
                   </div>
                   <button onClick={() => setSidebarOpen(false)} className="text-slate-400 p-2 hover:text-white transition-colors">
                     <FiX size={24} />
@@ -546,12 +488,19 @@ const StudentDashboard = () => {
                 </nav>
               </div>
               
-              <button 
-                onClick={handleLogout} 
-                className="w-full flex items-center gap-4 p-4 text-slate-400 hover:text-rose-400 font-black uppercase tracking-widest transition-all border-t border-slate-800/50 pt-8"
-              >
-                <FiLogOut size={20} /> End Session
-              </button>
+              {/* ✅ Mobile Avatar Sidebar block */}
+              <div className="border-t border-slate-800/50 pt-6 mt-4">
+                <div className="flex items-center gap-3 mb-6" onClick={() => { setActive('profile'); setSidebarOpen(false); }}>
+                  <img src={getAvatarUrl(profileData?.gender)} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-700 bg-slate-800" />
+                  <div>
+                    <p className="text-[11px] font-black text-white uppercase tracking-wider">{profileData?.full_name}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{profileData?.roll_number}</p>
+                  </div>
+                </div>
+                <button onClick={handleLogout} className="w-full flex items-center gap-4 p-3 text-slate-400 hover:text-rose-400 font-black uppercase tracking-widest transition-all bg-white/5 rounded-xl">
+                  <FiLogOut size={18} /> End Session
+                </button>
+              </div>
             </motion.div>
           </>
         )}

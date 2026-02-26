@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Activity, Server, Database, Mail, Clock, RefreshCw, 
-  Trash2, ShieldAlert, BarChart3, Users, CheckCircle, 
-  XCircle, Loader2, AlertCircle, HardDrive
+  Trash2, ShieldAlert, BarChart3, Users, Loader2, AlertCircle, HardDrive, Zap
 } from 'lucide-react';
+import ClearCacheModal from './ClearCacheModal'; // Adjust path as needed
 
 const MetricsManagement = () => {
   const { authFetch } = useAuth();
@@ -20,12 +20,13 @@ const MetricsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [clearingCache, setClearingCache] = useState(false);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeScope, setActiveScope] = useState(null);
 
   const fetchAllMetrics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch all metrics concurrently for speed
       const [healthRes, dashRes, redisRes, trafficRes] = await Promise.all([
         authFetch('/api/metrics/health'),
         authFetch('/api/metrics/dashboard-stats'),
@@ -48,28 +49,20 @@ const MetricsManagement = () => {
 
   useEffect(() => {
     fetchAllMetrics();
-    // Optional: Auto-refresh every 30 seconds
     const interval = setInterval(fetchAllMetrics, 30000);
     return () => clearInterval(interval);
   }, [fetchAllMetrics]);
 
   const handleClearCache = async (scope) => {
-    const scopeNames = {
-      'rate_limits': 'Rate Limits',
-      'traffic': 'Traffic Stats',
-      'all': 'Global Cache'
-    };
-    
-    if (!window.confirm(`Are you sure you want to clear ${scopeNames[scope]}?`)) return;
-
+    setActiveScope(scope);
     setClearingCache(true);
     try {
       const res = await authFetch(`/api/metrics/clear-cache?scope=${scope}`, { method: 'POST' });
       const data = await res.json();
       
       if (res.ok) {
-        alert(`Success: ${data.message}`);
-        fetchAllMetrics(); // Refresh data to show empty cache
+        setIsModalOpen(false);
+        fetchAllMetrics();
       } else {
         alert(data.detail || "Failed to clear cache");
       }
@@ -77,10 +70,10 @@ const MetricsManagement = () => {
       alert("Network error occurred while clearing cache");
     } finally {
       setClearingCache(false);
+      setActiveScope(null);
     }
   };
 
-  // Utility to format seconds into readable uptime
   const formatUptime = (seconds) => {
     if (!seconds) return '0s';
     const d = Math.floor(seconds / (3600 * 24));
@@ -93,7 +86,7 @@ const MetricsManagement = () => {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh]">
         <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-        <p className="mt-4 text-sm font-bold text-slate-400 uppercase tracking-widest">Loading System Metrics...</p>
+        <p className="mt-4 text-sm font-bold text-slate-400  tracking-widest">Loading System Metrics...</p>
       </div>
     );
   }
@@ -108,8 +101,8 @@ const MetricsManagement = () => {
             <Activity className="h-7 w-7" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">System Metrics</h2>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight ">System Metrics</h2>
+            <p className="text-slate-500 text-[10px] font-black  tracking-[0.2em] mt-1">
               Live Monitoring & Cache Control
             </p>
           </div>
@@ -118,7 +111,7 @@ const MetricsManagement = () => {
         <button 
           onClick={fetchAllMetrics}
           disabled={loading}
-          className="h-12 px-6 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+          className="h-12 px-6 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-[10px]  tracking-widest flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Data</span>
@@ -142,7 +135,7 @@ const MetricsManagement = () => {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
           >
-            <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-widest">
+            <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2  tracking-widest">
               <Server className="h-4 w-4 text-blue-500" /> Server Health
             </h3>
             
@@ -151,8 +144,18 @@ const MetricsManagement = () => {
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
                   <Database className="h-4 w-4 text-slate-400" /> Database
                 </div>
-                <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-widest ${health?.database === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                <span className={`text-[10px] px-2 py-1 rounded-md font-black  tracking-widest ${health?.database === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                   {health?.database || 'Unknown'}
+                </span>
+              </div>
+
+              {/* NEW FIELD: DATABASE LATENCY */}
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                  <Zap className="h-4 w-4 text-amber-500" /> DB Latency
+                </div>
+                <span className={`text-xs font-black ${health?.database_latency_ms > 500 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {health?.database_latency_ms ? `${health.database_latency_ms}ms` : '--'}
                 </span>
               </div>
 
@@ -160,7 +163,7 @@ const MetricsManagement = () => {
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
                   <Mail className="h-4 w-4 text-slate-400" /> SMTP Server
                 </div>
-                <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-widest ${health?.smtp_server === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className={`text-[10px] px-2 py-1 rounded-md font-black  tracking-widest ${health?.smtp_server === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                   {health?.smtp_server || 'Unknown'}
                 </span>
               </div>
@@ -181,35 +184,29 @@ const MetricsManagement = () => {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
           >
-            <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-widest">
-              <HardDrive className="h-4 w-4 text-indigo-500" /> Redis Cache Store
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs font-black text-slate-800 flex items-center gap-2  tracking-widest">
+                    <HardDrive className="h-4 w-4 text-indigo-500" /> Redis Store
+                </h3>
+                <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="p-2 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
 
             {redisStats?.status === 'Online' ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Memory Used</p>
-                    <p className="text-xl font-black text-indigo-900">{redisStats.metrics.memory.used}</p>
-                  </div>
-                  <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Total Keys</p>
-                    <p className="text-xl font-black text-indigo-900">{redisStats.metrics.db.total_keys}</p>
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                  <p className="text-[10px] font-black text-indigo-400  tracking-widest mb-1">Memory Used</p>
+                  <p className="text-xl font-black text-indigo-900">{redisStats.metrics.memory.used}</p>
                 </div>
-
-                <div className="space-y-3">
-                  <button onClick={() => handleClearCache('rate_limits')} disabled={clearingCache} className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-between">
-                    <span>Clear Rate Limits</span> <ShieldAlert className="h-4 w-4 text-slate-400" />
-                  </button>
-                  <button onClick={() => handleClearCache('traffic')} disabled={clearingCache} className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-between">
-                    <span>Clear Traffic Stats</span> <BarChart3 className="h-4 w-4 text-slate-400" />
-                  </button>
-                  <button onClick={() => handleClearCache('all')} disabled={clearingCache} className="w-full py-3 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-between">
-                    <span>Flush All Cache</span> <Trash2 className="h-4 w-4 text-rose-500" />
-                  </button>
+                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                  <p className="text-[10px] font-black text-indigo-400  tracking-widest mb-1">Total Keys</p>
+                  <p className="text-xl font-black text-indigo-900">{redisStats.metrics.db.total_keys}</p>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="text-center p-6 bg-slate-50 rounded-2xl text-slate-500 text-sm font-bold">
                 Redis is Disabled or Offline
@@ -220,7 +217,6 @@ const MetricsManagement = () => {
 
         {/* COLUMN 2 & 3: App Stats & Traffic */}
         <div className="space-y-6 lg:col-span-2">
-          
           {/* APPLICATION STATS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
@@ -237,23 +233,19 @@ const MetricsManagement = () => {
                   <Users className="h-5 w-5" />
                 </div>
                 <h4 className="text-3xl font-black text-slate-800">{stat.value}</h4>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</p>
+                <p className="text-[9px] font-black text-slate-400  tracking-widest mt-1">{stat.label}</p>
               </motion.div>
             ))}
           </div>
 
-          {/* BOTTLENECKS & TRAFFIC (Split row) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* TOP BOTTLENECKS */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
               className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
             >
-              <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-widest">
+              <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2  tracking-widest">
                 <AlertCircle className="h-4 w-4 text-amber-500" /> Pending Bottlenecks
               </h3>
-              
               <div className="space-y-4">
                 {dashStats?.top_bottlenecks?.length > 0 ? (
                   dashStats.top_bottlenecks.map((b, i) => (
@@ -268,25 +260,21 @@ const MetricsManagement = () => {
               </div>
             </motion.div>
 
-            {/* TRAFFIC STATS */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
               className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
             >
-              <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-widest">
+              <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center gap-2  tracking-widest">
                 <Activity className="h-4 w-4 text-emerald-500" /> Top API Traffic
               </h3>
-              
               <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 {trafficStats?.data?.length > 0 ? (
                   trafficStats.data.slice(0, 10).map((t, i) => {
-                    // Calculate width percentage relative to the highest hit count
                     const maxHits = trafficStats.data[0].hits;
                     const percent = Math.max(10, Math.round((t.hits / maxHits) * 100));
-                    
                     return (
                       <div key={i} className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] font-black  tracking-wider">
+                        <div className="flex items-center justify-between text-[10px] font-black tracking-wider">
                           <span className="text-slate-500 truncate pr-2">
                             <span className={t.method === 'GET' ? 'text-blue-500' : 'text-emerald-500'}>{t.method}</span> {t.path}
                           </span>
@@ -303,11 +291,18 @@ const MetricsManagement = () => {
                 )}
               </div>
             </motion.div>
-
           </div>
         </div>
-
       </div>
+
+      {/* MODAL INTEGRATION */}
+      <ClearCacheModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleClearCache}
+        clearingScope={activeScope}
+        isProcessing={clearingCache}
+      />
     </div>
   );
 };

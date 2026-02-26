@@ -167,13 +167,13 @@ const AdminDashboard = () => {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Management Overview</h2>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight ">Management Overview</h2>
                 <p className="text-slate-500 text-sm mt-1 font-medium">Welcome back, <span className="text-blue-600 font-bold">{user?.name}</span></p>
               </div>
               <div className="hidden sm:flex items-center gap-3">
                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">System Status</p>
-                    <p className="text-[10px] font-bold text-green-500 uppercase flex items-center justify-end gap-1">
+                    <p className="text-[10px] font-black text-slate-400 tracking-widest leading-none">System Status</p>
+                    <p className="text-[10px] font-bold text-green-500  flex items-center justify-end gap-1">
                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" /> Operational
                     </p>
                  </div>
@@ -196,19 +196,19 @@ const AdminDashboard = () => {
             </div>
 
            {/* Full width graph with horizontal scroll logic */}
-<div className="w-full bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
-  <div className="mb-6">
-    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Performance Analytics</h3>
-    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live traffic & processing trends</p>
-  </div>
-  
-  {/* Added h-[450px] here to prevent the chart from collapsing */}
-  <div className="overflow-x-auto custom-scrollbar pb-4">
-    <div className="min-w-[1000px] h-[450px]"> 
-      <PerformanceChart />
-    </div>
-  </div>
-</div>
+            <div className="w-full bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="mb-6">
+                <h3 className="text-lg font-black text-slate-800  tracking-tight">Performance Analytics</h3>
+                <p className="text-[10px] font-bold text-slate-400  tracking-widest">Live traffic & processing trends</p>
+              </div>
+              
+              {/* Added h-[450px] here to prevent the chart from collapsing */}
+              <div className="overflow-x-auto custom-scrollbar pb-4">
+                <div className="min-w-[1000px] h-[450px]"> 
+                  <PerformanceChart />
+                </div>
+              </div>
+            </div>
           </div>
         );
       case 'applications': return <ApplicationManagement />;
@@ -231,8 +231,8 @@ const AdminDashboard = () => {
             <Menu className="h-6 w-6" />
           </button>
           <div className="flex flex-col">
-            <h1 className="text-lg sm:text-xl font-black tracking-tight uppercase cursor-default select-none">GBU No Dues</h1>
-            <span className="text-[8px] sm:text-[9px] font-black text-blue-300 uppercase tracking-[0.3em]">Management Console</span>
+            <h1 className="text-lg sm:text-xl font-black tracking-tight cursor-default select-none">GBU No Dues</h1>
+            <span className="text-[8px] sm:text-[9px] font-black text-blue-300  tracking-[0.3em]">Management Console</span>
           </div>
         </div>
 
@@ -253,7 +253,49 @@ const AdminDashboard = () => {
             {showSearchResults && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-14 left-0 right-0 bg-white border border-slate-200 shadow-2xl rounded-[1.5rem] overflow-hidden z-[100] p-4">
                 <div className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar">
-                  {/* ... (Search results mapping logic stays identical) */}
+                  {/* Restored Mapping Logic */}
+                  {searchResults?.students?.length === 0 && searchResults?.applications?.length === 0 ? (
+                    <div className="p-4 text-center text-slate-500 text-sm font-medium">No results found for "{searchQuery}"</div>
+                  ) : (
+                    <>
+                      {searchResults?.students?.length > 0 && (
+                        <div className="mb-2">
+                          <div className="text-[10px] font-black text-slate-400  tracking-widest px-3 py-1 bg-slate-50 rounded-lg mb-1">Students</div>
+                          {searchResults.students.map((student, idx) => (
+                            <button 
+                              key={`std-${idx}`} 
+                              onClick={() => handleSelectApplication(student)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50 rounded-xl transition-colors flex flex-col group"
+                            >
+                              <span className="text-sm font-bold text-slate-800 group-hover:text-blue-700">{student.name || student.student_name}</span>
+                              <span className="text-xs text-slate-500 font-mono">{student.roll_number || student.rollNo}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {searchResults?.applications?.length > 0 && (
+                        <div>
+                          <div className="text-[10px] font-black text-slate-400  tracking-widest px-3 py-1 bg-slate-50 rounded-lg mb-1">Applications</div>
+                          {searchResults.applications.map((app, idx) => (
+                            <button 
+                              key={`app-${idx}`} 
+                              onClick={() => handleSelectApplication(app)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50 rounded-xl transition-colors flex items-center justify-between group"
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-800 group-hover:text-blue-700">{app.display_id || app.id}</span>
+                                <span className="text-xs text-slate-500 font-mono">{app.roll_number || app.student_roll}</span>
+                              </div>
+                              <span className={`text-[9px] font-bold px-2 py-1 rounded-md  tracking-wider ${app.status === 'cleared' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {app.status || 'Active'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -270,12 +312,12 @@ const AdminDashboard = () => {
                 <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 mt-4 w-64 bg-white border border-slate-200 shadow-2xl rounded-[1.5rem] overflow-hidden z-50 p-3">
                   <div className="px-4 py-3 mb-2 bg-slate-50 rounded-2xl border border-slate-100">
                     <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
-                    <p className="text-[9px] font-black text-blue-600 uppercase mt-1">{user?.role}</p>
+                    <p className="text-[9px] font-black text-blue-600  mt-1">{user?.role}</p>
                   </div>
-                  <button onClick={() => { setModalOpen({...modalOpen, profile: true}); setIsSettingsOpen(false); }} className="w-full flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors font-bold text-[10px] uppercase tracking-widest">
+                  <button onClick={() => { setModalOpen({...modalOpen, profile: true}); setIsSettingsOpen(false); }} className="w-full flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors font-bold text-[10px]  tracking-widest">
                     <User size={16} className="text-blue-500" /> Admin Profile
                   </button>
-                  <button onClick={() => { setModalOpen({...modalOpen, logout: true}); setIsSettingsOpen(false); }} className="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors font-bold text-[10px] uppercase tracking-widest">
+                  <button onClick={() => { setModalOpen({...modalOpen, logout: true}); setIsSettingsOpen(false); }} className="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors font-bold text-[10px] tracking-widest">
                     <LogOut size={16} /> Sign Out
                   </button>
                 </motion.div>

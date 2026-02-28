@@ -26,7 +26,7 @@ const StudentLogin = lazy(() => import('./pages/Student/Login'));
 const StudentRegister = lazy(() => import('./pages/Student/Register'));
 const StudentDashboard = lazy(() => import('./pages/Student/StudentDashboard'));
 
-// Authority Dashboards
+// Authority Dashboards (Hardcoded customized folders)
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const SportsDashboard = lazy(() => import('./pages/Sports/SportsDashboard'));
 const CRCDashboard = lazy(() => import('./pages/CRC/CRCDashboard'));
@@ -37,6 +37,10 @@ const LabDashboard = lazy(() => import('./pages/Laboratories/LabDashboard'));
 const SchoolDashboard = lazy(() => import('./pages/Schools/SchoolDashboard'));
 const HODDashboard = lazy(() => import('./pages/HOD/HODDashboard'));
 const OfficeDashboard = lazy(() => import('./pages/Office/OfficeDashboard')); 
+
+// ⭐ DYNAMIC FALLBACK (For new departments created via Admin)
+const DynamicDashboard = lazy(() => import('./pages/DynamicDepartment/DynamicDashboard'));
+const DynamicHistory = lazy(() => import('./pages/DynamicDepartment/HistoryPage'));
 
 // History Pages
 const SportsHistory = lazy(() => import('./pages/Sports/HistoryPage'));
@@ -173,7 +177,7 @@ function App() {
                 {/* ADMINISTRATION */}
                 <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
-                {/* DEPARTMENTAL NODES */}
+                {/* 1. LEGACY/CUSTOM DEPARTMENTAL NODES */}
                 <Route path="/sports/*" element={<RoleRoutes Dashboard={SportsDashboard} HistoryComponent={SportsHistory} />} />
                 <Route path="/crc/*" element={<RoleRoutes Dashboard={CRCDashboard} HistoryComponent={CRCHistory} />} />
                 <Route path="/accounts/*" element={<RoleRoutes Dashboard={AccountsDashboard} HistoryComponent={AccountsHistory} />} />
@@ -182,22 +186,16 @@ function App() {
                 <Route path="/laboratories/*" element={<RoleRoutes Dashboard={LabDashboard} HistoryComponent={LaboratoriesHistory} />} />
                 <Route path="/hod/*" element={<RoleRoutes Dashboard={HODDashboard} HistoryComponent={HODHistory} />} />
                 <Route path="/office/*" element={<RoleRoutes Dashboard={OfficeDashboard} HistoryComponent={OfficeHistory} />} />
+                <Route path="/school/*" element={<RoleRoutes Dashboard={SchoolDashboard} HistoryComponent={SchoolHistory} />} />
+
+                {/* 2. ⭐ DYNAMIC DEPARTMENT FALLBACK ⭐ */}
+                {/* Any department NOT explicitly listed above will route here */}
+                <Route path="/dept/*" element={<RoleRoutes Dashboard={DynamicDashboard} HistoryComponent={DynamicHistory} />} />
 
                 {/* ALIAS SUPPORT */}
                 <Route path="/account/*" element={<Navigate to="/accounts/dashboard" replace />} />
                 <Route path="/hostel/*" element={<Navigate to="/hostels/dashboard" replace />} />
                 <Route path="/lab/*" element={<Navigate to="/laboratories/dashboard" replace />} />
-
-                {/* SCHOOL DEAN NODE */}
-                <Route path="/school/*" element={
-                  <ProtectedRoute>
-                    <Routes>
-                      <Route path="dashboard" element={<SchoolDashboard />} />
-                      <Route path="history" element={<SchoolHistory />} />
-                      <Route path="*" element={<Navigate to="dashboard" replace />} />
-                    </Routes>
-                  </ProtectedRoute>
-                } />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

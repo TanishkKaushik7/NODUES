@@ -86,8 +86,8 @@ const Node = ({ status, label, icon: Icon, isSmall = false, meta, position = 'ri
           >
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Office Remarks</span>
-                <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${config.bgColor} ${config.textColor}`}>
+                <span className="text-[10px] font-black text-slate-400  tracking-widest">Office Remarks</span>
+                <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold  ${config.bgColor} ${config.textColor}`}>
                   {config.label}
                 </div>
               </div>
@@ -116,7 +116,7 @@ const Node = ({ status, label, icon: Icon, isSmall = false, meta, position = 'ri
         )}
       </div>
       <div className="mt-3 text-center w-24 md:w-32">
-        <p className="text-[10px] md:text-[11px] font-black text-slate-700 uppercase leading-tight tracking-wide">{label}</p>
+        <p className="text-[10px] md:text-[11px] font-black text-slate-700  leading-tight tracking-wide">{label}</p>
         <p className={`text-[9px] font-bold mt-1 ${config.textColor}`}>{config.label}</p>
       </div>
     </div>
@@ -194,7 +194,7 @@ const TrackStatus = () => {
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <RefreshCw size={40} className="animate-spin text-blue-600/20" strokeWidth={1} />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Synchronizing...</p>
+          <p className="text-[10px] font-black text-slate-400  tracking-[0.3em]">Synchronizing...</p>
         </div>
       </div>
     );
@@ -211,13 +211,13 @@ const TrackStatus = () => {
           <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
             <FileQuestion size={32} className="text-slate-300" />
           </div>
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">No Active Application</h2>
-          <p className="text-[11px] font-bold text-slate-400 mt-3 uppercase tracking-widest leading-relaxed px-4">
+          <h2 className="text-xl font-black text-slate-800  tracking-tight">No Active Application</h2>
+          <p className="text-[11px] font-bold text-slate-400 mt-3  tracking-widest leading-relaxed px-4">
             You haven't submitted any clearance requests. Once you submit your application, your live tracking workflow will appear here.
           </p>
           <button 
             onClick={fetchStatus}
-            className="mt-8 px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-900/20 flex items-center gap-3 mx-auto"
+            className="mt-8 px-8 py-4 bg-slate-900 text-white text-[10px] font-black  tracking-[0.2em] rounded-2xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-900/20 flex items-center gap-3 mx-auto"
           >
             <RefreshCw size={14} /> Refresh System
           </button>
@@ -233,8 +233,8 @@ const TrackStatus = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 px-2">
           <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Application Status</h1>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Clearance Workflow</p>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight ">Application Status</h1>
+            <p className="text-xs font-bold text-slate-400 mt-1  tracking-widest">Clearance Workflow</p>
           </div>
           <button onClick={fetchStatus} className="p-3 bg-white border border-slate-100 shadow-sm rounded-2xl transition-all active:scale-95 group">
             <RefreshCw size={20} className={`${loading ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-500 text-slate-500`} />
@@ -315,7 +315,7 @@ const TrackStatus = () => {
                 <History size={18} className="text-slate-400" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1">Last System Update (IST)</p>
+                <p className="text-[10px] font-black text-slate-400  tracking-[0.15em] leading-none mb-1">Last System Update (IST)</p>
                 <p className="text-sm font-bold text-slate-700">{formatDateIST(lastUpdated) || 'Syncing latest data...'}</p>
               </div>
             </div>
@@ -324,7 +324,7 @@ const TrackStatus = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Live System Sync</span>
+              <span className="text-[11px] font-black text-slate-500  tracking-wider">Live System Sync</span>
             </div>
           </div>
         </div>

@@ -67,9 +67,7 @@ const LoginScreen = ({
   const [error, setError] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
-  // Ref for Cloudflare Turnstile
   const turnstileRef = useRef(null);
-
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -109,6 +107,7 @@ const LoginScreen = ({
         const deptId = user.department_id ? parseInt(user.department_id) : null;
         const userName = (user.name || "").toLowerCase();
         
+        // 1. Define Static/Legacy Routes
         const roleMap = {
           'admin': '/admin/dashboard',
           'super_admin': '/admin/dashboard',
@@ -119,25 +118,35 @@ const LoginScreen = ({
 
         let targetPath = roleMap[rawRole];
 
+        // 2. Handle Departmental Staff Routing
         if (rawRole === 'staff') {
           switch (deptId) {
+            // Existing Hardcoded Folders
             case 14: targetPath = '/library/dashboard'; break;
             case 15: targetPath = '/hostels/dashboard'; break;
             case 16: targetPath = '/sports/dashboard'; break;
             case 17: targetPath = '/laboratories/dashboard'; break;
             case 18: targetPath = '/crc/dashboard'; break;
             case 19: targetPath = '/accounts/dashboard'; break;
+            
+            // Generic fallback for Office accounts or School-specific Deans
+            case null: 
+               targetPath = userName.includes('office') ? '/office/dashboard' : '/school/dashboard';
+               break;
+
+            // ⭐ DYNAMIC FALLBACK: For any new Dept IDs created in Phase 2
             default:
-              targetPath = userName.includes('office') ? '/office/dashboard' : '/school/dashboard';
+              targetPath = '/dept/dashboard'; 
           }
         }
 
-        const finalPath = targetPath || `/${rawRole}/dashboard`;
+        // 3. Final Fallback: If role is totally unrecognized, try the dynamic route
+        const finalPath = targetPath || `/dept/dashboard`;
+        
         setTimeout(() => navigate(finalPath, { replace: true }), 100);
       }
     } catch (err) {
       setError(err.message || 'Access Denied.');
-      // Reset turnstile on failure to prevent replay attacks
       handleRefreshVerification();
     } finally {
       setIsLoading(false);
@@ -162,7 +171,6 @@ const LoginScreen = ({
 
       <div className="w-full max-w-[400px] lg:max-w-4xl grid grid-cols-1 lg:grid-cols-10 bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl shadow-blue-900/10 border border-slate-100 overflow-hidden relative z-10 my-12 lg:my-0">
         
-        {/* Sidebar branding */}
         <div className="lg:col-span-4 bg-slate-900 p-8 sm:p-10 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] lg:min-h-auto">
           <div className="absolute inset-0 opacity-10">
             <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
@@ -183,7 +191,6 @@ const LoginScreen = ({
           </div>
         </div>
 
-        {/* Form Content */}
         <div className="lg:col-span-6 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-white">
           <div className="w-full">
             <div className="mb-6 sm:mb-8 text-center lg:text-left">
@@ -248,7 +255,6 @@ const LoginScreen = ({
                 </div>
               </div>
 
-              {/* Security Verification Section */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-1">
                   <label className={labelStyle}>Verification</label>

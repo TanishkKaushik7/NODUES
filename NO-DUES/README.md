@@ -7,17 +7,13 @@ NO-DUES
 ├─ package.json
 ├─ public
 │  ├─ favicon.ico
-│  ├─ GBU.jpg
-│  ├─ gbu_logo.png
-│  └─ vite.svg
+│  └─ gbu_logo.png
 ├─ README.md
 ├─ src
 │  ├─ api
 │  │  └─ axios.js
 │  ├─ App.css
 │  ├─ App.jsx
-│  ├─ assets
-│  │  └─ react.svg
 │  ├─ components
 │  │  ├─ common
 │  │  │  ├─ ApprovalControls.jsx
@@ -25,67 +21,13 @@ NO-DUES
 │  │  │  ├─ OverdueAlertModal.jsx
 │  │  │  ├─ RoleLayout.jsx
 │  │  │  └─ Sidebar.jsx
-│  │  ├─ modals
-│  │  │  └─ SessionTimeoutModal.jsx
-│  │  └─ ui
-│  │     ├─ accordion.jsx
-│  │     ├─ alert-dialog.jsx
-│  │     ├─ alert.jsx
-│  │     ├─ aspect-ratio.jsx
-│  │     ├─ avatar.jsx
-│  │     ├─ badge.jsx
-│  │     ├─ breadcrumb.jsx
-│  │     ├─ button.jsx
-│  │     ├─ calendar.jsx
-│  │     ├─ card.jsx
-│  │     ├─ carousel.jsx
-│  │     ├─ chart.jsx
-│  │     ├─ checkbox.jsx
-│  │     ├─ collapsible.jsx
-│  │     ├─ command.jsx
-│  │     ├─ context-menu.jsx
-│  │     ├─ dialog.jsx
-│  │     ├─ drawer.jsx
-│  │     ├─ dropdown-menu.jsx
-│  │     ├─ form.jsx
-│  │     ├─ hover-card.jsx
-│  │     ├─ input-otp.jsx
-│  │     ├─ input.jsx
-│  │     ├─ label.jsx
-│  │     ├─ menubar.jsx
-│  │     ├─ navigation-menu.jsx
-│  │     ├─ pagination.jsx
-│  │     ├─ popover.jsx
-│  │     ├─ progress.jsx
-│  │     ├─ radio-group.jsx
-│  │     ├─ resizable.jsx
-│  │     ├─ scroll-area.jsx
-│  │     ├─ select.jsx
-│  │     ├─ separator.jsx
-│  │     ├─ sheet.jsx
-│  │     ├─ sidebar.jsx
-│  │     ├─ skeleton.jsx
-│  │     ├─ slider.jsx
-│  │     ├─ sonner.jsx
-│  │     ├─ switch.jsx
-│  │     ├─ table.jsx
-│  │     ├─ tabs.jsx
-│  │     ├─ textarea.jsx
-│  │     ├─ toast.jsx
-│  │     ├─ toaster.jsx
-│  │     ├─ toggle-group.jsx
-│  │     ├─ toggle.jsx
-│  │     ├─ tooltip.jsx
-│  │     └─ use-toast.js
+│  │  └─ modals
+│  │     └─ SessionTimeoutModal.jsx
 │  ├─ contexts
 │  │  ├─ ApplicationContext.jsx
 │  │  ├─ AuthContext.jsx
 │  │  └─ StudentAuthContext.jsx
-│  ├─ hooks
-│  │  └─ useAuth.jsx
 │  ├─ index.css
-│  ├─ lib
-│  │  └─ utils.js
 │  ├─ main.jsx
 │  ├─ pages
 │  │  ├─ Accounts
@@ -95,17 +37,24 @@ NO-DUES
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  └─ HistoryPage.jsx
 │  │  ├─ Admin
+│  │  │  ├─ AcademicManagement.jsx
+│  │  │  ├─ AddProgramModal.jsx
+│  │  │  ├─ AddSpecializationModal.jsx
 │  │  │  ├─ AdminApplicationModals.jsx
 │  │  │  ├─ AdminDashboard.jsx
+│  │  │  ├─ ApplicationLogs.jsx
 │  │  │  ├─ ApplicationManagement.jsx
 │  │  │  ├─ ApplicationsDetailModal.jsx
-│  │  │  ├─ AuditLogs.jsx
+│  │  │  ├─ ClearCacheModal.jsx
 │  │  │  ├─ CreateDepartmentModal.jsx
 │  │  │  ├─ CreateSchoolModal.jsx
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  ├─ DeleteConfirmModal.jsx
+│  │  │  ├─ DeleteProgram.jsx
+│  │  │  ├─ DeleteSpecialization.jsx
 │  │  │  ├─ DeleteStructureModal.jsx
 │  │  │  ├─ LogoutConfirmModal.jsx
+│  │  │  ├─ MetricsManagement.jsx
 │  │  │  ├─ PerformanceChart.jsx
 │  │  │  ├─ ProfileModal.jsx
 │  │  │  ├─ QuickActions.jsx
@@ -114,6 +63,7 @@ NO-DUES
 │  │  │  ├─ RejectionModal.jsx
 │  │  │  ├─ Reports.jsx
 │  │  │  ├─ SchoolDeptManagement.jsx
+│  │  │  ├─ SystemLogs.jsx
 │  │  │  ├─ SystemMetricsWidget.jsx
 │  │  │  ├─ UserActivityTable.jsx
 │  │  │  └─ UserManagement.jsx
@@ -123,6 +73,7 @@ NO-DUES
 │  │  │  ├─ CRCDashboard.jsx
 │  │  │  ├─ DashboardStats.jsx
 │  │  │  └─ HistoryPage.jsx
+│  │  ├─ Developers.jsx
 │  │  ├─ HOD
 │  │  │  ├─ ApplicationActionModal.jsx
 │  │  │  ├─ ApplicationsTable.jsx
@@ -177,13 +128,12 @@ NO-DUES
 │  │  │  ├─ Register.jsx
 │  │  │  ├─ StudentDashboard.jsx
 │  │  │  ├─ StudentEntry.jsx
+│  │  │  ├─ StudentProfile.jsx
 │  │  │  └─ TrackStatus.jsx
 │  │  └─ Verification
 │  │     └─ CertificateVerify.jsx
 │  └─ utils
-│     ├─ applicationWorkflow.js
-│     ├─ auth.js
-│     └─ navigation.js
+│     └─ navigation.jsx
 ├─ vercel.json
 └─ vite.config.js
 

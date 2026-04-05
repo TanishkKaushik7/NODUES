@@ -72,13 +72,10 @@ const StudentDashboard = () => {
   const [statusLoading, setStatusLoading] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  // ✅ HELPER: Get Avatar by Gender
-  const getAvatarUrl = (gender) => {
-    const g = gender?.toLowerCase();
-    if (g === 'male') return 'https://avatar.iran.liara.run/public/boy';
-    if (g === 'female') return 'https://avatar.iran.liara.run/public/girl';
-    return 'https://avatar.iran.liara.run/public'; // fallback
-  };
+  const getAvatar = (identifier = Math.random().toString()) => {
+  // Styles you can use: 'avataaars', 'adventurer', 'micah', 'fun-emoji'
+  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(identifier)}`;
+};
 
   /* ---------- 1. FETCH FULL PROFILE DATA ---------- */
   const fetchProfile = useCallback(async () => {
@@ -86,32 +83,34 @@ const StudentDashboard = () => {
       const res = await api.get('/api/students/me');
       setProfileData(res.data);
       
-      // Update local form mapping
       const s = res.data;
-      setFormData({
-        enrollmentNumber: s.enrollment_number || '',
-        rollNumber: s.roll_number || '',
-        fullName: s.full_name || '',
-        fatherName: s.father_name || '',
-        motherName: s.mother_name || '',
-        gender: s.gender || '',
-        category: s.category || '',
-        dob: s.dob || '',
-        mobile: s.mobile_number || '',
-        email: s.email || '',
-        domicile: s.domicile || '',
-        permanentAddress: s.permanent_address || '',
-        isHosteller: s.is_hosteller ? 'Yes' : 'No',
-        hostelName: s.hostel_name || '',
-        hostelRoom: s.hostel_room || '',
-        admissionYear: s.admission_year || '',
-        section: s.section || '',
-        departmentCode: s.department_code || '',
-        admissionType: s.admission_type || '',
-        proof_document_url: formData.proof_document_url, // keep existing if any
-        schoolName: s.school_name || '',
-        remarks: ''
-      });
+      
+      // ✅ FIX 1: Use 'prev' so we safely update without needing 'formData' in dependencies
+      setFormData(prev => ({
+        ...prev, // Retain anything the user just typed!
+        enrollmentNumber: s.enrollment_number || prev.enrollmentNumber || '',
+        rollNumber: s.roll_number || prev.rollNumber || '',
+        fullName: s.full_name || prev.fullName || '',
+        fatherName: s.father_name || prev.fatherName || '',
+        motherName: s.mother_name || prev.motherName || '',
+        gender: s.gender || prev.gender || '',
+        category: s.category || prev.category || '',
+        dob: s.dob || prev.dob || '',
+        mobile: s.mobile_number || prev.mobile || '',
+        email: s.email || prev.email || '',
+        domicile: s.domicile || prev.domicile || '',
+        permanentAddress: s.permanent_address || prev.permanentAddress || '',
+        isHosteller: s.is_hosteller ? 'Yes' : (prev.isHosteller || 'No'),
+        hostelName: s.hostel_name || prev.hostelName || '',
+        hostelRoom: s.hostel_room || prev.hostelRoom || '',
+        admissionYear: s.admission_year || prev.admissionYear || '',
+        section: s.section || prev.section || '',
+        departmentCode: s.department_code || prev.departmentCode || '',
+        admissionType: s.admission_type || prev.admissionType || '',
+        proof_document_url: prev.proof_document_url, // keep existing safely
+        schoolName: s.school_name || prev.schoolName || '',
+        remarks: prev.remarks || ''
+      }));
 
       setLocked(prev => ({
         ...prev,
@@ -124,7 +123,7 @@ const StudentDashboard = () => {
     } catch (err) {
       console.error("Failed to fetch profile data:", err);
     }
-  }, [formData.proof_document_url]);
+  }, []); // ✅ FIX 2: Empty dependency array! Ensures it only runs once and doesn't wipe data.
 
   /* ---------- 2. FETCH STATUS LOGIC ---------- */
   const fetchApplicationStatus = useCallback(async () => {
@@ -207,7 +206,9 @@ const StudentDashboard = () => {
 
   /* ---------- 3. HANDLE FILE UPLOAD ---------- */
   const handleChange = async (e) => {
-    const { name, value, type, files } = e.target;
+    // ✅ Safety wrapper for the custom Shadcn component which might not have 'type' or 'files'
+    const { name, value, type = 'text', files = [] } = e.target || {};
+    
     if (locked[name] && !isRejected) return; 
 
     if (type === 'file') {
@@ -352,7 +353,7 @@ const StudentDashboard = () => {
           <div className="px-4 py-3 xl:py-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3 xl:gap-4 group hover:bg-white/[0.08] transition-all duration-300">
             <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-full overflow-hidden bg-slate-800 shadow-lg border-2 border-slate-700 group-hover:border-blue-500 transition-colors">
               <img 
-                src={getAvatarUrl(profileData?.gender)} 
+                src={getAvatar(profileData?.gender)} 
                 alt="Avatar" 
                 className="w-full h-full object-cover"
               />
@@ -491,7 +492,7 @@ const StudentDashboard = () => {
               {/* ✅ Mobile Avatar Sidebar block */}
               <div className="border-t border-slate-800/50 pt-6 mt-4">
                 <div className="flex items-center gap-3 mb-6" onClick={() => { setActive('profile'); setSidebarOpen(false); }}>
-                  <img src={getAvatarUrl(profileData?.gender)} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-700 bg-slate-800" />
+                  <img src={getAvatar(profileData?.gender)} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-700 bg-slate-800" />
                   <div>
                     <p className="text-[11px] font-black text-white uppercase tracking-wider">{profileData?.full_name}</p>
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{profileData?.roll_number}</p>

@@ -14,13 +14,10 @@ const StudentProfile = ({ profileData }) => {
     );
   }
 
-  // Determine avatar based on gender
-  const getAvatar = (gender) => {
-    const g = gender?.toLowerCase();
-    if (g === 'male') return 'https://avatar.iran.liara.run/public/boy';
-    if (g === 'female') return 'https://avatar.iran.liara.run/public/girl';
-    return 'https://avatar.iran.liara.run/public';
-  };
+  const getAvatar = (identifier = Math.random().toString()) => {
+  // Styles you can use: 'avataaars', 'adventurer', 'micah', 'fun-emoji'
+  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(identifier)}`;
+};
 
   const Section = ({ title, icon: Icon, children }) => (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">

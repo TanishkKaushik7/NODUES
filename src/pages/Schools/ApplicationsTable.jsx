@@ -1,13 +1,79 @@
 // src/components/dashboard/ApplicationsTable.jsx
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiCalendar, FiEye, FiList, FiRefreshCw, FiCheckCircle, 
   FiClock, FiXCircle, FiMapPin, FiSearch, FiFilter, FiLoader,
   FiAlertTriangle 
 } from 'react-icons/fi';
+import { ChevronDown, Check } from 'lucide-react'; // Added for the new dropdowns
 import { useAuth } from '../../contexts/AuthContext'; 
+
+// --- UTILITIES ---
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// --- CUSTOM SHADCN-LIKE SELECT COMPONENT ---
+const CustomSelect = ({ value, onChange, options, icon: Icon, className }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => String(opt.v) === String(value));
+
+  return (
+    <div className={cn("relative", className)} ref={ref}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all select-none bg-white border-gray-300 hover:bg-gray-50",
+          isOpen ? "ring-2 ring-indigo-500/20 border-indigo-400" : ""
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={16} className="text-gray-500 shrink-0" />}
+          <span className="text-sm font-medium text-gray-700 truncate">
+            {selectedOption ? selectedOption.l : "Select..."}
+          </span>
+        </div>
+        <ChevronDown size={14} className={cn("transition-transform duration-200 shrink-0 text-gray-500", isOpen && "rotate-180")} />
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -10 }} 
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-1 w-full min-w-[120px] max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg custom-scrollbar"
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.v}
+                onClick={() => { onChange(opt.v); setIsOpen(false); }}
+                className={cn(
+                  "relative flex items-center justify-between cursor-pointer py-2 px-3 text-sm font-medium transition-colors",
+                  String(value) === String(opt.v) ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                )}
+              >
+                <span className="truncate">{opt.l}</span>
+                {String(value) === String(opt.v) && <Check size={14} className="shrink-0 ml-2 text-indigo-600" />}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const renderStatusBadge = (status) => {
   const s = (status || '').toString();
@@ -36,12 +102,10 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingId, setLoadingId] = useState(null); 
   
-  // ✅ 1. NEW STATE: Filter Selection
   const [filterStatus, setFilterStatus] = useState('All'); 
   
   const itemsPerPage = 50;
 
-  // ✅ 2. UPDATED FILTERING LOGIC
   const filteredApps = useMemo(() => {
     if (!applications) return [];
     
@@ -68,11 +132,11 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
     }
 
     return result;
-  }, [applications, user, filterStatus]); // Add filterStatus dependency
+  }, [applications, user, filterStatus]); 
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [applications.length, filterStatus]); // Reset page on filter change
+  }, [applications.length, filterStatus]); 
 
   useEffect(() => {
     if (!isViewLoading) {
@@ -87,10 +151,6 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const handlePageChange = (e) => {
-    setCurrentPage(Number(e.target.value));
-  };
 
   const handleViewClick = (app) => {
     setLoadingId(app.id);
@@ -131,27 +191,18 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
         {/* Controls: Search & Filter */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           
-          {/* ✅ 3. NEW STATUS FILTER DROPDOWN */}
-          <div className="relative flex-grow sm:flex-grow-0 min-w-[140px]">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiFilter className="text-gray-500" />
-             </div>
-             <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="appearance-none w-full border border-gray-300 rounded-lg py-2 pl-9 pr-8 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm font-medium text-gray-700 cursor-pointer"
-             >
-                <option value="All">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Overdue"> Overdue</option>
-             </select>
-             {/* Custom Arrow */}
-             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-               <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-               </svg>
-             </div>
-          </div>
+          {/* CUSTOM STATUS FILTER DROPDOWN */}
+          <CustomSelect 
+            icon={FiFilter}
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(val)}
+            options={[
+              { v: 'All', l: 'All Status' },
+              { v: 'Pending', l: 'Pending' },
+              { v: 'Overdue', l: 'Overdue' }
+            ]}
+            className="flex-grow sm:flex-grow-0 min-w-[140px]"
+          />
 
           {/* Search Bar */}
           <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 w-full md:w-64 transition-shadow duration-300 focus-within:shadow-md focus-within:border-indigo-500 bg-gray-50/50">
@@ -164,29 +215,14 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
             />
           </div>
 
-          {/* Pagination Dropdown */}
+          {/* CUSTOM PAGINATION DROPDOWN */}
           {totalItems > itemsPerPage && (
-            <div className="relative flex-grow sm:flex-grow-0">
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 transition-colors w-full sm:w-auto">
-                <select
-                  value={currentPage}
-                  onChange={handlePageChange}
-                  className="appearance-none bg-transparent outline-none text-sm text-gray-700 font-medium cursor-pointer pr-6 w-full"
-                  style={{ minWidth: '80px' }}
-                >
-                  {Array.from({ length: totalPages }, (_, i) => {
-                    const pageNum = i + 1;
-                    const start = (pageNum - 1) * itemsPerPage + 1;
-                    const end = Math.min(pageNum * itemsPerPage, totalItems);
-                    return (
-                      <option key={pageNum} value={pageNum}>
-                        {start} - {end}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
+            <CustomSelect 
+              value={currentPage}
+              onChange={(val) => setCurrentPage(Number(val))}
+              options={Array.from({ length: totalPages }, (_, i) => ({ v: i + 1, l: `Page ${i + 1}` }))}
+              className="w-full sm:w-[110px]"
+            />
           )}
         </div>
       </div>
@@ -203,9 +239,13 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Roll No', 'Name', 'Location', 'Date', 'Status', 'Action'].map(head => (
-                      <th key={head} className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{head}</th>
-                  ))}
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Roll No</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Enrollment No</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -219,9 +259,9 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
                     }`}
                   >
                     <td className="px-4 py-3 md:px-6 md:py-4 text-gray-900 font-semibold whitespace-nowrap">{app.rollNo || '—'}</td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 text-gray-500 text-sm whitespace-nowrap">{app.enrollment || '—'}</td>
                     <td className="px-4 py-3 md:px-6 md:py-4 text-gray-700 whitespace-nowrap">
-                      <div>{app.name || '—'}</div>
-                      <div className="text-xs text-gray-400">{app.enrollment}</div>
+                      <div className="truncate font-medium">{app.name || '—'}</div>
                     </td>
                     <td className="px-4 py-3 md:px-6 md:py-4 text-gray-700 text-sm whitespace-nowrap">
                        <div className="flex items-center text-gray-500">
@@ -283,6 +323,13 @@ const ApplicationsTable = ({ applications, isLoading, onView, onSearch, onRefres
           )}
         </div>
       )}
+
+      {/* Adding custom scrollbar style just for the dropdown overflow */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      `}</style>
     </motion.div>
   );
 };

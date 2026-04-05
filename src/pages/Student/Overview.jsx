@@ -112,7 +112,7 @@ const Overview = ({ user, formData, stepStatuses = [], setActive, applicationId,
           <h2 className="text-3xl lg:text-5xl font-black tracking-tight leading-tight">
             Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">{formData.fullName?.split(' ')[0] || 'Student'}</span>
           </h2>
-          <p className="uppercase text-[11px] tracking-[0.2em] text-slate-400 font-bold max-w-md">
+          <p className="text-[11px] tracking-[0.2em] text-slate-400 font-bold max-w-md">
             Your centralized clearance dashboard. Track approvals and download certificates in real-time.
           </p>
         </div>

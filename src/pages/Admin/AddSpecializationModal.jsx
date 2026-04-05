@@ -1,7 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2, Layers, AlertCircle, ChevronRight } from 'lucide-react';
+import { Plus, Loader2, Layers, AlertCircle, ChevronRight, Check, ChevronDown } from 'lucide-react';
 
+// --- UTILITIES ---
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// --- CUSTOM SHADCN-LIKE SELECT COMPONENT (Indigo Theme) ---
+const ShadcnSelect = ({ value, onChange, options, placeholder, disabled, error, icon: Icon, loading }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options?.find(opt => opt.v === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      {/* Hidden input to maintain native HTML form 'required' validation */}
+      <input type="text" required value={value} onChange={() => {}} className="absolute opacity-0 w-0 h-0 -z-10" tabIndex={-1} />
+      
+      <div 
+        onClick={() => !disabled && !loading && setIsOpen(!isOpen)}
+        className={cn(
+          "flex w-full items-center justify-between h-12 px-5 rounded-2xl text-sm font-bold transition-all outline-none",
+          disabled || loading 
+            ? "opacity-100 bg-slate-50 text-slate-400 border border-transparent cursor-not-allowed" 
+            : "cursor-pointer bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 hover:bg-slate-100",
+          error ? "border-rose-400 bg-rose-50/30 text-rose-700" : "text-slate-700",
+          isOpen ? "ring-4 ring-indigo-500/5 border-indigo-400 bg-white" : ""
+        )}
+      >
+        <div className="flex items-center gap-2 truncate">
+          {loading ? <Loader2 className="animate-spin w-4 h-4 shrink-0 text-slate-400" /> : Icon ? <Icon className="w-4 h-4 shrink-0 text-slate-400" /> : null}
+          <span className={cn("truncate", !selectedOption && "text-slate-400 font-normal")}>
+            {loading ? 'Loading...' : selectedOption ? selectedOption.l : placeholder}
+          </span>
+        </div>
+        <div className="flex items-center text-slate-400 ml-2 shrink-0">
+          <ChevronDown className={cn("transition-transform duration-200", isOpen && "rotate-180")} size={16} />
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-1 max-h-[250px] w-full overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl custom-scrollbar"
+          >
+            {!options || options.length === 0 ? (
+              <div className="relative cursor-default select-none py-3 px-5 text-slate-500 font-medium text-center text-sm">
+                No options available
+              </div>
+            ) : (
+              options.map((option) => (
+                <div
+                  key={option.v}
+                  className={cn(
+                    "relative cursor-pointer select-none py-3 pl-5 pr-10 font-bold text-sm hover:bg-slate-50 hover:text-indigo-600 transition-colors",
+                    value === option.v ? "bg-indigo-50/50 text-indigo-600" : "text-slate-700"
+                  )}
+                  onClick={() => {
+                    onChange(option.v);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="block truncate">{option.l}</span>
+                  {value === option.v && (
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-5 text-indigo-600">
+                      <Check size={16} strokeWidth={3} />
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
 const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
   const [formData, setFormData] = useState({ name: '', code: '', programmeCode: '' });
   
@@ -40,7 +130,7 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
       setProgOptions([]);
       setFormData({ name: '', code: '', programmeCode: '' });
     }
-  }, [isOpen]);
+  }, [isOpen, authFetch]);
 
   // 2. Fetch Programmes when Department changes
   useEffect(() => {
@@ -65,7 +155,7 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
         }
     };
     fetchProgs();
-  }, [selectedDept]);
+  }, [selectedDept, authFetch]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -124,18 +214,13 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Filter by Department</label>
                 <div className="relative">
-                    <select 
-                      className="w-full h-12 px-5 appearance-none rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none cursor-pointer text-slate-700"
-                      value={selectedDept}
-                      onChange={(e) => setSelectedDept(e.target.value)}
-                      disabled={isLoadingDepts}
-                    >
-                        {isLoadingDepts ? <option>Loading...</option> : <option value="">Select Department</option>}
-                        {deptOptions.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        {isLoadingDepts ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4 rotate-90" />}
-                    </div>
+                  <ShadcnSelect
+                    value={selectedDept}
+                    onChange={(val) => setSelectedDept(val)}
+                    options={deptOptions.map(d => ({ v: d.code, l: d.name }))}
+                    placeholder="Select Department"
+                    loading={isLoadingDepts}
+                  />
                 </div>
               </div>
 
@@ -145,28 +230,14 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
                     Parent Programme <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                    <select 
-                      required
-                      className="w-full h-12 px-5 appearance-none rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none cursor-pointer text-slate-700 disabled:opacity-50"
-                      value={formData.programmeCode}
-                      onChange={(e) => setFormData({...formData, programmeCode: e.target.value})}
-                      disabled={!selectedDept || isLoadingProgs}
-                    >
-                        {!selectedDept ? (
-                            <option>Select a Department first</option>
-                        ) : isLoadingProgs ? (
-                            <option>Loading Programmes...</option>
-                        ) : progOptions.length === 0 ? (
-                            <option>No programmes found</option>
-                        ) : (
-                            <option value="">Select Programme</option>
-                        )}
-                        {progOptions.map(p => (
-                            <option key={p.code} value={p.code}>
-                                {p.name} ({p.code})
-                            </option>
-                        ))}
-                    </select>
+                  <ShadcnSelect
+                    value={formData.programmeCode}
+                    onChange={(val) => setFormData({...formData, programmeCode: val})}
+                    options={progOptions.map(p => ({ v: p.code, l: `${p.name} (${p.code})` }))}
+                    placeholder={!selectedDept ? "Select a Department first" : "Select Programme"}
+                    loading={isLoadingProgs}
+                    disabled={!selectedDept || isLoadingProgs}
+                  />
                 </div>
               </div>
 
@@ -176,7 +247,7 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Specialization Name</label>
                     <input 
                     required
-                    className="w-full h-12 px-5 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none"
+                    className="w-full h-12 px-5 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none text-slate-700"
                     placeholder="e.g. Artificial Intelligence"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -188,7 +259,7 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unique Code</label>
                     <input 
                     required
-                    className="w-full h-12 px-5 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none uppercase placeholder:normal-case"
+                    className="w-full h-12 px-5 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 text-sm font-bold transition-all outline-none uppercase placeholder:normal-case text-slate-700"
                     placeholder="e.g. AIML"
                     value={formData.code}
                     onChange={(e) => setFormData({...formData, code: e.target.value})}
@@ -212,6 +283,11 @@ const AddSpecializationModal = ({ isOpen, onClose, onSuccess, authFetch }) => {
           </motion.div>
         </div>
       )}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      `}</style>
     </AnimatePresence>
   );
 };

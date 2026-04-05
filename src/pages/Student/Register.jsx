@@ -3,7 +3,7 @@ import { useStudentAuth } from '../../contexts/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiShield, FiLogIn, FiArrowLeft, FiUser, FiMail, 
-  FiPhone, FiHash, FiCheckCircle, FiRefreshCw, FiBookOpen, FiLock, FiAlertCircle
+  FiPhone, FiHash, FiCheckCircle, FiRefreshCw, FiBookOpen, FiLock, FiAlertCircle, FiChevronDown
 } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +38,86 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
   );
 });
 Button.displayName = "Button";
+
+// --- SHADCN-LIKE SELECT COMPONENT ---
+const ShadcnSelect = ({ value, onChange, options, placeholder, disabled, error, icon: Icon }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Handle clicking outside to close the dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={cn(
+          "flex h-11 w-full items-center justify-between rounded-lg border bg-slate-50 px-4 py-2 text-base sm:text-xs font-bold transition-all outline-none",
+          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-slate-100",
+          error ? "border-red-300 focus:ring-red-200" : "border-slate-200 focus:ring-1 focus:ring-blue-500",
+          isOpen ? "ring-1 ring-blue-500 border-blue-500" : ""
+        )}
+      >
+        <span className={cn("truncate", !selectedOption && "text-slate-500")}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <div className="flex items-center gap-2 text-slate-400">
+          {Icon && <Icon size={14} />}
+          <FiChevronDown className={cn("transition-transform duration-200", isOpen && "rotate-180")} size={16} />
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 text-base shadow-lg sm:text-xs custom-scrollbar"
+          >
+            {options.length === 0 ? (
+              <div className="relative cursor-default select-none py-2 px-4 text-slate-500 font-medium text-center">
+                No options available
+              </div>
+            ) : (
+              options.map((option) => (
+                <div
+                  key={option.value}
+                  className={cn(
+                    "relative cursor-pointer select-none py-2.5 pl-4 pr-9 font-bold hover:bg-slate-100 hover:text-blue-600 transition-colors",
+                    value === option.value ? "bg-blue-50 text-blue-600" : "text-slate-700"
+                  )}
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="block truncate">{option.label}</span>
+                  {value === option.value && (
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
+                      <FiCheckCircle size={14} />
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 // --- MAIN COMPONENT ---
 const StudentRegister = () => {
@@ -256,7 +336,7 @@ const StudentRegister = () => {
                       name="rollNumber" 
                       value={form.rollNumber} 
                       onChange={handleChange} 
-                      placeholder="ROLL NUMBER" 
+                      placeholder="ROLL NUMBER"
                       className={`pl-10 h-11 text-base sm:text-xs font-bold uppercase ${errors.rollNumber ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'}`} 
                     />
                   </div>
@@ -298,31 +378,21 @@ const StudentRegister = () => {
                   />
                 </div>
 
+                {/* --- NEW SHADCN-STYLE DROPDOWN INTEGRATION --- */}
                 <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className={labelStyle}>Academic School</label>
-                  <div className="relative">
-                    <select 
-                      name="schoolId" 
-                      value={form.schoolId} 
-                      onChange={handleChange} 
-                      disabled={schoolsLoading}
-                      className={`w-full h-11 px-4 rounded-lg text-base sm:text-xs font-bold border bg-slate-50 outline-none appearance-none transition-all focus:ring-1 focus:ring-blue-500 ${errors.schoolId ? 'border-red-300' : 'border-slate-200'} ${schoolsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <option value="">{schoolsLoading ? 'Loading Schools...' : 'Select University School'}</option>
-                      {schools.map((school, index) => (
-                        <option key={index} value={school.id || school.code}>
-                          {school.name} ({school.code})
-                        </option>
-                      ))}
-                    </select>
-                    {!schoolsLoading && (
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                        <FiBookOpen size={14} />
-                      </div>
-                    )}
-                  </div>
+                  <ShadcnSelect 
+                    value={form.schoolId}
+                    onChange={(val) => handleChange({ target: { name: 'schoolId', value: val } })}
+                    options={schools.map(school => ({ value: school.id || school.code, label: `${school.name} (${school.code})` }))}
+                    placeholder={schoolsLoading ? 'Loading Schools...' : 'Select University School'}
+                    disabled={schoolsLoading}
+                    error={errors.schoolId}
+                    icon={FiBookOpen}
+                  />
                   {errors.schoolId && <span className="text-[10px] text-red-500 font-bold">{errors.schoolId}</span>}
                 </div>
+                {/* --------------------------------------------- */}
 
                 <div className="space-y-1">
                   <label className={labelStyle}>Password</label>
@@ -354,17 +424,18 @@ const StudentRegister = () => {
                 <div className="flex justify-between items-center px-1 mb-1">
                   <div className="flex items-center gap-2">
                     <label className={labelStyle}>Security Verification</label>
-                 <button
-  type="button"
-  onClick={handleRefreshTurnstile}
-  className="text-blue-400 hover:text-blue-500 transition-colors inline-flex items-center gap-1.5 p-1"
-  title="Refresh Verification"
-><span className="text-[10px] font-bold uppercase tracking-wider">Refresh</span>
-  <FiRefreshCw 
-    size={12} 
-    className={loading ? "animate-spin" : "transition-transform group-hover:rotate-180"} 
-  />
-</button>
+                    <button
+                      type="button"
+                      onClick={handleRefreshTurnstile}
+                      className="text-blue-400 hover:text-blue-500 transition-colors inline-flex items-center gap-1.5 p-1"
+                      title="Refresh Verification"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Refresh</span>
+                      <FiRefreshCw 
+                        size={12} 
+                        className={loading ? "animate-spin" : "transition-transform group-hover:rotate-180"} 
+                      />
+                    </button>
                   </div>
                   <AnimatePresence>
                     {turnstileToken && (

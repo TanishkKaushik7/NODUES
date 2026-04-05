@@ -3,9 +3,23 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Activity, Server, Database, Mail, Clock, RefreshCw, 
-  Trash2, BarChart3, Users, Loader2, AlertCircle, HardDrive, Zap
+  Trash2, Users, Loader2, AlertCircle, HardDrive, Zap
 } from 'lucide-react';
 import ClearCacheModal from './ClearCacheModal'; 
+
+// Framer Motion Variants for staggered animations
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 const MetricsManagement = () => {
   const { authFetch } = useAuth();
@@ -17,34 +31,42 @@ const MetricsManagement = () => {
   const [trafficStats, setTrafficStats] = useState(null);
   
   // UI States
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeScope, setActiveScope] = useState(null);
 
-  const fetchAllMetrics = useCallback(async () => {
+  // ✅ FIX: Fetch independently so fast endpoints render immediately
+  const fetchAllMetrics = useCallback(() => {
     setLoading(true);
     setError(null);
-    try {
-      const [healthRes, dashRes, redisRes, trafficRes] = await Promise.all([
-        authFetch('/api/metrics/health'),
-        authFetch('/api/metrics/dashboard-stats'),
-        authFetch('/api/metrics/redis-stats'),
-        authFetch('/api/metrics/traffic-stats')
-      ]);
 
-      if (healthRes.ok) setHealth(await healthRes.json());
-      if (dashRes.ok) setDashStats(await dashRes.json());
-      if (redisRes.ok) setRedisStats(await redisRes.json());
-      if (trafficRes.ok) setTrafficStats(await trafficRes.json());
-      
-    } catch (err) {
-      console.error("Failed to fetch metrics", err);
-      setError("Failed to load some metrics. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    // 1. Health
+    authFetch('/api/metrics/health')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setHealth(data))
+      .catch(err => console.error("Health fetch failed", err));
+
+    // 2. Dashboard Stats (Usually the slowest)
+    authFetch('/api/metrics/dashboard-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setDashStats(data))
+      .catch(err => console.error("Dash stats fetch failed", err));
+
+    // 3. Redis
+    authFetch('/api/metrics/redis-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setRedisStats(data))
+      .catch(err => console.error("Redis fetch failed", err));
+
+    // 4. Traffic
+    authFetch('/api/metrics/traffic-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setTrafficStats(data))
+      .catch(err => console.error("Traffic fetch failed", err))
+      .finally(() => setLoading(false)); // Stop spin animation when last one completes
+
   }, [authFetch]);
 
   useEffect(() => {
@@ -78,228 +100,239 @@ const MetricsManagement = () => {
     return `${d > 0 ? d + 'd ' : ''}${h}h ${m}m`;
   };
 
-  if (loading && !health) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[70vh]">
-        <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-        <p className="mt-4 text-sm font-bold text-slate-400 tracking-widest uppercase">Loading System Metrics...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto pb-12 px-4 sm:px-0">
-      
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
-            <Activity className="h-7 w-7" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">System Metrics</h2>
-            <p className="text-slate-500 text-[10px] font-black tracking-[0.2em] mt-1">Live Monitoring & Cache Control</p>
-          </div>
-        </div>
-
-        <button 
-          onClick={fetchAllMetrics}
-          disabled={loading}
-          className="h-12 px-6 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-[10px] tracking-widest flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>REFRESH DATA</span>
-        </button>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-center gap-3 text-sm font-bold">
-          <AlertCircle className="h-5 w-5" /> {error}
-        </div>
-      )}
-
-      {/* MAIN GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="min-h-screen bg-gray-50/50 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
-        {/* SERVER HEALTH & LATENCY */}
-        <div className="space-y-6 lg:col-span-1">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center shadow-md">
+              <Activity className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">System Metrics</h2>
+              <p className="text-sm font-medium text-gray-500 mt-0.5">Live monitoring & infrastructure health</p>
+            </div>
+          </div>
+
+          <button 
+            onClick={fetchAllMetrics}
+            disabled={loading}
+            className="h-10 px-5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700 font-semibold text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
           >
-            <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 tracking-[0.2em] uppercase">
-              <Server className="h-4 w-4 text-blue-500" /> Infrastructure Health
-            </h3>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3 text-sm font-medium">
+            <AlertCircle className="h-5 w-5" /> {error}
+          </motion.div>
+        )}
+
+        {/* MAIN CONTENT GRID */}
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        >
+          
+          {/* COLUMN 1: INFRASTRUCTURE */}
+          <div className="space-y-6 lg:col-span-1">
             
-            <div className="space-y-3">
-              {/* DB CONNECTION */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                  <Database className="h-4 w-4 text-slate-400" /> Database
+            {/* SERVER HEALTH */}
+            <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative">
+              {/* Local Loader */}
+              {!health && <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-blue-500" /></div>}
+              
+              <h3 className="text-xs font-bold text-gray-400 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                <Server className="h-4 w-4 text-blue-500" /> Infrastructure Health
+              </h3>
+              
+              <div className="space-y-2">
+                {/* DB Connection */}
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <Database className="h-4 w-4 text-gray-400" /> Database
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${health?.database === 'Connected' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {health?.database || 'Unknown'}
+                  </span>
                 </div>
-                <span className={`text-[9px] px-2 py-1 rounded-md font-black tracking-widest uppercase ${health?.database === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                  {health?.database || 'Unknown'}
-                </span>
+
+                {/* DB Latency */}
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <Zap className="h-4 w-4 text-amber-500" /> DB Latency
+                  </div>
+                  <span className={`text-sm font-semibold ${health?.database_latency_ms > 300 ? 'text-red-600' : 'text-green-600'}`}>
+                    {health?.database_latency_ms ? `${health.database_latency_ms}ms` : '--'}
+                  </span>
+                </div>
+
+                {/* Redis Latency */}
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <Activity className="h-4 w-4 text-purple-500" /> Redis Latency
+                  </div>
+                  <span className={`text-sm font-semibold ${health?.redis_latency_ms > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                    {health?.redis_latency_ms ? `${health.redis_latency_ms}ms` : '--'}
+                  </span>
+                </div>
+
+                {/* SMTP Server */}
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <Mail className="h-4 w-4 text-gray-400" /> SMTP Server
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${health?.smtp_server === 'Connected' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {health?.smtp_server || 'Offline'}
+                  </span>
+                </div>
+
+                {/* Uptime */}
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <Clock className="h-4 w-4 text-gray-400" /> Uptime
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatUptime(health?.uptime_seconds)}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* REDIS STORAGE */}
+            <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative">
+              {!redisStats && <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-purple-500" /></div>}
+              
+              <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
+                      <HardDrive className="h-4 w-4 text-purple-500" /> Redis Storage
+                  </h3>
+                  <button 
+                      onClick={() => setIsModalOpen(true)}
+                      className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-md transition-colors"
+                      title="Clear Cache"
+                  >
+                      <Trash2 size={16} />
+                  </button>
               </div>
 
-              {/* DB LATENCY */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                  <Zap className="h-4 w-4 text-amber-500" /> DB Latency
+              {redisStats?.status === 'Online' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Memory Used</p>
+                    <p className="text-2xl font-semibold text-gray-900">{redisStats.metrics.memory.used}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Total Keys</p>
+                    <p className="text-2xl font-semibold text-gray-900">{redisStats.metrics.db.total_keys}</p>
+                  </div>
                 </div>
-                <span className={`text-xs font-black ${health?.database_latency_ms > 300 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {health?.database_latency_ms ? `${health.database_latency_ms}ms` : '--'}
-                </span>
-              </div>
-
-              {/* ⭐ REDIS LATENCY ⭐ */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                  <Activity className="h-4 w-4 text-indigo-500" /> Redis Latency
+              ) : (
+                <div className="text-center p-6 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 text-sm font-medium">
+                  Redis Layer Offline
                 </div>
-                <span className={`text-xs font-black ${health?.redis_latency_ms > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {health?.redis_latency_ms ? `${health.redis_latency_ms}ms` : '--'}
-                </span>
-              </div>
+              )}
+            </motion.div>
+          </div>
 
-              {/* SMTP */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                  <Mail className="h-4 w-4 text-slate-400" /> SMTP Server
-                </div>
-                <span className={`text-[9px] px-2 py-1 rounded-md font-black tracking-widest uppercase ${health?.smtp_server === 'Connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {health?.smtp_server || 'Offline'}
-                </span>
-              </div>
-
-              {/* UPTIME */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                  <Clock className="h-4 w-4 text-slate-400" /> Uptime
-                </div>
-                <span className="text-xs font-black text-slate-800">
-                  {formatUptime(health?.uptime_seconds)}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* REDIS MEMORY CARD */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
-          >
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="text-[10px] font-black text-slate-400 flex items-center gap-2 tracking-[0.2em] uppercase">
-                    <HardDrive className="h-4 w-4 text-indigo-500" /> Redis Storage
-                </h3>
-                <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="p-2 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+          {/* COLUMN 2 & 3: APPLICATION DATA */}
+          <div className="space-y-6 lg:col-span-2">
+            
+            {/* TOP COUNTERS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative">
+              {!dashStats && <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-blue-500" /></div>}
+              
+              {[
+                { label: 'Total Apps', value: dashStats?.metrics?.total_applications || 0, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'Completed', value: dashStats?.metrics?.completed || 0, color: 'text-green-600', bg: 'bg-green-50' },
+                { label: 'Pending', value: dashStats?.metrics?.pending || 0, color: 'text-amber-600', bg: 'bg-amber-50' },
+                { label: 'Rejected', value: dashStats?.metrics?.rejected || 0, color: 'text-red-600', bg: 'bg-red-50' },
+              ].map((stat, idx) => (
+                <motion.div 
+                  key={idx} variants={itemVariants}
+                  className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center"
                 >
-                    <Trash2 size={16} />
-                </button>
+                  <div className={`h-10 w-10 rounded-full ${stat.bg} ${stat.color} flex items-center justify-center mb-3`}>
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-3xl font-bold text-gray-900">{stat.value}</h4>
+                  <p className="text-xs font-medium text-gray-500 mt-1">{stat.label}</p>
+                </motion.div>
+              ))}
             </div>
 
-            {redisStats?.status === 'Online' ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                  <p className="text-[9px] font-black text-indigo-400 tracking-widest mb-1 uppercase">Memory</p>
-                  <p className="text-xl font-black text-indigo-900">{redisStats.metrics.memory.used}</p>
-                </div>
-                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                  <p className="text-[9px] font-black text-indigo-400 tracking-widest mb-1 uppercase">Keys</p>
-                  <p className="text-xl font-black text-indigo-900">{redisStats.metrics.db.total_keys}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center p-6 bg-slate-50 rounded-2xl text-slate-500 text-xs font-bold uppercase">
-                Redis Layer Offline
-              </div>
-            )}
-          </motion.div>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* BOTTLENECKS */}
+              <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col relative">
+                {!dashStats && <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-amber-500" /></div>}
 
-        {/* APPLICATION STATS & TRAFFIC */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* TOP COUNTERS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Apps', value: dashStats?.metrics?.total_applications || 0, color: 'text-blue-600', bg: 'bg-blue-50' },
-              { label: 'Completed', value: dashStats?.metrics?.completed || 0, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'Pending', value: dashStats?.metrics?.pending || 0, color: 'text-amber-600', bg: 'bg-amber-50' },
-              { label: 'Rejected', value: dashStats?.metrics?.rejected || 0, color: 'text-rose-600', bg: 'bg-rose-50' },
-            ].map((stat, idx) => (
-              <motion.div 
-                key={idx} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.05 }}
-                className="bg-white p-5 rounded-[1.5rem] border border-slate-200/60 shadow-sm flex flex-col items-center justify-center text-center"
-              >
-                <div className={`h-10 w-10 rounded-full ${stat.bg} ${stat.color} flex items-center justify-center mb-3`}>
-                  <Users className="h-5 w-5" />
-                </div>
-                <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
-                <p className="text-[9px] font-black text-slate-400 tracking-widest mt-1 uppercase">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* BOTTLENECKS */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-              className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
-            >
-              <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 tracking-[0.2em] uppercase">
-                <AlertCircle className="h-4 w-4 text-amber-500" /> Pending Bottlenecks
-              </h3>
-              <div className="space-y-4">
-                {dashStats?.top_bottlenecks?.length > 0 ? (
-                  dashStats.top_bottlenecks.map((b, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-600 truncate pr-4">{b.department}</span>
-                      <span className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md">{b.pending_count}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 font-bold uppercase">No bottlenecks detected</p>
-                )}
-              </div>
-            </motion.div>
-
-            {/* TRAFFIC DATA */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/30"
-            >
-              <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 tracking-[0.2em] uppercase">
-                <Activity className="h-4 w-4 text-emerald-500" /> API Traffic (Top 10)
-              </h3>
-              <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                {trafficStats?.data?.length > 0 ? (
-                  trafficStats.data.slice(0, 10).map((t, i) => {
-                    const maxHits = trafficStats.data[0].hits;
-                    const percent = Math.max(10, Math.round((t.hits / maxHits) * 100));
-                    return (
-                      <div key={i} className="space-y-1">
-                        <div className="flex items-center justify-between text-[9px] font-black tracking-wider uppercase">
-                          <span className="text-slate-500 truncate pr-2">
-                            <span className={t.method === 'GET' ? 'text-blue-500' : 'text-emerald-500'}>{t.method}</span> {t.path}
-                          </span>
-                          <span className="text-slate-700">{t.hits} HITS</span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
-                          <div className="bg-slate-800 h-full rounded-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
-                        </div>
+                <h3 className="text-xs font-bold text-gray-400 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                  <AlertCircle className="h-4 w-4 text-amber-500" /> Pending Bottlenecks
+                </h3>
+                <div className="space-y-4 flex-1">
+                  {dashStats?.top_bottlenecks?.length > 0 ? (
+                    dashStats.top_bottlenecks.map((b, i) => (
+                      <div key={i} className="flex items-center justify-between group">
+                        <span className="text-sm font-medium text-gray-700 truncate pr-4">{b.department}</span>
+                        <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full group-hover:bg-amber-100 transition-colors">
+                          {b.pending_count} pending
+                        </span>
                       </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-slate-400 font-bold uppercase">No traffic recorded</p>
-                )}
-              </div>
-            </motion.div>
+                    ))
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-gray-400 font-medium">
+                      No bottlenecks detected
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* API TRAFFIC */}
+              <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative">
+                {!trafficStats && <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-green-500" /></div>}
+
+                <h3 className="text-xs font-bold text-gray-400 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                  <Activity className="h-4 w-4 text-green-500" /> Top API Traffic
+                </h3>
+                <div className="space-y-5 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                  {trafficStats?.data?.length > 0 ? (
+                    trafficStats.data.slice(0, 10).map((t, i) => {
+                      const maxHits = trafficStats.data[0].hits;
+                      const percent = Math.max(5, Math.round((t.hits / maxHits) * 100));
+                      return (
+                        <div key={i} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600 truncate pr-2 font-medium flex items-center gap-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${t.method === 'GET' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                                {t.method}
+                              </span> 
+                              <span className="truncate max-w-[150px]">{t.path}</span>
+                            </span>
+                            <span className="text-gray-900 font-semibold">{t.hits}</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-gray-400 font-medium">
+                      No traffic recorded
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <ClearCacheModal 

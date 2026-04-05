@@ -3,7 +3,7 @@ import {
   Building2, GraduationCap, Plus, Trash2, Edit2, 
   Search, Landmark, Loader2, ShieldCheck, 
   Layers, School, BookOpen, Link as LinkIcon,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, FlaskConical
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import CreateSchoolModal from './CreateSchoolModal';
@@ -32,6 +32,9 @@ const SchoolDeptManagement = () => {
     isOpen: false, id: null, name: '', type: '' 
   });
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+
+  // --- Toggle Lab Clearance State ---
+  const [togglingId, setTogglingId] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -122,6 +125,35 @@ const SchoolDeptManagement = () => {
     }
   };
 
+  // --- Toggle Lab Clearance Function ---
+  const handleToggleLabClearance = async (school) => {
+    setTogglingId(school.id); // Keep tracking loading state by ID
+    try {
+      const newStatus = !school.requires_lab_clearance;
+      
+      // CHANGED: Now passing school.code (e.g., "SOICT") in the URL
+      const response = await authFetch(`/api/common/${school.code}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requires_lab_clearance: newStatus })
+      });
+
+      if (response.ok) {
+        // Update local state instantly for snappy UI
+        setSchools(prev => prev.map(s => 
+          s.id === school.id ? { ...s, requires_lab_clearance: newStatus } : s
+        ));
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        alert(errData.detail || "Failed to update lab clearance requirement.");
+      }
+    } catch (err) {
+      alert("Network error occurred.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-96 flex flex-col items-center justify-center space-y-4">
@@ -133,7 +165,7 @@ const SchoolDeptManagement = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header & Stats ... same as your previous version */}
+      {/* Header & Stats */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">University Structure</h1>
@@ -210,14 +242,41 @@ const SchoolDeptManagement = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5">
                       <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{item.code}</span>
                       <span className="text-[10px] font-bold text-slate-400 tracking-widest">ID: {item.id}</span>
-                      {item.school_id && schoolMap[item.school_id] && (
+                      
+                      {/* DEPARTMENTS: Show linked school */}
+                      {item.type === 'department' && item.school_id && schoolMap[item.school_id] && (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-tighter">
                           <LinkIcon size={10} /> {schoolMap[item.school_id]}
                         </span>
                       )}
+
+                      {/* SCHOOLS: Clickable Lab Clearance Toggle Button (Redesigned) */}
+                      {item.type === 'school' && (
+                        <>
+                          <div className="w-px h-4 bg-slate-200 hidden sm:block"></div>
+                          <button
+                            onClick={() => handleToggleLabClearance(item)}
+                            disabled={togglingId === item.id}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 border ${
+                              item.requires_lab_clearance 
+                                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:shadow-md' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                            } ${togglingId === item.id ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
+                            title="Click to toggle lab clearance requirement"
+                          >
+                            {togglingId === item.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <FlaskConical size={12} className={item.requires_lab_clearance ? "text-indigo-200" : "text-slate-400"} />
+                            )}
+                            {item.requires_lab_clearance ? 'Labs Required' : 'No Labs Required'}
+                          </button>
+                        </  >
+                      )}
+
                     </div>
                   </div>
                 </div>
@@ -273,7 +332,7 @@ const SchoolDeptManagement = () => {
         )}
       </div>
 
-      {/* Modals ... same as your previous version */}
+      {/* Modals */}
       <CreateSchoolModal isOpen={isSchoolModalOpen} onClose={() => setIsSchoolModalOpen(false)} onSuccess={fetchData} />
       <CreateDepartmentModal isOpen={isDeptModalOpen} onClose={() => setIsDeptModalOpen(false)} onSuccess={fetchData} />
       <DeleteStructureModal 

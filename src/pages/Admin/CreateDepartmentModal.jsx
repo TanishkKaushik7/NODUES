@@ -1,6 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { X, Building2, Loader2, CheckCircle2, AlertCircle, Layers, Landmark } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Building2, Loader2, CheckCircle2, AlertCircle, Layers, Landmark, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+
+// --- UTILITIES ---
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// --- CUSTOM SHADCN-LIKE SELECT COMPONENT (Indigo Theme) ---
+const ShadcnSelect = ({ value, onChange, options, placeholder, disabled, error, icon: Icon, loading }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options?.find(opt => opt.v === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      {/* Hidden input to maintain native HTML form 'required' validation */}
+      <input type="text" required value={value} onChange={() => {}} className="absolute opacity-0 w-0 h-0 -z-10" tabIndex={-1} />
+      
+      <div 
+        onClick={() => !disabled && !loading && setIsOpen(!isOpen)}
+        className={cn(
+          "flex w-full items-center justify-between py-3.5 px-5 rounded-2xl text-xs font-bold transition-all outline-none",
+          disabled || loading 
+            ? "opacity-100 bg-slate-50 text-slate-400 border border-transparent cursor-not-allowed" 
+            : "cursor-pointer bg-indigo-50/50 border border-indigo-100 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 hover:bg-indigo-50",
+          error ? "border-rose-400 bg-rose-50/30 text-rose-700" : "text-slate-700",
+          isOpen ? "ring-4 ring-indigo-500/10 border-indigo-500 bg-white" : ""
+        )}
+      >
+        <div className="flex items-center gap-2 truncate">
+          {loading ? <Loader2 className="animate-spin w-4 h-4 shrink-0 text-slate-400" /> : Icon ? <Icon className="w-4 h-4 shrink-0 text-slate-400" /> : null}
+          <span className={cn("truncate", !selectedOption && "text-slate-500 font-normal")}>
+            {loading ? 'Loading Schools...' : selectedOption ? selectedOption.l : placeholder}
+          </span>
+        </div>
+        <div className="flex items-center text-indigo-400 ml-2 shrink-0">
+          <ChevronDown className={cn("transition-transform duration-200", isOpen && "rotate-180")} size={16} />
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-1 max-h-[200px] w-full overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl custom-scrollbar"
+          >
+            {!options || options.length === 0 ? (
+              <div className="relative cursor-default select-none py-3 px-5 text-slate-500 font-medium text-center text-xs">
+                No schools available
+              </div>
+            ) : (
+              options.map((option) => (
+                <div
+                  key={option.v}
+                  className={cn(
+                    "relative cursor-pointer select-none py-3 pl-5 pr-10 font-bold text-xs hover:bg-indigo-50 hover:text-indigo-600 transition-colors",
+                    value === option.v ? "bg-indigo-50/50 text-indigo-600" : "text-slate-700"
+                  )}
+                  onClick={() => {
+                    onChange(option.v);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="block truncate">{option.l}</span>
+                  {value === option.v && (
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-5 text-indigo-600">
+                      <CheckCircle2 size={16} strokeWidth={3} />
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const CreateDepartmentModal = ({ isOpen, onClose, onSuccess }) => {
   const { authFetch } = useAuth();
@@ -192,24 +282,13 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSuccess }) => {
                     <Landmark size={12} /> Link to School (Required)
                   </label>
                   <div className="relative">
-                    <select 
-                      required 
-                      className="w-full pl-5 pr-10 py-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl text-xs font-bold text-slate-700 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none truncate"
+                    <ShadcnSelect
                       value={formData.school_code}
-                      onChange={(e) => setFormData({...formData, school_code: e.target.value})}
-                      disabled={schoolsLoading}
-                    >
-                      <option value="">{schoolsLoading ? "Loading Schools..." : "-- Select Parent School --"}</option>
-                      {schoolOptions.map(s => (
-                          <option key={s.id} value={s.code}>
-                            {s.name} ({s.code})
-                          </option>
-                      ))}
-                    </select>
-                    {/* Custom Arrow */}
-                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-indigo-400">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                    </div>
+                      onChange={(val) => setFormData({...formData, school_code: val})}
+                      options={schoolOptions.map(s => ({ v: s.code, l: `${s.name} (${s.code})` }))}
+                      placeholder="-- Select Parent School --"
+                      loading={schoolsLoading}
+                    />
                   </div>
                 </div>
               )}

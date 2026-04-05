@@ -1,12 +1,78 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Search, UserPlus, Filter, MoreVertical, Edit2, 
   Trash2, Shield, Mail, Loader2, RefreshCw, Users,
-  ChevronLeft, ChevronRight 
+  ChevronLeft, ChevronRight, Check, ChevronDown 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import RegisterUserModal from './RegisterUserModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
+
+// --- UTILITIES ---
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// --- CUSTOM SHADCN-LIKE FILTER DROPDOWN ---
+const FilterDropdown = ({ value, onChange, options, icon: Icon, className }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.v === value);
+
+  return (
+    <div className={cn("relative flex-1 md:flex-none min-w-[220px]", className)} ref={ref}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex items-center justify-between gap-4 px-4 h-[50px] rounded-2xl border cursor-pointer transition-all select-none bg-white border-slate-200 hover:bg-slate-50",
+          isOpen ? "ring-4 ring-blue-500/10 border-blue-400" : ""
+        )}
+      >
+        <div className="flex items-center gap-2.5">
+          {Icon && <Icon size={16} className="text-slate-400" />}
+          <span className="text-[10px] font-black tracking-widest uppercase truncate text-slate-600">
+            {selectedOption ? selectedOption.l : "Select Role..."}
+          </span>
+        </div>
+        <ChevronDown size={14} className={cn("transition-transform duration-200 shrink-0 text-slate-400", isOpen && "rotate-180")} />
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -10 }} 
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-2 w-full min-w-[180px] overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl custom-scrollbar"
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.v}
+                onClick={() => { onChange(opt.v); setIsOpen(false); }}
+                className={cn(
+                  "relative flex items-center justify-between cursor-pointer py-3 px-4 text-[10px] font-black uppercase tracking-widest transition-colors",
+                  value === opt.v ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                )}
+              >
+                <span className="truncate">{opt.l}</span>
+                {value === opt.v && <Check size={14} className="shrink-0 ml-2 text-blue-600" />}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const UserManagement = () => {
   const { authFetch } = useAuth();
@@ -118,7 +184,7 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
+    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col relative">
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -142,28 +208,30 @@ const UserManagement = () => {
       {/* Toolbar */}
       <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-4 top-4 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
           <input 
             type="text" 
             placeholder="Search users..." 
-            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+            className="w-full pl-11 pr-4 h-[50px] bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
             value={searchTerm} onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
           />
         </div>
-        <div className="relative min-w-[220px]">
-          <Filter className="absolute left-4 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
-          <select 
-            className="w-full pl-11 pr-8 py-3.5 border border-slate-200 rounded-2xl text-xs bg-white focus:ring-4 focus:ring-blue-500/10 outline-none appearance-none font-black text-slate-600 uppercase tracking-widest cursor-pointer"
-            value={roleFilter} onChange={(e) => {setRoleFilter(e.target.value); setCurrentPage(1);}}
-          >
-            <option value="">All Account Roles</option>
-            <option value="admin">Admin</option>
-            <option value="student">Student</option>
-            <option value="dean">School Dean</option>
-            <option value="hod">HOD</option>
-            <option value="staff">Staff</option>
-          </select>
-        </div>
+        
+        {/* --- CUSTOM DROPDOWN INTEGRATION --- */}
+        <FilterDropdown 
+          icon={Filter}
+          value={roleFilter}
+          onChange={(val) => { setRoleFilter(val); setCurrentPage(1); }}
+          options={[
+            { v: '', l: 'All Account Roles' },
+            { v: 'admin', l: 'Admin' },
+            { v: 'student', l: 'Student' },
+            { v: 'dean', l: 'School Dean' },
+            { v: 'hod', l: 'HOD' },
+            { v: 'staff', l: 'Staff' }
+          ]}
+        />
+
       </div>
 
       {/* Users Table */}
@@ -275,6 +343,13 @@ const UserManagement = () => {
 
       <RegisterUserModal isOpen={isRegisterModalOpen} onClose={() => { setIsRegisterModalOpen(false); setEditingUser(null); }} onSuccess={fetchUsers} initialData={editingUser} />
       <DeleteConfirmModal isOpen={!!deletingUser} onClose={() => setDeletingUser(null)} onConfirm={confirmDelete} userName={deletingUser?.name} isLoading={isDeleteLoading} />
+      
+      {/* Global Scrollbar Style */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };
